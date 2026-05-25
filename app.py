@@ -74,16 +74,19 @@ h1, h2, h3, h4, h5, h6 {
     box-shadow: 0 0 0 3px rgba(46,125,50,0.15) !important;
 }
 .stButton > button {
-    color: #ffffff !important;
-    border: none !important;
-    background-color: #2e7d32 !important;
+    color: #2e7d32 !important;
+    border: 1.5px solid #2e7d32 !important;
+    background-color: #ffffff !important;
     border-radius: 6px !important;
     padding: 10px 28px !important;
     font-size: 14px !important;
     font-weight: 500 !important;
-    transition: background-color 0.2s ease !important;
+    transition: all 0.2s ease !important;
 }
-.stButton > button:hover { background-color: #1b5e20 !important; }
+.stButton > button:hover {
+    background-color: #2e7d32 !important;
+    color: #ffffff !important;
+}
 [data-testid="stDataFrame"] thead th, [data-testid="stDataFrame"] th {
     background-color: #2e7d32 !important;
     color: #ffffff !important;
@@ -154,10 +157,46 @@ hr { border: none !important; border-top: 1px solid #eeeeee !important; margin: 
 </style>
 """, unsafe_allow_html=True)
 
-st.title("PE/VC 분기 보고 도우미")
+st.markdown("""
+<div style="display:flex; align-items:center; gap:16px; padding: 8px 0 20px 0; border-bottom: 2px solid #2e7d32; margin-bottom: 24px;">
+  <div style="line-height:1;">
+    <span style="font-family:'Georgia',serif; font-size:36px; font-weight:700; color:#2e7d32;">S</span><span style="font-family:'Georgia',serif; font-size:36px; font-weight:700; color:#1a1a1a;">DIC</span>
+  </div>
+  <div style="width:1px; height:40px; background:#ddd;"></div>
+  <div>
+    <div style="font-size:22px; font-weight:600; color:#1a1a1a; letter-spacing:-0.02em;">PE/VC 분기 보고 도우미</div>
+    <div style="font-size:12px; color:#999; margin-top:2px;">이수빈 · SKKU Digital IT Consulting</div>
+  </div>
+</div>
+""", unsafe_allow_html=True)
 
-# ── 사이드바: 데이터 로드 & 저장 ─────────────────
+# ── 사이드바: 표지 ───────────────────────────────
 with st.sidebar:
+    st.markdown("""
+<div style="padding: 20px 8px 12px 8px; border-bottom: 1px solid #e0e0e0; margin-bottom: 16px;">
+
+  <!-- SDIC 로고 -->
+  <div style="line-height:1; margin-bottom: 4px;">
+    <span style="font-family: 'Georgia', serif; font-size: 42px; font-weight: 700; color: #2e7d32; letter-spacing:-1px;">S</span><span style="font-family: 'Georgia', serif; font-size: 42px; font-weight: 700; color: #1a1a1a; letter-spacing:-1px;">DIC</span>
+  </div>
+  <div style="font-size: 10px; color: #888; letter-spacing: 0.12em; font-weight: 500; margin-bottom: 14px;">SKKU · Digital IT Consulting</div>
+
+  <!-- 프로젝트명 + 이름 -->
+  <div style="font-size: 15px; font-weight: 600; color: #1a1a1a; margin-bottom: 2px;">PE/VC 분기 보고 도우미</div>
+  <div style="font-size: 11px; color: #999; margin-bottom: 16px;">이수빈 개인 프로젝트</div>
+
+  <!-- API 배지 -->
+  <div style="font-size: 10px; color: #aaa; letter-spacing:0.08em; margin-bottom: 8px; font-weight:500;">POWERED BY</div>
+  <div style="display:flex; flex-wrap:wrap; gap:5px;">
+    <span style="background:#f0faf0; border:1px solid #c8e6c9; color:#2e7d32; border-radius:4px; padding:3px 7px; font-size:10px; font-weight:600;">DART</span>
+    <span style="background:#e8f4fd; border:1px solid #b3d9f7; color:#1565c0; border-radius:4px; padding:3px 7px; font-size:10px; font-weight:600;">ECOS</span>
+    <span style="background:#fff8e1; border:1px solid #ffe082; color:#e65100; border-radius:4px; padding:3px 7px; font-size:10px; font-weight:600;">KVIC</span>
+    <span style="background:#f0faf0; border:1px solid #a5d6a7; color:#1b5e20; border-radius:4px; padding:3px 7px; font-size:10px; font-weight:600;">NAVER</span>
+    <span style="background:#fce4ec; border:1px solid #f48fb1; color:#880e4f; border-radius:4px; padding:3px 7px; font-size:10px; font-weight:600;">Claude</span>
+  </div>
+</div>
+""", unsafe_allow_html=True)
+
     st.header("데이터 로드")
     uploaded = st.file_uploader("CSV 또는 Excel 업로드", type=["csv", "xlsx"])
     use_sample = st.button("샘플 데이터 불러오기")
