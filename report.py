@@ -14,7 +14,8 @@ def _load_korean_font(pdf: FPDF) -> str:
     """사용 가능한 한글 폰트를 찾아 등록 후 폰트명 반환"""
     for path, name in _FONT_CANDIDATES:
         if os.path.exists(path):
-            pdf.add_font(name, "", path, uni=True)
+            # fpdf2 2.x: uni=True 파라미터 제거됨, Unicode는 기본 지원
+            pdf.add_font(name, "", path)
             return name
     return None
 
