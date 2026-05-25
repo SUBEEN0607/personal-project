@@ -1,4 +1,5 @@
 import pandas as pd
+from irr import xirr, build_cashflows_from_row
 
 
 def load_portfolio(csv_path: str) -> pd.DataFrame:
@@ -14,15 +15,8 @@ def calculate_moic(row: pd.Series) -> float:
 
 
 def calculate_irr(row: pd.Series) -> float:
-    """단순 2-현금흐름 IRR: (총가치/투자금)^(1/연수) - 1"""
-    years = (row["기준일"] - row["투자일"]).days / 365.25
-    if years <= 0:
-        return 0.0
-    total = row["현재가치_백만원"] + row["회수금액_백만원"]
-    if total <= 0:
-        return -100.0
-    irr = (total / row["투자금액_백만원"]) ** (1 / years) - 1
-    return round(irr * 100, 2)
+    cashflows = build_cashflows_from_row(row)
+    return xirr(cashflows)
 
 
 def calculate_dpi(row: pd.Series) -> float:
@@ -63,16 +57,3 @@ def portfolio_summary(df: pd.DataFrame) -> dict:
         "펀드 RVPI": round(total_current / total_invested, 2),
         "펀드 TVPI": round(total_value / total_invested, 2),
     }
-
-
-if __name__ == "__main__":
-    df = load_portfolio("sample_portfolio.csv")
-    result_df = run_all(df)
-
-    print("=== 펀드 요약 ===")
-    for k, v in portfolio_summary(df).items():
-        print(f"  {k}: {v}")
-
-    print("\n=== 포트폴리오사별 지표 ===")
-    cols = ["회사명", "MOIC", "IRR(%)", "DPI", "RVPI", "TVPI"]
-    print(result_df[cols].to_string(index=False))
