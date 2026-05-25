@@ -257,29 +257,38 @@ with tab1:
         c5.metric("펀드 RVPI", f"{summary['펀드 RVPI']}x")
         st.divider()
 
+        _GREEN = ["#1b5e20","#2e7d32","#388e3c","#43a047","#66bb6a","#81c784","#a5d6a7","#c8e6c9"]
+
         col1, col2 = st.columns(2)
         with col1:
             fig = px.bar(
                 result_df.sort_values("MOIC", ascending=False),
                 x="회사명", y="MOIC", color="섹터",
+                color_discrete_sequence=_GREEN,
                 title="포트폴리오사별 MOIC",
                 labels={"MOIC": "MOIC (x)", "회사명": ""},
             )
-            fig.add_hline(y=1.0, line_dash="dash", line_color="red", annotation_text="1x")
+            fig.add_hline(y=1.0, line_dash="dash", line_color="#e53935", annotation_text="1x")
             st.plotly_chart(fig, use_container_width=True)
 
         with col2:
             sector_df = df.groupby("섹터")["투자금액_백만원"].sum().reset_index()
-            fig2 = px.pie(sector_df, names="섹터", values="투자금액_백만원", title="섹터별 투자 비중")
+            fig2 = px.pie(
+                sector_df, names="섹터", values="투자금액_백만원",
+                title="섹터별 투자 비중",
+                color_discrete_sequence=_GREEN,
+            )
+            fig2.update_traces(textinfo="label+percent", hole=0.35)
             st.plotly_chart(fig2, use_container_width=True)
 
         fig3 = px.scatter(
             result_df, x="IRR(%)", y="MOIC",
             text="회사명", color="섹터", size="투자금액_백만원",
+            color_discrete_sequence=_GREEN,
             title="MOIC vs IRR — 버블 크기: 투자금액",
         )
         fig3.update_traces(textposition="top center")
-        fig3.add_hline(y=1.0, line_dash="dash", line_color="red")
+        fig3.add_hline(y=1.0, line_dash="dash", line_color="#e53935")
         st.plotly_chart(fig3, use_container_width=True)
 
         st.divider()
@@ -321,8 +330,8 @@ with tab2:
         fig.add_trace(go.Scatter(
             x=trend["날짜"], y=trend["누적현금흐름"],
             mode="lines+markers", name="누적 순현금흐름",
-            line=dict(color="royalblue", width=2),
-            fill="tozeroy", fillcolor="rgba(65,105,225,0.1)",
+            line=dict(color="#2e7d32", width=2),
+            fill="tozeroy", fillcolor="rgba(46,125,50,0.1)",
         ))
         fig.add_hline(y=0, line_dash="dash", line_color="red", annotation_text="손익분기")
         fig.update_layout(
@@ -381,11 +390,15 @@ with tab3:
             )
             fig = px.bar(
                 sim_df, x="Exit 배수", y="IRR (%)",
-                color="IRR (%)", color_continuous_scale="RdYlGn",
-                title=f"{company} — Exit 배수별 예상 IRR",
+                color="IRR (%)", color_continuous_scale="Greens",
+                title=f"{company} — Exit 배수별 예상 IRR (목표 {target_irr}% 기준선)",
                 text="IRR (%)",
             )
-            fig.add_hline(y=20, line_dash="dash", line_color="blue", annotation_text="IRR 20%")
+            fig.add_hline(
+                y=target_irr, line_dash="dash", line_color="#2e7d32",
+                annotation_text=f"목표 IRR {target_irr}%",
+                annotation_font_color="#2e7d32",
+            )
             fig.update_traces(texttemplate="%{text}%", textposition="outside")
             st.plotly_chart(fig, use_container_width=True)
             st.dataframe(sim_df, use_container_width=True)
@@ -418,11 +431,14 @@ with tab4:
         st.info("저장된 분기 데이터가 없습니다.\n\n데이터 로드 후 사이드바에서 [현재 데이터 저장]을 눌러 분기를 누적하세요.")
     else:
         trend_df = load_trend()
+        _LINE_COLORS = {"TVPI": "#1b5e20", "DPI": "#43a047", "RVPI": "#a5d6a7"}
         fig = go.Figure()
         for metric in ["TVPI", "DPI", "RVPI"]:
             fig.add_trace(go.Scatter(
                 x=trend_df["quarter"], y=trend_df[metric],
                 mode="lines+markers", name=metric,
+                line=dict(color=_LINE_COLORS[metric], width=2),
+                marker=dict(color=_LINE_COLORS[metric], size=8),
             ))
         fig.update_layout(title="분기별 펀드 지표 추이", xaxis_title="분기", yaxis_title="배수 (x)")
         st.plotly_chart(fig, use_container_width=True)
@@ -629,7 +645,7 @@ with tab7:
                 fig_s = px.bar(
                     top15, x="총약정액(억원)", y="투자분야",
                     orientation="h", color="조합수",
-                    color_continuous_scale="Blues",
+                    color_continuous_scale="Greens",
                     title=f"{kvic_year}년 모태펀드 분야별 약정액",
                     labels={"총약정액(억원)": "약정액 (억원)", "투자분야": ""},
                 )
