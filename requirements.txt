@@ -4,3 +4,7 @@ pandas
 python-dotenv
 plotly
 sentence-transformers
+scipy
+dart-fss
+openpyxl
+fpdf2
