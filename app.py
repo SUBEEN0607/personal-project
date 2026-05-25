@@ -17,7 +17,10 @@ from report import (
     generate_macro_pdf,
 )
 from dart_client import search_company, get_financials
-from benchmark import get_base_rate, get_exchange_rate, get_vc_trend
+from benchmark import (
+    get_base_rate, get_exchange_rate, get_vc_trend,
+    get_kvic_sector_summary, get_kvic_yearly_trend,
+)
 from commentary import (
     generate_commentary,
     interpret_jcurve,
@@ -430,23 +433,72 @@ with tab7:
 
     st.divider()
 
-    # 중소벤처기업부 섹션
-    st.markdown("#### 국내 VC 벤처투자 트렌드 (중소벤처기업부)")
+    # ── KVIC 한국벤처투자 섹션
+    st.markdown("#### 🏦 한국벤처투자(KVIC) 모태펀드 시장 벤치마크")
 
     import os
-    if not os.getenv("MSME_API_KEY"):
-        st.info(
-            "**MSME_API_KEY가 필요합니다.**\n\n"
-            "1. [data.go.kr](https://www.data.go.kr) 접속\n"
-            "2. '벤처투자 정보 서비스' 검색\n"
-            "3. 활용신청 → 발급된 키를 `.env`에 추가\n\n"
-            "```\nMSME_API_KEY=발급받은키\n```"
-        )
+    if not os.getenv("KVIC_API_KEY"):
+        st.info("KVIC_API_KEY가 없습니다. `.env`에 `KVIC_API_KEY=키값` 추가 후 재시작하세요.")
     else:
-        if st.button("VC 트렌드 불러오기"):
-            with st.spinner("중소벤처기업부 API 조회 중..."):
-                vc_df = get_vc_trend()
-            if not vc_df.empty:
-                st.dataframe(vc_df, use_container_width=True)
-            else:
-                st.warning("데이터를 불러올 수 없습니다.")
+        col_l, col_r = st.columns(2)
+        with col_l:
+            kvic_year = st.selectbox(
+                "조회 연도", list(range(2024, 2018, -1)), index=0, key="kvic_year"
+            )
+        with col_r:
+            st.write("")
+            load_kvic = st.button("KVIC 데이터 불러오기", key="kvic_load")
+
+        if load_kvic:
+            with st.spinner("한국벤처투자 API 조회 중..."):
+                sector_df = get_kvic_sector_summary(kvic_year)
+                trend_df_kvic = get_kvic_yearly_trend(list(range(2019, kvic_year + 1)))
+            st.session_state["kvic_sector"] = sector_df
+            st.session_state["kvic_trend"] = trend_df_kvic
+
+        if "kvic_sector" in st.session_state and not st.session_state["kvic_sector"].empty:
+            sector_df = st.session_state["kvic_sector"]
+            trend_df_kvic = st.session_state.get("kvic_trend", pd.DataFrame())
+
+            col1, col2 = st.columns(2)
+            with col1:
+                st.markdown(f"**{kvic_year}년 분야별 조합 현황 (상위 15)**")
+                top15 = sector_df.head(15)
+                fig_s = px.bar(
+                    top15, x="총약정액(억원)", y="투자분야",
+                    orientation="h", color="조합수",
+                    color_continuous_scale="Blues",
+                    title=f"{kvic_year}년 모태펀드 분야별 약정액",
+                    labels={"총약정액(억원)": "약정액 (억원)", "투자분야": ""},
+                )
+                fig_s.update_layout(yaxis=dict(autorange="reversed"), height=420)
+                st.plotly_chart(fig_s, use_container_width=True)
+
+                total_funds = sector_df["조합수"].sum()
+                total_amt = sector_df["총약정액(억원)"].sum()
+                st.metric("전체 조합 수", f"{total_funds:,}개")
+                st.metric("총 약정액", f"{total_amt:,}억원")
+
+            with col2:
+                if not trend_df_kvic.empty:
+                    st.markdown("**연도별 결성 추이 (2019~)**")
+                    fig_t = px.bar(
+                        trend_df_kvic, x="연도", y="총약정액(억원)",
+                        color="결성조합수", color_continuous_scale="Greens",
+                        title="연도별 모태펀드 결성 규모",
+                        text="결성조합수",
+                    )
+                    fig_t.update_traces(texttemplate="%{text}개", textposition="outside")
+                    st.plotly_chart(fig_t, use_container_width=True)
+
+                # 포트폴리오 섹터와 시장 비교
+                if "result_df" in st.session_state:
+                    st.markdown("**내 포트폴리오 섹터 vs 시장 분야 매핑**")
+                    my_sectors = st.session_state["result_df"]["섹터"].value_counts().reset_index()
+                    my_sectors.columns = ["섹터", "투자기업수"]
+                    st.dataframe(my_sectors, use_container_width=True)
+                    st.caption("↑ 내 포트폴리오 섹터 비중 (KVIC 분야와 비교)")
+
+            st.divider()
+            with st.expander("전체 분야별 데이터 보기"):
+                st.dataframe(sector_df, use_container_width=True)
