@@ -31,6 +31,129 @@ from commentary import (
 )
 
 st.set_page_config(page_title="PE/VC 분기 보고 도우미", layout="wide")
+
+st.markdown("""
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap');
+@import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css');
+
+html, body, [class*="css"], .stApp {
+    font-family: 'Pretendard', 'Noto Sans KR', sans-serif;
+    background-color: #ffffff !important;
+    color: #1a1a1a !important;
+}
+[data-testid="stAppViewContainer"] { background-color: #ffffff !important; }
+[data-testid="stSidebar"] {
+    background-color: #f2f2f2 !important;
+    border-right: 1px solid #eeeeee !important;
+    border-left: 3px solid #2e7d32 !important;
+}
+h1, h2, h3, h4, h5, h6 {
+    color: #1a1a1a !important;
+    font-weight: 500 !important;
+    letter-spacing: -0.02em !important;
+}
+.stMarkdown, .stText, label, .stDataFrame, .stAlert, .stSidebar, .stSidebar * {
+    color: #1a1a1a !important;
+}
+.stTextInput > div > div > input {
+    border: 1px solid #e0e0e0 !important;
+    border-radius: 6px !important;
+    padding: 10px 14px !important;
+    font-size: 15px !important;
+    background-color: #ffffff !important;
+    color: #1a1a1a !important;
+    transition: border-color 0.2s ease !important;
+}
+.stTextInput > div > div > input:focus {
+    border-color: #2e7d32 !important;
+    box-shadow: 0 0 0 3px rgba(46,125,50,0.15) !important;
+}
+[data-baseweb="input"]:focus-within {
+    border-color: #2e7d32 !important;
+    box-shadow: 0 0 0 3px rgba(46,125,50,0.15) !important;
+}
+.stButton > button {
+    color: #ffffff !important;
+    border: none !important;
+    background-color: #2e7d32 !important;
+    border-radius: 6px !important;
+    padding: 10px 28px !important;
+    font-size: 14px !important;
+    font-weight: 500 !important;
+    transition: background-color 0.2s ease !important;
+}
+.stButton > button:hover { background-color: #1b5e20 !important; }
+[data-testid="stDataFrame"] thead th, [data-testid="stDataFrame"] th {
+    background-color: #2e7d32 !important;
+    color: #ffffff !important;
+    font-weight: 600 !important;
+    text-align: center !important;
+    padding: 12px 16px !important;
+    border: none !important;
+}
+[data-testid="stDataFrame"] tbody td, [data-testid="stDataFrame"] td {
+    text-align: center !important;
+    padding: 10px 16px !important;
+    border-bottom: 1px solid #f0f0f0 !important;
+    color: #1a1a1a !important;
+    font-size: 14px !important;
+}
+[data-testid="stDataFrame"] tbody tr:nth-child(even) td { background-color: #f9fafb !important; }
+[data-testid="stDataFrame"] tbody tr:hover td { background-color: #e8f5e9 !important; }
+hr { border: none !important; border-top: 1px solid #eeeeee !important; margin: 12px 0 !important; }
+[data-testid="stVerticalBlockBorderWrapper"] {
+    border: 1px solid #e8e8e8 !important;
+    border-radius: 12px !important;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.12), 0 2px 6px rgba(0,0,0,0.08) !important;
+    background: #ffffff !important;
+    transition: transform 0.2s ease, box-shadow 0.2s ease !important;
+}
+[data-testid="stVerticalBlockBorderWrapper"]:hover {
+    transform: translateY(-4px) !important;
+    box-shadow: 0 12px 32px rgba(46,125,50,0.15), 0 4px 10px rgba(0,0,0,0.08) !important;
+}
+[data-testid="stMetric"] {
+    background: #ffffff;
+    border: 1px solid #e8e8e8;
+    border-radius: 12px;
+    padding: 16px 20px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+[data-testid="stMetricLabel"] { font-size: 11px !important; color: #999 !important; letter-spacing: 0.07em; text-transform: uppercase; }
+[data-testid="stMetricValue"] { font-size: 28px !important; font-weight: 700 !important; color: #1a1a1a !important; letter-spacing: -0.03em; }
+[data-testid="stMetricDelta"] { font-size: 13px !important; font-weight: 500 !important; }
+[data-baseweb="tab-list"] { border-bottom: 2px solid #eeeeee !important; gap: 4px; }
+[data-baseweb="tab"] {
+    font-size: 14px !important;
+    font-weight: 500 !important;
+    color: #666 !important;
+    padding: 10px 18px !important;
+    border-radius: 6px 6px 0 0 !important;
+}
+[aria-selected="true"][data-baseweb="tab"] {
+    color: #2e7d32 !important;
+    border-bottom: 2px solid #2e7d32 !important;
+    background-color: #f1f8f1 !important;
+}
+[data-testid="stSelectbox"] > div > div {
+    border: 1px solid #e0e0e0 !important;
+    border-radius: 6px !important;
+}
+[data-testid="stSlider"] [data-baseweb="slider"] [data-testid="stThumbValue"],
+[data-testid="stSlider"] [role="slider"] { color: #2e7d32 !important; }
+[data-testid="stSlider"] [data-baseweb="slider"] div[style*="background"] { background-color: #2e7d32 !important; }
+.stDownloadButton > button {
+    background-color: #f1f8f1 !important;
+    color: #2e7d32 !important;
+    border: 1px solid #2e7d32 !important;
+    border-radius: 6px !important;
+}
+.stDownloadButton > button:hover { background-color: #2e7d32 !important; color: #ffffff !important; }
+[data-testid="stExpander"] { border: 1px solid #e8e8e8 !important; border-radius: 8px !important; }
+</style>
+""", unsafe_allow_html=True)
+
 st.title("PE/VC 분기 보고 도우미")
 
 # ── 사이드바: 데이터 로드 & 저장 ─────────────────
@@ -483,7 +606,7 @@ with tab7:
                 if not trend_df_kvic.empty:
                     st.markdown("**연도별 결성 추이 (2019~)**")
                     fig_t = px.bar(
-                        trend_df_kvic, x="연도", y="총약정액(억원)",
+                        trend_df_kvic, x="결성연도", y="총약정액(억원)",
                         color="결성조합수", color_continuous_scale="Greens",
                         title="연도별 모태펀드 결성 규모",
                         text="결성조합수",
