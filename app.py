@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
+import base64, os
 
 from calculator import load_portfolio, run_all, portfolio_summary
 from rag import answer_question
@@ -157,10 +158,92 @@ hr { border: none !important; border-top: 1px solid #eeeeee !important; margin: 
 </style>
 """, unsafe_allow_html=True)
 
-st.markdown("""
-<div style="display:flex; align-items:center; gap:16px; padding: 8px 0 20px 0; border-bottom: 2px solid #2e7d32; margin-bottom: 24px;">
+# ── 배경 이미지 base64 로드 ───────────────────────
+_wp_path = os.path.join(os.path.dirname(__file__), "skku_wallpaper.jpg")
+_wp_b64 = ""
+if os.path.exists(_wp_path):
+    with open(_wp_path, "rb") as _f:
+        _wp_b64 = base64.b64encode(_f.read()).decode()
+
+_no_data = "result_df" not in st.session_state
+
+if _no_data:
+    # ── 표지: 데이터 로드 전 ──────────────────────
+    st.markdown(f"""
+<style>
+[data-testid="stAppViewContainer"] {{
+    background:
+        linear-gradient(160deg, rgba(180,210,160,0.85) 0%, rgba(30,60,35,0.92) 100%),
+        url('data:image/jpeg;base64,{_wp_b64}') center 60%/cover no-repeat !important;
+}}
+[data-testid="stSidebar"] {{
+    background-color: rgba(40,60,40,0.25) !important;
+    border-left: 3px solid rgba(10,80,20,0.7) !important;
+}}
+[data-testid="stMain"] * {{
+    background-color: transparent !important;
+    background: transparent !important;
+}}
+</style>
+<div style="
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    min-height:72vh; text-align:center; padding: 60px 20px 40px 20px;
+">
+  <!-- 로고 -->
+  <div style="line-height:1; margin-bottom:10px;">
+    <span style="font-family:'Georgia',serif; font-size:72px; font-weight:700;
+                 color:#ffffff; text-shadow:2px 3px 12px rgba(0,0,0,0.4);">S</span>
+    <span style="font-family:'Georgia',serif; font-size:72px; font-weight:700;
+                 color:#e8f5e9; text-shadow:2px 3px 12px rgba(0,0,0,0.4);">DIC</span>
+  </div>
+  <div style="font-size:13px; color:rgba(255,255,255,0.75); letter-spacing:0.18em;
+              font-weight:500; margin-bottom:36px;">
+    SKKU · Digital IT Consulting
+  </div>
+
+  <!-- 타이틀 -->
+  <div style="font-size:42px; font-weight:700; color:#ffffff;
+              letter-spacing:-0.02em; text-shadow:1px 2px 10px rgba(0,0,0,0.35);
+              margin-bottom:12px; line-height:1.2;">
+    PE/VC 분기 보고 도우미
+  </div>
+  <div style="font-size:15px; color:rgba(255,255,255,0.7); margin-bottom:48px;">
+    이수빈 · SDIC 개인 프로젝트
+  </div>
+
+  <!-- API 배지 -->
+  <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:center; margin-bottom:48px;">
+    <span style="background:rgba(255,255,255,0.15); border:1px solid rgba(255,255,255,0.35);
+                 color:#fff; border-radius:20px; padding:5px 14px; font-size:12px; font-weight:600;
+                 backdrop-filter:blur(4px);">DART</span>
+    <span style="background:rgba(255,255,255,0.15); border:1px solid rgba(255,255,255,0.35);
+                 color:#fff; border-radius:20px; padding:5px 14px; font-size:12px; font-weight:600;
+                 backdrop-filter:blur(4px);">ECOS</span>
+    <span style="background:rgba(255,255,255,0.15); border:1px solid rgba(255,255,255,0.35);
+                 color:#fff; border-radius:20px; padding:5px 14px; font-size:12px; font-weight:600;
+                 backdrop-filter:blur(4px);">KVIC</span>
+    <span style="background:rgba(255,255,255,0.15); border:1px solid rgba(255,255,255,0.35);
+                 color:#fff; border-radius:20px; padding:5px 14px; font-size:12px; font-weight:600;
+                 backdrop-filter:blur(4px);">Naver</span>
+    <span style="background:rgba(255,255,255,0.15); border:1px solid rgba(255,255,255,0.35);
+                 color:#fff; border-radius:20px; padding:5px 14px; font-size:12px; font-weight:600;
+                 backdrop-filter:blur(4px);">Claude AI</span>
+  </div>
+
+  <div style="font-size:13px; color:rgba(255,255,255,0.55); letter-spacing:0.04em;">
+    ← 사이드바에서 데이터를 로드하세요
+  </div>
+</div>
+""", unsafe_allow_html=True)
+
+else:
+    # ── 일반 헤더: 데이터 로드 후 ────────────────
+    st.markdown("""
+<div style="display:flex; align-items:center; gap:16px;
+            padding: 8px 0 20px 0; border-bottom: 2px solid #2e7d32; margin-bottom: 24px;">
   <div style="line-height:1;">
-    <span style="font-family:'Georgia',serif; font-size:36px; font-weight:700; color:#2e7d32;">S</span><span style="font-family:'Georgia',serif; font-size:36px; font-weight:700; color:#1a1a1a;">DIC</span>
+    <span style="font-family:'Georgia',serif; font-size:36px; font-weight:700; color:#2e7d32;">S</span>
+    <span style="font-family:'Georgia',serif; font-size:36px; font-weight:700; color:#1a1a1a;">DIC</span>
   </div>
   <div style="width:1px; height:40px; background:#ddd;"></div>
   <div>
@@ -281,15 +364,38 @@ with tab1:
             fig2.update_traces(textinfo="label+percent", hole=0.35)
             st.plotly_chart(fig2, use_container_width=True)
 
-        fig3 = px.scatter(
-            result_df, x="IRR(%)", y="MOIC",
-            text="회사명", color="섹터", size="투자금액_백만원",
-            color_discrete_sequence=_GREEN,
-            title="MOIC vs IRR — 버블 크기: 투자금액",
-        )
-        fig3.update_traces(textposition="top center")
-        fig3.add_hline(y=1.0, line_dash="dash", line_color="#e53935")
-        st.plotly_chart(fig3, use_container_width=True)
+        col_a, col_b = st.columns(2)
+        with col_a:
+            # 투자금액 트리맵 — 크기 비교 직관적
+            fig3 = px.treemap(
+                result_df,
+                path=["섹터", "회사명"],
+                values="투자금액_백만원",
+                color="MOIC",
+                color_continuous_scale=["#c8e6c9", "#2e7d32", "#1b5e20"],
+                title="투자금액 비중 (크기) & MOIC (색상)",
+                hover_data={"IRR(%)": True, "TVPI": True},
+            )
+            fig3.update_traces(textinfo="label+value", textfont_size=13)
+            st.plotly_chart(fig3, use_container_width=True)
+
+        with col_b:
+            # 개선된 버블차트: sizeref 조정으로 크기 차이 강조
+            max_size = result_df["투자금액_백만원"].max()
+            fig4 = px.scatter(
+                result_df, x="IRR(%)", y="MOIC",
+                text="회사명", color="섹터", size="투자금액_백만원",
+                color_discrete_sequence=_GREEN,
+                title="MOIC vs IRR (버블=투자금액)",
+                size_max=70,
+            )
+            fig4.update_traces(
+                textposition="top center",
+                marker=dict(sizeref=2.0 * max_size / (70 ** 2), sizemode="area", opacity=0.8),
+            )
+            fig4.add_hline(y=1.0, line_dash="dash", line_color="#e53935", annotation_text="MOIC 1x")
+            fig4.add_vline(x=0, line_dash="dash", line_color="#bbb")
+            st.plotly_chart(fig4, use_container_width=True)
 
         st.divider()
         st.subheader("포트폴리오사별 지표")
