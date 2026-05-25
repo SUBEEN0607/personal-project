@@ -4,14 +4,28 @@ import plotly.express as px
 import plotly.graph_objects as go
 
 from calculator import load_portfolio, run_all, portfolio_summary
-from commentary import generate_commentary
 from rag import answer_question
 from irr import j_curve_data
 from simulator import simulate_exit, optimal_exit_timing
 from db import save_snapshot, load_quarters, load_trend
-from report import generate_pdf
+from report import (
+    generate_pdf,
+    generate_jcurve_pdf,
+    generate_scenario_pdf,
+    generate_quarterly_pdf,
+    generate_dart_pdf,
+    generate_macro_pdf,
+)
 from dart_client import search_company, get_financials
 from benchmark import get_base_rate, get_exchange_rate, get_vc_trend
+from commentary import (
+    generate_commentary,
+    interpret_jcurve,
+    interpret_scenario,
+    interpret_quarterly_trend,
+    interpret_dart_financials,
+    interpret_macro,
+)
 
 st.set_page_config(page_title="PE/VC 분기 보고 도우미", layout="wide")
 st.title("PE/VC 분기 보고 도우미")
@@ -152,6 +166,18 @@ with tab2:
         )
         st.plotly_chart(fig, use_container_width=True)
         st.caption("컬럼: 회사명, 날짜(YYYY-MM-DD), 현금흐름_백만원 — 투자=음수, 배당·회수=양수")
+
+        st.divider()
+        if st.button("📄 J-Curve 보고서 생성 (AI 해석 포함)", key="jcurve_pdf"):
+            with st.spinner("AI 해석 생성 중..."):
+                ai_text = interpret_jcurve(trend)
+                pdf_bytes = generate_jcurve_pdf(trend, ai_text, quarter)
+            st.text_area("AI 해석 미리보기", ai_text, height=200)
+            st.download_button(
+                "PDF 다운로드", pdf_bytes,
+                file_name=f"jcurve_{quarter or 'report'}.pdf",
+                mime="application/pdf",
+            )
     else:
         st.info("현금흐름 CSV를 업로드하거나 샘플을 불러오세요.")
 
@@ -199,6 +225,26 @@ with tab3:
             st.plotly_chart(fig, use_container_width=True)
             st.dataframe(sim_df, use_container_width=True)
 
+        st.divider()
+        if st.button("📄 시나리오 보고서 생성 (AI 해석 포함)", key="sim_pdf"):
+            opt_result = optimal_exit_timing(
+                raw_r["투자금액_백만원"], raw_r["현재가치_백만원"],
+                raw_r["투자일"], target_irr,
+            )
+            full_sim = simulate_exit(
+                raw_r["투자금액_백만원"], raw_r["투자일"],
+                [0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 4.0, 5.0],
+            )
+            with st.spinner("AI 해석 생성 중..."):
+                ai_text = interpret_scenario(company, full_sim, opt_result)
+                pdf_bytes = generate_scenario_pdf(company, full_sim, opt_result, ai_text, quarter)
+            st.text_area("AI 해석 미리보기", ai_text, height=200)
+            st.download_button(
+                "PDF 다운로드", pdf_bytes,
+                file_name=f"scenario_{company}_{quarter or 'report'}.pdf",
+                mime="application/pdf",
+            )
+
 # ── TAB 4: 분기별 추이 ───────────────────────────
 with tab4:
     st.subheader("분기별 추이")
@@ -217,32 +263,68 @@ with tab4:
         st.plotly_chart(fig, use_container_width=True)
         st.dataframe(trend_df, use_container_width=True)
 
+        st.divider()
+        if st.button("📄 분기 추이 보고서 생성 (AI 해석 포함)", key="trend_pdf"):
+            with st.spinner("AI 해석 생성 중..."):
+                ai_text = interpret_quarterly_trend(trend_df)
+                pdf_bytes = generate_quarterly_pdf(trend_df, ai_text, quarter)
+            st.text_area("AI 해석 미리보기", ai_text, height=200)
+            st.download_button(
+                "PDF 다운로드", pdf_bytes,
+                file_name=f"quarterly_trend_{quarter or 'report'}.pdf",
+                mime="application/pdf",
+            )
+
 # ── TAB 5: DART 조회 ─────────────────────────────
 with tab5:
     st.subheader("DART 기업 재무 조회")
     corp_name = st.text_input("기업명 입력 (예: 삼성전자, 카카오)")
-    if st.button("검색") and corp_name:
+
+    if st.button("검색", key="dart_search") and corp_name:
         with st.spinner("DART에서 검색 중..."):
             results = search_company(corp_name)
         if results:
-            options = {r["corp_name"]: r["corp_code"] for r in results}
-            selected = st.selectbox("기업 선택", list(options.keys()))
-            if st.button("재무제표 조회"):
-                with st.spinner("재무제표 불러오는 중..."):
-                    fin_df = get_financials(options[selected])
-                if not fin_df.empty:
-                    st.dataframe(fin_df, use_container_width=True)
-                    fig = px.bar(
-                        fin_df.melt(id_vars="연도", value_vars=["매출액", "영업이익", "당기순이익"]),
-                        x="연도", y="value", color="variable", barmode="group",
-                        title=f"{selected} 연도별 재무 현황",
-                        labels={"value": "금액 (원)", "variable": "항목"},
-                    )
-                    st.plotly_chart(fig, use_container_width=True)
-                else:
-                    st.warning("재무 데이터를 불러올 수 없습니다.")
+            st.session_state["dart_results"] = results
+            st.session_state["dart_fin_df"] = None
         else:
             st.warning("검색 결과가 없습니다.")
+
+    if "dart_results" in st.session_state and st.session_state["dart_results"]:
+        options = {r["corp_name"]: r["corp_code"] for r in st.session_state["dart_results"]}
+        selected = st.selectbox("기업 선택", list(options.keys()))
+
+        if st.button("재무제표 조회", key="dart_fin"):
+            with st.spinner("재무제표 불러오는 중..."):
+                fin_df = get_financials(options[selected])
+            if not fin_df.empty:
+                st.session_state["dart_fin_df"] = fin_df
+                st.session_state["dart_selected"] = selected
+            else:
+                st.warning("재무 데이터를 불러올 수 없습니다.")
+
+        if st.session_state.get("dart_fin_df") is not None:
+            fin_df = st.session_state["dart_fin_df"]
+            selected_name = st.session_state.get("dart_selected", selected)
+            st.dataframe(fin_df, use_container_width=True)
+            fig = px.bar(
+                fin_df.melt(id_vars="연도", value_vars=["매출액", "영업이익", "당기순이익"]),
+                x="연도", y="value", color="variable", barmode="group",
+                title=f"{selected_name} 연도별 재무 현황",
+                labels={"value": "금액 (원)", "variable": "항목"},
+            )
+            st.plotly_chart(fig, use_container_width=True)
+
+            st.divider()
+            if st.button("📄 DART 재무분석 보고서 생성 (AI 해석 포함)", key="dart_pdf"):
+                with st.spinner("AI 해석 생성 중..."):
+                    ai_text = interpret_dart_financials(selected_name, fin_df)
+                    pdf_bytes = generate_dart_pdf(selected_name, fin_df, ai_text, quarter)
+                st.text_area("AI 해석 미리보기", ai_text, height=200)
+                st.download_button(
+                    "PDF 다운로드", pdf_bytes,
+                    file_name=f"dart_{selected_name}_{quarter or 'report'}.pdf",
+                    mime="application/pdf",
+                )
 
 # ── TAB 6: AI 분석 ───────────────────────────────
 with tab6:
@@ -280,12 +362,22 @@ with tab7:
     months = st.slider("조회 기간 (개월)", 6, 36, 24, key="ecos_months")
 
     if st.button("거시지표 불러오기"):
+        with st.spinner("기준금리 조회 중..."):
+            rate_df = get_base_rate(months)
+        with st.spinner("환율 조회 중..."):
+            fx_df = get_exchange_rate(months)
+        st.session_state["macro_rate_df"] = rate_df
+        st.session_state["macro_fx_df"] = fx_df
+
+    rate_df = st.session_state.get("macro_rate_df", None)
+    fx_df = st.session_state.get("macro_fx_df", None)
+
+    if rate_df is not None or fx_df is not None:
         col1, col2 = st.columns(2)
+        spread = None
 
         with col1:
-            with st.spinner("기준금리 조회 중..."):
-                rate_df = get_base_rate(months)
-            if not rate_df.empty:
+            if rate_df is not None and not rate_df.empty:
                 fig = px.line(rate_df, x="기간", y="기준금리(%)",
                               title="한국은행 기준금리 (%)", markers=True)
                 fig.update_layout(xaxis_title="월", yaxis_title="금리 (%)")
@@ -295,7 +387,6 @@ with tab7:
                 st.metric("현재 기준금리", f"{latest_rate}%")
 
                 if "result_df" in st.session_state:
-                    fund_irr = st.session_state["summary"]["펀드 MOIC"]
                     avg_irr = st.session_state["result_df"]["IRR(%)"].mean()
                     spread = round(avg_irr - latest_rate, 2)
                     st.metric(
@@ -307,9 +398,7 @@ with tab7:
                 st.warning("기준금리 데이터를 불러올 수 없습니다.")
 
         with col2:
-            with st.spinner("환율 조회 중..."):
-                fx_df = get_exchange_rate(months)
-            if not fx_df.empty:
+            if fx_df is not None and not fx_df.empty:
                 fig2 = px.line(fx_df, x="기간", y="원/달러(원)",
                                title="원/달러 환율 월평균", markers=True)
                 fig2.update_layout(xaxis_title="월", yaxis_title="환율 (원)")
@@ -318,6 +407,26 @@ with tab7:
                 st.metric("현재 원/달러", f"{latest_fx:,.0f}원")
             else:
                 st.warning("환율 데이터를 불러올 수 없습니다.")
+
+        st.divider()
+        if st.button("📄 거시지표 보고서 생성 (AI 해석 포함)", key="macro_pdf"):
+            with st.spinner("AI 해석 생성 중..."):
+                ai_text = interpret_macro(
+                    rate_df if rate_df is not None else pd.DataFrame(),
+                    fx_df if fx_df is not None else pd.DataFrame(),
+                    spread,
+                )
+                pdf_bytes = generate_macro_pdf(
+                    rate_df if rate_df is not None else pd.DataFrame(),
+                    fx_df if fx_df is not None else pd.DataFrame(),
+                    ai_text, spread, quarter,
+                )
+            st.text_area("AI 해석 미리보기", ai_text, height=200)
+            st.download_button(
+                "PDF 다운로드", pdf_bytes,
+                file_name=f"macro_{quarter or 'report'}.pdf",
+                mime="application/pdf",
+            )
 
     st.divider()
 
