@@ -443,7 +443,7 @@ with tab7:
         col_l, col_r = st.columns(2)
         with col_l:
             kvic_year = st.selectbox(
-                "조회 연도", list(range(2024, 2018, -1)), index=0, key="kvic_year"
+                "조회 연도", list(range(2023, 2003, -1)), index=0, key="kvic_year"
             )
         with col_r:
             st.write("")
@@ -452,7 +452,7 @@ with tab7:
         if load_kvic:
             with st.spinner("한국벤처투자 API 조회 중..."):
                 sector_df = get_kvic_sector_summary(kvic_year)
-                trend_df_kvic = get_kvic_yearly_trend(list(range(2019, kvic_year + 1)))
+                trend_df_kvic = get_kvic_yearly_trend()
             st.session_state["kvic_sector"] = sector_df
             st.session_state["kvic_trend"] = trend_df_kvic
 
