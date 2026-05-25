@@ -11,6 +11,7 @@ from simulator import simulate_exit, optimal_exit_timing
 from db import save_snapshot, load_quarters, load_trend
 from report import generate_pdf
 from dart_client import search_company, get_financials
+from benchmark import get_base_rate, get_exchange_rate, get_vc_trend
 
 st.set_page_config(page_title="PE/VC 분기 보고 도우미", layout="wide")
 st.title("PE/VC 분기 보고 도우미")
@@ -18,7 +19,6 @@ st.title("PE/VC 분기 보고 도우미")
 # ── 사이드바: 데이터 로드 & 저장 ─────────────────
 with st.sidebar:
     st.header("데이터 로드")
-
     uploaded = st.file_uploader("CSV 또는 Excel 업로드", type=["csv", "xlsx"])
     use_sample = st.button("샘플 데이터 불러오기")
 
@@ -32,7 +32,6 @@ with st.sidebar:
         else:
             st.warning("먼저 데이터를 로드하세요.")
 
-# 데이터 로드 처리
 if uploaded:
     if uploaded.name.endswith(".xlsx"):
         xl = pd.ExcelFile(uploaded)
@@ -57,13 +56,9 @@ elif use_sample:
     st.sidebar.success("샘플 데이터(8개사) 로드됨")
 
 # ── 탭 ───────────────────────────────────────────
-tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
-    "📊 대시보드",
-    "📈 J-Curve",
-    "🎯 시나리오 시뮬레이터",
-    "📅 분기별 추이",
-    "🏢 DART 조회",
-    "💬 AI 분석",
+tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
+    "📊 대시보드", "📈 J-Curve", "🎯 시나리오 시뮬레이터",
+    "📅 분기별 추이", "🏢 DART 조회", "💬 AI 분석", "🌐 거시지표",
 ])
 
 # ── TAB 1: 대시보드 ──────────────────────────────
@@ -218,10 +213,7 @@ with tab4:
                 x=trend_df["quarter"], y=trend_df[metric],
                 mode="lines+markers", name=metric,
             ))
-        fig.update_layout(
-            title="분기별 펀드 지표 추이",
-            xaxis_title="분기", yaxis_title="배수 (x)",
-        )
+        fig.update_layout(title="분기별 펀드 지표 추이", xaxis_title="분기", yaxis_title="배수 (x)")
         st.plotly_chart(fig, use_container_width=True)
         st.dataframe(trend_df, use_container_width=True)
 
@@ -278,3 +270,74 @@ with tab6:
                 with st.spinner("답변 생성 중..."):
                     answer = answer_question(result_df, question)
                 st.info(answer)
+
+# ── TAB 7: 거시지표 ──────────────────────────────
+with tab7:
+    st.subheader("거시지표 & VC 트렌드 벤치마크")
+
+    # ECOS 섹션
+    st.markdown("#### 한국은행 기준금리 & 환율 (ECOS)")
+    months = st.slider("조회 기간 (개월)", 6, 36, 24, key="ecos_months")
+
+    if st.button("거시지표 불러오기"):
+        col1, col2 = st.columns(2)
+
+        with col1:
+            with st.spinner("기준금리 조회 중..."):
+                rate_df = get_base_rate(months)
+            if not rate_df.empty:
+                fig = px.line(rate_df, x="기간", y="기준금리(%)",
+                              title="한국은행 기준금리 (%)", markers=True)
+                fig.update_layout(xaxis_title="월", yaxis_title="금리 (%)")
+                st.plotly_chart(fig, use_container_width=True)
+
+                latest_rate = rate_df["기준금리(%)"].iloc[-1]
+                st.metric("현재 기준금리", f"{latest_rate}%")
+
+                if "result_df" in st.session_state:
+                    fund_irr = st.session_state["summary"]["펀드 MOIC"]
+                    avg_irr = st.session_state["result_df"]["IRR(%)"].mean()
+                    spread = round(avg_irr - latest_rate, 2)
+                    st.metric(
+                        "펀드 평균 IRR vs 기준금리 스프레드",
+                        f"{spread:+.1f}%p",
+                        delta=f"기준금리 {latest_rate}% 대비",
+                    )
+            else:
+                st.warning("기준금리 데이터를 불러올 수 없습니다.")
+
+        with col2:
+            with st.spinner("환율 조회 중..."):
+                fx_df = get_exchange_rate(months)
+            if not fx_df.empty:
+                fig2 = px.line(fx_df, x="기간", y="원/달러(원)",
+                               title="원/달러 환율 월평균", markers=True)
+                fig2.update_layout(xaxis_title="월", yaxis_title="환율 (원)")
+                st.plotly_chart(fig2, use_container_width=True)
+                latest_fx = fx_df["원/달러(원)"].iloc[-1]
+                st.metric("현재 원/달러", f"{latest_fx:,.0f}원")
+            else:
+                st.warning("환율 데이터를 불러올 수 없습니다.")
+
+    st.divider()
+
+    # 중소벤처기업부 섹션
+    st.markdown("#### 국내 VC 벤처투자 트렌드 (중소벤처기업부)")
+
+    import os
+    if not os.getenv("MSME_API_KEY"):
+        st.info(
+            "**MSME_API_KEY가 필요합니다.**\n\n"
+            "1. [data.go.kr](https://www.data.go.kr) 접속\n"
+            "2. '벤처투자 정보 서비스' 검색\n"
+            "3. 활용신청 → 발급된 키를 `.env`에 추가\n\n"
+            "```\nMSME_API_KEY=발급받은키\n```"
+        )
+    else:
+        if st.button("VC 트렌드 불러오기"):
+            with st.spinner("중소벤처기업부 API 조회 중..."):
+                vc_df = get_vc_trend()
+            if not vc_df.empty:
+                st.dataframe(vc_df, use_container_width=True)
+            else:
+                st.warning("데이터를 불러올 수 없습니다.")
