@@ -2,3 +2,5 @@ streamlit
 anthropic
 pandas
 python-dotenv
+plotly
+sentence-transformers
