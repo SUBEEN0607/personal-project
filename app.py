@@ -33,6 +33,10 @@ from commentary import (
 
 st.set_page_config(page_title="PE/VC 분기 보고 도우미", layout="wide")
 
+# ── 표지/앱 전환 상태 ─────────────────────────────
+if "show_cover" not in st.session_state:
+    st.session_state["show_cover"] = True
+
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap');
@@ -155,6 +159,24 @@ hr { border: none !important; border-top: 1px solid #eeeeee !important; margin: 
 }
 .stDownloadButton > button:hover { background-color: #2e7d32 !important; color: #ffffff !important; }
 [data-testid="stExpander"] { border: 1px solid #e8e8e8 !important; border-radius: 8px !important; }
+
+/* 표지 시작하기 버튼 */
+.cover-btn > button {
+    background-color: rgba(255,255,255,0.15) !important;
+    color: #ffffff !important;
+    border: 2px solid rgba(255,255,255,0.7) !important;
+    border-radius: 30px !important;
+    padding: 14px 40px !important;
+    font-size: 16px !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.06em !important;
+    backdrop-filter: blur(4px) !important;
+    transition: all 0.25s ease !important;
+}
+.cover-btn > button:hover {
+    background-color: rgba(255,255,255,0.30) !important;
+    border-color: #ffffff !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -165,10 +187,8 @@ if os.path.exists(_wp_path):
     with open(_wp_path, "rb") as _f:
         _wp_b64 = base64.b64encode(_f.read()).decode()
 
-_no_data = "result_df" not in st.session_state
-
-if _no_data:
-    # ── 표지: 데이터 로드 전 ──────────────────────
+if st.session_state["show_cover"]:
+    # ── 표지 페이지 ──────────────────────────────
     st.markdown(f"""
 <style>
 [data-testid="stAppViewContainer"] {{
@@ -176,10 +196,7 @@ if _no_data:
         linear-gradient(160deg, rgba(180,210,160,0.85) 0%, rgba(30,60,35,0.92) 100%),
         url('data:image/jpeg;base64,{_wp_b64}') center 60%/cover no-repeat !important;
 }}
-[data-testid="stSidebar"] {{
-    background-color: rgba(40,60,40,0.25) !important;
-    border-left: 3px solid rgba(10,80,20,0.7) !important;
-}}
+[data-testid="stSidebar"] {{ display: none !important; }}
 [data-testid="stMain"] * {{
     background-color: transparent !important;
     background: transparent !important;
@@ -212,33 +229,29 @@ if _no_data:
   </div>
 
   <!-- API 배지 -->
-  <div style="display:flex; gap:8px; flex-wrap:wrap; justify-content:center; margin-bottom:48px;">
-    <span style="background:rgba(255,255,255,0.15); border:1px solid rgba(255,255,255,0.35);
-                 color:#fff; border-radius:20px; padding:5px 14px; font-size:12px; font-weight:600;
-                 backdrop-filter:blur(4px);">DART</span>
-    <span style="background:rgba(255,255,255,0.15); border:1px solid rgba(255,255,255,0.35);
-                 color:#fff; border-radius:20px; padding:5px 14px; font-size:12px; font-weight:600;
-                 backdrop-filter:blur(4px);">ECOS</span>
-    <span style="background:rgba(255,255,255,0.15); border:1px solid rgba(255,255,255,0.35);
-                 color:#fff; border-radius:20px; padding:5px 14px; font-size:12px; font-weight:600;
-                 backdrop-filter:blur(4px);">KVIC</span>
-    <span style="background:rgba(255,255,255,0.15); border:1px solid rgba(255,255,255,0.35);
-                 color:#fff; border-radius:20px; padding:5px 14px; font-size:12px; font-weight:600;
-                 backdrop-filter:blur(4px);">Naver</span>
-    <span style="background:rgba(255,255,255,0.15); border:1px solid rgba(255,255,255,0.35);
-                 color:#fff; border-radius:20px; padding:5px 14px; font-size:12px; font-weight:600;
-                 backdrop-filter:blur(4px);">Claude AI</span>
-  </div>
-
-  <div style="font-size:13px; color:rgba(255,255,255,0.55); letter-spacing:0.04em;">
-    ← 사이드바에서 데이터를 로드하세요
+  <div style="display:flex; gap:14px; flex-wrap:wrap; justify-content:center; margin-bottom:52px; align-items:center;">
+    <svg title="DART" width="30" height="30" viewBox="0 0 22 22"><rect width="22" height="22" rx="5" fill="rgba(255,255,255,0.25)"/><path d="M5 6h5.8c2.8 0 4.4 1.5 4.4 4s-1.6 4-4.4 4H7.2V17H5V6zm2.2 5.8h3.2c1.4 0 2.2-.7 2.2-1.8s-.8-1.8-2.2-1.8H7.2v3.6z" fill="white"/></svg>
+    <svg title="ECOS (한국은행)" width="30" height="30" viewBox="0 0 22 22"><circle cx="11" cy="11" r="11" fill="rgba(255,255,255,0.25)"/><text x="11" y="15.5" text-anchor="middle" fill="white" font-size="11" font-weight="700" font-family="serif">₩</text></svg>
+    <svg title="KVIC" width="30" height="30" viewBox="0 0 22 22"><circle cx="11" cy="11" r="11" fill="rgba(255,255,255,0.25)"/><path d="M6 6h2.3v4.2l3.8-4.2H14.8l-4.2 4.5 4.4 5.5h-2.8l-3.1-3.9-1 1.1V16H6z" fill="white"/></svg>
+    <svg title="Naver" width="30" height="30" viewBox="0 0 22 22"><rect width="22" height="22" rx="5" fill="rgba(255,255,255,0.25)"/><path d="M5.5 5.5h3.3l3.9 5.8V5.5h3V16.5h-3.2l-4-5.9v5.9h-3z" fill="white"/></svg>
+    <span title="Claude AI" style="color:white;font-size:28px;line-height:1;display:inline-flex;align-items:center;justify-content:center;">✳</span>
   </div>
 </div>
 """, unsafe_allow_html=True)
 
-else:
-    # ── 일반 헤더: 데이터 로드 후 ────────────────
-    st.markdown("""
+    # 시작하기 버튼 — 가운데 배치
+    col_l, col_c, col_r = st.columns([2, 1, 2])
+    with col_c:
+        st.markdown('<div class="cover-btn">', unsafe_allow_html=True)
+        if st.button("시작하기 →", use_container_width=True):
+            st.session_state["show_cover"] = False
+            st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    st.stop()
+
+# ── 일반 헤더: 표지 통과 후 ──────────────────────
+st.markdown("""
 <div style="display:flex; align-items:center; gap:16px;
             padding: 8px 0 20px 0; border-bottom: 2px solid #2e7d32; margin-bottom: 24px;">
   <div style="line-height:1;">
@@ -270,12 +283,12 @@ with st.sidebar:
 
   <!-- API 배지 -->
   <div style="font-size: 10px; color: #aaa; letter-spacing:0.08em; margin-bottom: 8px; font-weight:500;">POWERED BY</div>
-  <div style="display:flex; flex-wrap:wrap; gap:5px;">
-    <span style="background:#f0faf0; border:1px solid #c8e6c9; color:#2e7d32; border-radius:4px; padding:3px 7px; font-size:10px; font-weight:600;">DART</span>
-    <span style="background:#e8f4fd; border:1px solid #b3d9f7; color:#1565c0; border-radius:4px; padding:3px 7px; font-size:10px; font-weight:600;">ECOS</span>
-    <span style="background:#fff8e1; border:1px solid #ffe082; color:#e65100; border-radius:4px; padding:3px 7px; font-size:10px; font-weight:600;">KVIC</span>
-    <span style="background:#f0faf0; border:1px solid #a5d6a7; color:#1b5e20; border-radius:4px; padding:3px 7px; font-size:10px; font-weight:600;">NAVER</span>
-    <span style="background:#fce4ec; border:1px solid #f48fb1; color:#880e4f; border-radius:4px; padding:3px 7px; font-size:10px; font-weight:600;">Claude</span>
+  <div style="display:flex; flex-wrap:wrap; gap:7px; align-items:center;">
+    <svg title="DART" width="22" height="22" viewBox="0 0 22 22" style="flex-shrink:0;"><rect width="22" height="22" rx="5" fill="#1a73e8"/><path d="M5 6h5.8c2.8 0 4.4 1.5 4.4 4s-1.6 4-4.4 4H7.2V17H5V6zm2.2 5.8h3.2c1.4 0 2.2-.7 2.2-1.8s-.8-1.8-2.2-1.8H7.2v3.6z" fill="white"/></svg>
+    <svg title="ECOS (한국은행)" width="22" height="22" viewBox="0 0 22 22" style="flex-shrink:0;"><circle cx="11" cy="11" r="11" fill="#9e2a2b"/><text x="11" y="15.5" text-anchor="middle" fill="white" font-size="11" font-weight="700" font-family="serif">₩</text></svg>
+    <svg title="KVIC" width="22" height="22" viewBox="0 0 22 22" style="flex-shrink:0;"><circle cx="11" cy="11" r="11" fill="#00794a"/><path d="M6 6h2.3v4.2l3.8-4.2H14.8l-4.2 4.5 4.4 5.5h-2.8l-3.1-3.9-1 1.1V16H6z" fill="white"/></svg>
+    <svg title="Naver" width="22" height="22" viewBox="0 0 22 22" style="flex-shrink:0;"><rect width="22" height="22" rx="5" fill="#03C75A"/><path d="M5.5 5.5h3.3l3.9 5.8V5.5h3V16.5h-3.2l-4-5.9v5.9h-3z" fill="white"/></svg>
+    <span title="Claude AI" style="color:#1a1a1a;font-size:20px;line-height:1;display:inline-flex;align-items:center;justify-content:center;">✳</span>
   </div>
 </div>
 """, unsafe_allow_html=True)
@@ -666,7 +679,9 @@ with tab7:
         with col1:
             if rate_df is not None and not rate_df.empty:
                 fig = px.line(rate_df, x="기간", y="기준금리(%)",
-                              title="한국은행 기준금리 (%)", markers=True)
+                              title="한국은행 기준금리 (%)", markers=True,
+                              color_discrete_sequence=["#2e7d32"])
+                fig.update_traces(line=dict(color="#2e7d32"), marker=dict(color="#2e7d32"))
                 fig.update_layout(xaxis_title="월", yaxis_title="금리 (%)")
                 st.plotly_chart(fig, use_container_width=True)
 
@@ -687,7 +702,9 @@ with tab7:
         with col2:
             if fx_df is not None and not fx_df.empty:
                 fig2 = px.line(fx_df, x="기간", y="원/달러(원)",
-                               title="원/달러 환율 월평균", markers=True)
+                               title="원/달러 환율 월평균", markers=True,
+                               color_discrete_sequence=["#2e7d32"])
+                fig2.update_traces(line=dict(color="#2e7d32"), marker=dict(color="#2e7d32"))
                 fig2.update_layout(xaxis_title="월", yaxis_title="환율 (원)")
                 st.plotly_chart(fig2, use_container_width=True)
                 latest_fx = fx_df["원/달러(원)"].iloc[-1]
