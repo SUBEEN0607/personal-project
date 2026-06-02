@@ -370,7 +370,7 @@ with tab1:
     <div style="font-size:56px;font-weight:700;letter-spacing:-0.03em;line-height:1;">{moic}x</div>
     <div style="font-size:12px;opacity:0.65;margin-top:8px;">투자원금 대비 전체 가치</div>
   </div>
-  <div style="background:linear-gradient(135deg,#0d47a1,#1565c0);border-radius:16px;padding:28px 32px;color:#fff;">
+  <div style="background:linear-gradient(135deg,#1b5e20,#388e3c);border-radius:16px;padding:28px 32px;color:#fff;">
     <div style="font-size:10px;letter-spacing:0.12em;opacity:0.75;text-transform:uppercase;margin-bottom:6px;">펀드 IRR · 내부수익률 (가중평균)</div>
     <div style="font-size:56px;font-weight:700;letter-spacing:-0.03em;line-height:1;">{avg_irr}%</div>
     <div style="font-size:12px;opacity:0.65;margin-top:8px;">시간 가치 반영 연환산 수익률</div>
@@ -414,7 +414,7 @@ with tab1:
     실현·미실현 모두 포함하며 시간 가치는 반영하지 않음.
   </div>
   <div>
-    <span style="font-weight:700;color:#1565c0;">IRR</span> <span style="color:#999;font-size:11px;">Internal Rate of Return</span><br>
+    <span style="font-weight:700;color:#2e7d32;">IRR</span> <span style="color:#999;font-size:11px;">Internal Rate of Return</span><br>
     투자·회수 현금흐름의 시간 가치를 반영한 <b>연환산 수익률</b>.
     MOIC보다 보유 기간 불이익을 정확히 반영하여 펀드 성과의 핵심 지표로 활용.
   </div>
