@@ -367,12 +367,12 @@ with tab1:
         st.markdown(f"""
 <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:20px;">
   <div style="background:linear-gradient(135deg,#1b5e20,#2e7d32);border-radius:16px;padding:28px 32px;color:#fff;">
-    <div style="font-size:10px;letter-spacing:0.12em;opacity:0.75;text-transform:uppercase;margin-bottom:6px;">펀드 MOIC · 핵심 수익 배수</div>
+    <div style="font-size:13px;font-weight:600;letter-spacing:0.06em;opacity:0.9;margin-bottom:6px;">펀드 MOIC · 핵심 수익 배수</div>
     <div style="font-size:56px;font-weight:700;letter-spacing:-0.03em;line-height:1;">{moic}x</div>
     <div style="font-size:12px;opacity:0.65;margin-top:8px;">투자원금 대비 전체 가치</div>
   </div>
   <div style="background:linear-gradient(135deg,#1b5e20,#388e3c);border-radius:16px;padding:28px 32px;color:#fff;">
-    <div style="font-size:10px;letter-spacing:0.12em;opacity:0.75;text-transform:uppercase;margin-bottom:6px;">펀드 IRR · 내부수익률 (가중평균)</div>
+    <div style="font-size:13px;font-weight:600;letter-spacing:0.06em;opacity:0.9;margin-bottom:6px;">펀드 IRR · 내부수익률 (가중평균)</div>
     <div style="font-size:56px;font-weight:700;letter-spacing:-0.03em;line-height:1;">{avg_irr}%</div>
     <div style="font-size:12px;opacity:0.65;margin-top:8px;">시간 가치 반영 연환산 수익률</div>
   </div>
@@ -383,24 +383,24 @@ with tab1:
         st.markdown(f"""
 <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:28px;">
   <div style="background:#f1f8f1;border:1.5px solid #a5d6a7;border-radius:12px;padding:18px 20px;">
-    <div style="font-size:10px;color:#888;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:4px;">DPI</div>
+    <div style="font-size:14px;font-weight:700;color:#2e7d32;letter-spacing:0.04em;margin-bottom:6px;">DPI</div>
     <div style="font-size:28px;font-weight:700;color:#2e7d32;letter-spacing:-0.02em;">{dpi}x</div>
-    <div style="font-size:11px;color:#999;margin-top:2px;">현금 회수율</div>
+    <div style="font-size:12px;color:#666;margin-top:4px;">현금 회수율</div>
   </div>
   <div style="background:#f1f8f1;border:1.5px solid #a5d6a7;border-radius:12px;padding:18px 20px;">
-    <div style="font-size:10px;color:#888;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:4px;">RVPI</div>
+    <div style="font-size:14px;font-weight:700;color:#2e7d32;letter-spacing:0.04em;margin-bottom:6px;">RVPI</div>
     <div style="font-size:28px;font-weight:700;color:#2e7d32;letter-spacing:-0.02em;">{rvpi}x</div>
-    <div style="font-size:11px;color:#999;margin-top:2px;">잔존 가치 배수</div>
+    <div style="font-size:12px;color:#666;margin-top:4px;">잔존 가치 배수</div>
   </div>
   <div style="background:#f1f8f1;border:1.5px solid #a5d6a7;border-radius:12px;padding:18px 20px;">
-    <div style="font-size:10px;color:#888;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:4px;">TVPI</div>
+    <div style="font-size:14px;font-weight:700;color:#2e7d32;letter-spacing:0.04em;margin-bottom:6px;">TVPI</div>
     <div style="font-size:28px;font-weight:700;color:#2e7d32;letter-spacing:-0.02em;">{tvpi}x</div>
-    <div style="font-size:11px;color:#999;margin-top:2px;">총 가치 배수</div>
+    <div style="font-size:12px;color:#666;margin-top:4px;">총 가치 배수</div>
   </div>
   <div style="background:#fafafa;border:1.5px solid #e0e0e0;border-radius:12px;padding:18px 20px;">
-    <div style="font-size:10px;color:#888;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:4px;">포트폴리오사</div>
+    <div style="font-size:14px;font-weight:700;color:#1a1a1a;letter-spacing:0.04em;margin-bottom:6px;">포트폴리오사</div>
     <div style="font-size:28px;font-weight:700;color:#1a1a1a;letter-spacing:-0.02em;">{n}개</div>
-    <div style="font-size:11px;color:#999;margin-top:2px;">투자 기업 수</div>
+    <div style="font-size:12px;color:#666;margin-top:4px;">투자 기업 수</div>
   </div>
 </div>
 """, unsafe_allow_html=True)
