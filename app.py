@@ -230,10 +230,10 @@ if st.session_state["show_cover"]:
 
   <!-- API 배지 -->
   <div style="display:flex; gap:14px; flex-wrap:wrap; justify-content:center; margin-bottom:52px; align-items:center;">
-    <svg title="DART" width="30" height="30" viewBox="0 0 22 22"><rect width="22" height="22" rx="5" fill="#1a1a1a"/><path d="M5 6h5.8c2.8 0 4.4 1.5 4.4 4s-1.6 4-4.4 4H7.2V17H5V6zm2.2 5.8h3.2c1.4 0 2.2-.7 2.2-1.8s-.8-1.8-2.2-1.8H7.2v3.6z" fill="white"/></svg>
-    <svg title="ECOS (한국은행)" width="30" height="30" viewBox="0 0 22 22"><circle cx="11" cy="11" r="11" fill="#1a1a1a"/><text x="11" y="15.5" text-anchor="middle" fill="white" font-size="11" font-weight="700" font-family="serif">₩</text></svg>
-    <svg title="KVIC" width="30" height="30" viewBox="0 0 22 22"><circle cx="11" cy="11" r="11" fill="#1a1a1a"/><path d="M6 6h2.3v4.2l3.8-4.2H14.8l-4.2 4.5 4.4 5.5h-2.8l-3.1-3.9-1 1.1V16H6z" fill="white"/></svg>
-    <svg title="Naver" width="30" height="30" viewBox="0 0 22 22"><rect width="22" height="22" rx="5" fill="#1a1a1a"/><path d="M5.5 5.5h3.3l3.9 5.8V5.5h3V16.5h-3.2l-4-5.9v5.9h-3z" fill="white"/></svg>
+    <svg title="DART" width="30" height="30" viewBox="0 0 22 22"><rect width="22" height="22" rx="5" fill="none"/><path d="M5 6h5.8c2.8 0 4.4 1.5 4.4 4s-1.6 4-4.4 4H7.2V17H5V6zm2.2 5.8h3.2c1.4 0 2.2-.7 2.2-1.8s-.8-1.8-2.2-1.8H7.2v3.6z" fill="white"/></svg>
+    <svg title="ECOS (한국은행)" width="30" height="30" viewBox="0 0 22 22"><circle cx="11" cy="11" r="11" fill="none"/><text x="11" y="15.5" text-anchor="middle" fill="white" font-size="11" font-weight="700" font-family="serif">₩</text></svg>
+    <svg title="KVIC" width="30" height="30" viewBox="0 0 22 22"><circle cx="11" cy="11" r="11" fill="none"/><path d="M6 6h2.3v4.2l3.8-4.2H14.8l-4.2 4.5 4.4 5.5h-2.8l-3.1-3.9-1 1.1V16H6z" fill="white"/></svg>
+    <svg title="Naver" width="30" height="30" viewBox="0 0 22 22"><rect width="22" height="22" rx="5" fill="none"/><path d="M5.5 5.5h3.3l3.9 5.8V5.5h3V16.5h-3.2l-4-5.9v5.9h-3z" fill="white"/></svg>
     <span title="Claude AI" style="color:white;font-size:28px;line-height:1;display:inline-flex;align-items:center;justify-content:center;">✳</span>
   </div>
 </div>
@@ -284,10 +284,10 @@ with st.sidebar:
   <!-- API 배지 -->
   <div style="font-size: 10px; color: #aaa; letter-spacing:0.08em; margin-bottom: 8px; font-weight:500;">POWERED BY</div>
   <div style="display:flex; flex-wrap:wrap; gap:7px; align-items:center;">
-    <svg title="DART" width="22" height="22" viewBox="0 0 22 22" style="flex-shrink:0;"><rect width="22" height="22" rx="5" fill="#1a1a1a"/><path d="M5 6h5.8c2.8 0 4.4 1.5 4.4 4s-1.6 4-4.4 4H7.2V17H5V6zm2.2 5.8h3.2c1.4 0 2.2-.7 2.2-1.8s-.8-1.8-2.2-1.8H7.2v3.6z" fill="white"/></svg>
-    <svg title="ECOS (한국은행)" width="22" height="22" viewBox="0 0 22 22" style="flex-shrink:0;"><circle cx="11" cy="11" r="11" fill="#1a1a1a"/><text x="11" y="15.5" text-anchor="middle" fill="white" font-size="11" font-weight="700" font-family="serif">₩</text></svg>
-    <svg title="KVIC" width="22" height="22" viewBox="0 0 22 22" style="flex-shrink:0;"><circle cx="11" cy="11" r="11" fill="#1a1a1a"/><path d="M6 6h2.3v4.2l3.8-4.2H14.8l-4.2 4.5 4.4 5.5h-2.8l-3.1-3.9-1 1.1V16H6z" fill="white"/></svg>
-    <svg title="Naver" width="22" height="22" viewBox="0 0 22 22" style="flex-shrink:0;"><rect width="22" height="22" rx="5" fill="#1a1a1a"/><path d="M5.5 5.5h3.3l3.9 5.8V5.5h3V16.5h-3.2l-4-5.9v5.9h-3z" fill="white"/></svg>
+    <svg title="DART" width="22" height="22" viewBox="0 0 22 22" style="flex-shrink:0;"><rect width="22" height="22" rx="5" fill="none"/><path d="M5 6h5.8c2.8 0 4.4 1.5 4.4 4s-1.6 4-4.4 4H7.2V17H5V6zm2.2 5.8h3.2c1.4 0 2.2-.7 2.2-1.8s-.8-1.8-2.2-1.8H7.2v3.6z" fill="#1a1a1a"/></svg>
+    <svg title="ECOS (한국은행)" width="22" height="22" viewBox="0 0 22 22" style="flex-shrink:0;"><circle cx="11" cy="11" r="11" fill="none"/><text x="11" y="15.5" text-anchor="middle" fill="#1a1a1a" font-size="11" font-weight="700" font-family="serif">₩</text></svg>
+    <svg title="KVIC" width="22" height="22" viewBox="0 0 22 22" style="flex-shrink:0;"><circle cx="11" cy="11" r="11" fill="none"/><path d="M6 6h2.3v4.2l3.8-4.2H14.8l-4.2 4.5 4.4 5.5h-2.8l-3.1-3.9-1 1.1V16H6z" fill="#1a1a1a"/></svg>
+    <svg title="Naver" width="22" height="22" viewBox="0 0 22 22" style="flex-shrink:0;"><rect width="22" height="22" rx="5" fill="none"/><path d="M5.5 5.5h3.3l3.9 5.8V5.5h3V16.5h-3.2l-4-5.9v5.9h-3z" fill="#1a1a1a"/></svg>
     <span title="Claude AI" style="color:#1a1a1a;font-size:20px;line-height:1;display:inline-flex;align-items:center;justify-content:center;">✳</span>
   </div>
 </div>
