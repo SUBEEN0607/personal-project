@@ -404,6 +404,45 @@ with tab1:
 </div>
 """, unsafe_allow_html=True)
 
+        # ── 지표 용어 설명 ───────────────────────
+        with st.expander("📖 지표 용어 설명"):
+            st.markdown("""
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px 24px;font-size:13.5px;line-height:1.7;color:#333;">
+  <div>
+    <span style="font-weight:700;color:#1b5e20;">MOIC</span> <span style="color:#999;font-size:11px;">Multiple on Invested Capital</span><br>
+    투자 원금 대비 현재 총 가치 배수. <b>1x = 원금 회수</b>, 2x = 2배 수익.
+    실현·미실현 모두 포함하며 시간 가치는 반영하지 않음.
+  </div>
+  <div>
+    <span style="font-weight:700;color:#1565c0;">IRR</span> <span style="color:#999;font-size:11px;">Internal Rate of Return</span><br>
+    투자·회수 현금흐름의 시간 가치를 반영한 <b>연환산 수익률</b>.
+    MOIC보다 보유 기간 불이익을 정확히 반영하여 펀드 성과의 핵심 지표로 활용.
+  </div>
+  <div>
+    <span style="font-weight:700;color:#2e7d32;">DPI</span> <span style="color:#999;font-size:11px;">Distributions to Paid-In</span><br>
+    LP 출자금 대비 <b>실제 현금 회수 배수</b>. 1x 이상이면 원금 이상 회수 완료.
+    펀드 만기가 가까울수록 중요한 지표.
+  </div>
+  <div>
+    <span style="font-weight:700;color:#2e7d32;">RVPI</span> <span style="color:#999;font-size:11px;">Residual Value to Paid-In</span><br>
+    LP 출자금 대비 <b>아직 회수되지 않은 잔존 가치 배수</b>.
+    포트폴리오사의 미실현 평가가치를 나타내며, 펀드 초기일수록 높게 나타남.
+  </div>
+  <div>
+    <span style="font-weight:700;color:#2e7d32;">TVPI</span> <span style="color:#999;font-size:11px;">Total Value to Paid-In</span><br>
+    <b>DPI + RVPI</b>. 실현·미실현 가치의 합산 배수로 MOIC와 유사.
+    펀드 전체 성과를 종합적으로 나타내는 지표.
+  </div>
+  <div style="display:flex;align-items:flex-start;">
+    <div>
+      <span style="font-weight:700;color:#555;">IRR vs MOIC 관계</span><br>
+      같은 MOIC라도 <b>보유 기간이 짧을수록 IRR이 높음</b>.
+      예: 2x MOIC를 3년 만에 달성하면 IRR ≈ 26%, 5년이면 IRR ≈ 15%.
+    </div>
+  </div>
+</div>
+""", unsafe_allow_html=True)
+
         # ── Level 3: 핵심 차트 — MOIC 전폭 ──────
         st.markdown("##### 포트폴리오사별 MOIC")
         fig = px.bar(
