@@ -323,6 +323,7 @@ if uploaded:
     st.sidebar.success(f"{len(raw)}개사 로드 완료")
 
 elif use_sample:
+    # 샘플: KVIC 2020~2024 결성 펀드 수익률 통계 기반 가상 포트폴리오 (출처: 한국벤처투자 연차보고서)
     raw = load_portfolio("sample_portfolio.csv")
     result_df = run_all(raw)
     st.session_state["df"] = raw
@@ -518,6 +519,13 @@ with tab1:
 
 # ── TAB 2: 펀드 추이 (J-Curve + 분기별 추이) ────
 with tab2:
+    st.markdown("""
+<div style="background:#f9fafb;border:1px solid #e8e8e8;border-radius:10px;padding:12px 18px;margin-bottom:20px;font-size:13px;color:#555;line-height:1.8;">
+  <b style="color:#1a1a1a;">이 탭에서 확인할 수 있는 것</b><br>
+  📈 <b>J-Curve</b> — 현금흐름 CSV 업로드 시 펀드의 누적 현금흐름 궤적 시각화 &nbsp;|&nbsp;
+  📅 <b>분기별 추이</b> — 분기마다 저장한 TVPI·DPI·RVPI 변화 추적
+</div>
+""", unsafe_allow_html=True)
     # ── J-Curve 섹션 ──────────────────────────────
     st.markdown("""
 <div style="background:#f1f8f1;border-left:4px solid #2e7d32;border-radius:0 8px 8px 0;padding:14px 18px;margin-bottom:20px;">
@@ -621,80 +629,18 @@ with tab2:
                 mime="application/pdf",
             )
 
-# ── TAB 3: 투자 분석 (시나리오 + DART) ──────────
+# ── TAB 3: 투자 분석 (DART + 시나리오 + Waterfall) ──
 with tab3:
-    # ── 시나리오 시뮬레이터 섹션 ───────────────────
-    st.markdown("### 🎯 회수 시나리오 시뮬레이터")
-    if "result_df" not in st.session_state:
-        st.info("먼저 대시보드에서 데이터를 로드하세요.")
-    else:
-        result_df = st.session_state["result_df"]
-        df = st.session_state["df"]
+    st.markdown("""
+<div style="background:#f9fafb;border:1px solid #e8e8e8;border-radius:10px;padding:12px 18px;margin-bottom:20px;font-size:13px;color:#555;line-height:1.8;">
+  <b style="color:#1a1a1a;">이 탭에서 확인할 수 있는 것</b><br>
+  🏢 <b>DART 재무 조회</b> — 투자 대상 기업의 공시 재무제표(매출·영업이익·순이익) 조회 &nbsp;|&nbsp;
+  🎯 <b>시나리오 시뮬레이터</b> — 목표 IRR 달성에 필요한 Exit 배수 계산 &nbsp;|&nbsp;
+  💧 <b>Waterfall 계산기</b> — Hurdle Rate·Catch-up·Carry 구조별 GP/LP 분배 시뮬레이션
+</div>
+""", unsafe_allow_html=True)
 
-        company = st.selectbox("포트폴리오사 선택", result_df["회사명"].tolist())
-        r = result_df[result_df["회사명"] == company].iloc[0]
-        raw_r = df[df["회사명"] == company].iloc[0]
-
-        left, right = st.columns([1, 2])
-        with left:
-            st.metric("투자금액", f"{int(raw_r['투자금액_백만원']):,}백만원")
-            st.metric("현재 MOIC", f"{r['MOIC']}x")
-            st.metric("현재 IRR (XIRR)", f"{r['IRR(%)']}%")
-            target_irr = st.slider("목표 IRR (%)", 10, 40, 20)
-            opt = optimal_exit_timing(
-                raw_r["투자금액_백만원"], raw_r["현재가치_백만원"],
-                raw_r["투자일"], target_irr,
-            )
-            st.info(
-                f"목표 IRR {target_irr}% 달성 최소 배수: **{opt[f'IRR {target_irr}% 달성 최소 배수']}x**\n\n"
-                f"{opt['목표 달성 여부']}"
-            )
-
-        with right:
-            sim_df = simulate_exit(
-                raw_r["투자금액_백만원"], raw_r["투자일"],
-                [0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 4.0, 5.0],
-            )
-            fig_sim = px.bar(
-                sim_df, x="Exit 배수", y="IRR (%)",
-                color="IRR (%)", color_continuous_scale="Greens",
-                title=f"{company} — Exit 배수별 예상 IRR",
-                text="IRR (%)",
-            )
-            fig_sim.add_hline(
-                y=target_irr, line_dash="dash", line_color="#2e7d32",
-                annotation_text=f"목표 IRR {target_irr}%",
-                annotation_font_color="#2e7d32",
-            )
-            fig_sim.update_traces(texttemplate="%{text}%", textposition="outside")
-            fig_sim.update_layout(
-                plot_bgcolor="#ffffff", paper_bgcolor="#ffffff", font_color="#1a1a1a",
-            )
-            st.plotly_chart(fig_sim, use_container_width=True)
-            st.dataframe(sim_df, use_container_width=True)
-
-        st.divider()
-        if st.button("📄 시나리오 보고서 생성 (AI 해석 포함)", key="sim_pdf"):
-            opt_result = optimal_exit_timing(
-                raw_r["투자금액_백만원"], raw_r["현재가치_백만원"],
-                raw_r["투자일"], target_irr,
-            )
-            full_sim = simulate_exit(
-                raw_r["투자금액_백만원"], raw_r["투자일"],
-                [0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 4.0, 5.0],
-            )
-            with st.spinner("AI 해석 생성 중..."):
-                ai_text = interpret_scenario(company, full_sim, opt_result)
-                pdf_bytes = generate_scenario_pdf(company, full_sim, opt_result, ai_text, quarter)
-            st.text_area("AI 해석 미리보기", ai_text, height=200)
-            st.download_button(
-                "PDF 다운로드", pdf_bytes,
-                file_name=f"scenario_{company}_{quarter or 'report'}.pdf",
-                mime="application/pdf",
-            )
-
-    # ── DART 재무 조회 섹션 ─────────────────────────
-    st.markdown("---")
+    # ── ① DART 재무 조회 ────────────────────────────
     st.markdown("### 🏢 DART 기업 재무 조회")
     corp_name = st.text_input("기업명 입력 (예: 삼성전자, 카카오)")
 
@@ -748,7 +694,64 @@ with tab3:
                     mime="application/pdf",
                 )
 
-    # ── Waterfall 계산기 섹션 ───────────────────────
+    # ── ② 시나리오 시뮬레이터 ───────────────────────
+    st.markdown("---")
+    st.markdown("### 🎯 회수 시나리오 시뮬레이터")
+    if "result_df" not in st.session_state:
+        st.info("먼저 대시보드에서 데이터를 로드하세요.")
+    else:
+        result_df = st.session_state["result_df"]
+        df        = st.session_state["df"]
+        company2  = st.selectbox("포트폴리오사 선택", result_df["회사명"].tolist(), key="sim_company")
+        r2        = result_df[result_df["회사명"] == company2].iloc[0]
+        raw_r2    = df[df["회사명"] == company2].iloc[0]
+
+        left2, right2 = st.columns([1, 2])
+        with left2:
+            st.metric("투자금액",      f"{int(raw_r2['투자금액_백만원']):,}백만원")
+            st.metric("현재 MOIC",     f"{r2['MOIC']}x")
+            st.metric("현재 IRR",      f"{r2['IRR(%)']}%")
+            target_irr2 = st.slider("목표 IRR (%)", 10, 40, 20, key="sim_irr")
+            opt2 = optimal_exit_timing(
+                raw_r2["투자금액_백만원"], raw_r2["현재가치_백만원"],
+                raw_r2["투자일"], target_irr2,
+            )
+            st.info(
+                f"목표 IRR {target_irr2}% 달성 최소 배수: **{opt2[f'IRR {target_irr2}% 달성 최소 배수']}x**\n\n"
+                f"{opt2['목표 달성 여부']}"
+            )
+        with right2:
+            sim_df2 = simulate_exit(
+                raw_r2["투자금액_백만원"], raw_r2["투자일"],
+                [0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 4.0, 5.0],
+            )
+            fig_sim2 = px.bar(
+                sim_df2, x="Exit 배수", y="IRR (%)",
+                color="IRR (%)", color_continuous_scale="Greens",
+                title=f"{company2} — Exit 배수별 예상 IRR",
+                text="IRR (%)",
+            )
+            fig_sim2.add_hline(
+                y=target_irr2, line_dash="dash", line_color="#2e7d32",
+                annotation_text=f"목표 IRR {target_irr2}%",
+                annotation_font_color="#2e7d32",
+            )
+            fig_sim2.update_traces(texttemplate="%{text}%", textposition="outside")
+            fig_sim2.update_layout(plot_bgcolor="#ffffff", paper_bgcolor="#ffffff", font_color="#1a1a1a")
+            st.plotly_chart(fig_sim2, use_container_width=True)
+            st.dataframe(sim_df2, use_container_width=True)
+
+        st.divider()
+        if st.button("📄 시나리오 보고서 생성 (AI 해석 포함)", key="sim_pdf"):
+            with st.spinner("AI 해석 생성 중..."):
+                ai_text = interpret_scenario(company2, sim_df2, opt2)
+                pdf_bytes = generate_scenario_pdf(company2, sim_df2, opt2, ai_text, quarter)
+            st.text_area("AI 해석 미리보기", ai_text, height=200)
+            st.download_button("PDF 다운로드", pdf_bytes,
+                               file_name=f"scenario_{company2}_{quarter or 'report'}.pdf",
+                               mime="application/pdf")
+
+    # ── ③ Waterfall 계산기 ──────────────────────────
     st.markdown("---")
     st.markdown("### 💧 Waterfall 분배 계산기")
     st.markdown("""
@@ -901,6 +904,13 @@ with tab3:
 
 # ── TAB 4: 시장 벤치마크 (거시지표 + KVIC) ──────
 with tab4:
+    st.markdown("""
+<div style="background:#f9fafb;border:1px solid #e8e8e8;border-radius:10px;padding:12px 18px;margin-bottom:20px;font-size:13px;color:#555;line-height:1.8;">
+  <b style="color:#1a1a1a;">이 탭에서 확인할 수 있는 것</b><br>
+  🌐 <b>ECOS 거시지표</b> — 한국은행 기준금리 및 원/달러 환율 추이 (펀드 IRR과 스프레드 비교) &nbsp;|&nbsp;
+  🏦 <b>KVIC 벤치마크</b> — 모태펀드 분야별 조합 현황 및 내 포트폴리오 섹터 비교
+</div>
+""", unsafe_allow_html=True)
     st.markdown("### 🌐 거시지표 — 기준금리 & 환율 (ECOS)")
 
     # ECOS 섹션
