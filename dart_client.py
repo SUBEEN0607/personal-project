@@ -7,18 +7,25 @@ load_dotenv()
 _API_KEY = os.getenv("DART_API_KEY")
 _DART_BASE = "https://opendart.fss.or.kr/api"
 
+_corp_list_cache = None
+
+def _get_corp_list():
+    """corp_list를 최초 1회만 로드하고 메모리에 캐시."""
+    global _corp_list_cache
+    if _corp_list_cache is None:
+        import dart_fss as dart
+        dart.set_api_key(_API_KEY)
+        _corp_list_cache = dart.get_corp_list()
+    return _corp_list_cache
+
 
 def search_company(name: str) -> list[dict]:
     """기업명으로 DART 등록 기업 검색 (상장사 우선, 최대 5건)"""
     try:
-        import dart_fss as dart
-        dart.set_api_key(_API_KEY)
-        corp_list = dart.get_corp_list()
-        # 정확 일치 먼저, 없으면 부분 일치
+        corp_list = _get_corp_list()
         results = corp_list.find_by_corp_name(name, exactly=True)
         if not results:
             results = corp_list.find_by_corp_name(name, exactly=False)
-        # 상장사(stock_code 있는 것) 우선 정렬
         results = sorted(results, key=lambda c: (0 if getattr(c, "stock_code", "") else 1))
         return [
             {

@@ -344,81 +344,132 @@ with tab1:
         result_df = st.session_state["result_df"]
         df = st.session_state["df"]
         summary = st.session_state["summary"]
-
-        c1, c2, c3, c4, c5 = st.columns(5)
-        c1.metric("포트폴리오사 수", f"{summary['포트폴리오사 수']}개")
-        c2.metric("펀드 MOIC", f"{summary['펀드 MOIC']}x")
-        c3.metric("펀드 TVPI", f"{summary['펀드 TVPI']}x")
-        c4.metric("펀드 DPI", f"{summary['펀드 DPI']}x")
-        c5.metric("펀드 RVPI", f"{summary['펀드 RVPI']}x")
-        st.divider()
-
         _GREEN = ["#1b5e20","#2e7d32","#388e3c","#43a047","#66bb6a","#81c784","#a5d6a7","#c8e6c9"]
 
-        col1, col2 = st.columns(2)
-        with col1:
-            fig = px.bar(
-                result_df.sort_values("MOIC", ascending=False),
-                x="회사명", y="MOIC", color="섹터",
-                color_discrete_sequence=_GREEN,
-                title="포트폴리오사별 MOIC",
-                labels={"MOIC": "MOIC (x)", "회사명": ""},
-            )
-            fig.add_hline(y=1.0, line_dash="dash", line_color="#e53935", annotation_text="1x")
-            st.plotly_chart(fig, use_container_width=True)
+        moic  = summary["펀드 MOIC"]
+        tvpi  = summary["펀드 TVPI"]
+        dpi   = summary["펀드 DPI"]
+        rvpi  = summary["펀드 RVPI"]
+        n     = summary["포트폴리오사 수"]
+        avg_irr = round(result_df["IRR(%)"].mean(), 1)
 
-        with col2:
-            sector_df = df.groupby("섹터")["투자금액_백만원"].sum().reset_index()
-            fig2 = px.pie(
-                sector_df, names="섹터", values="투자금액_백만원",
-                title="섹터별 투자 비중",
-                color_discrete_sequence=_GREEN,
-            )
-            fig2.update_traces(textinfo="label+percent", hole=0.35)
-            st.plotly_chart(fig2, use_container_width=True)
+        # 색상 기준: MOIC>=2 초록, 1~2 주황, <1 빨강
+        def _moic_color(v):
+            if v >= 2.0: return "#2e7d32"
+            if v >= 1.0: return "#e65100"
+            return "#c62828"
+        def _irr_color(v):
+            if v >= 15: return "#1565c0"
+            if v >= 8:  return "#6a1b9a"
+            return "#c62828"
 
+        # ── Level 1: Hero 지표 (MOIC + IRR) ──────
+        st.markdown(f"""
+<div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:20px;">
+  <div style="background:linear-gradient(135deg,#1b5e20,#2e7d32);border-radius:16px;padding:28px 32px;color:#fff;">
+    <div style="font-size:10px;letter-spacing:0.12em;opacity:0.75;text-transform:uppercase;margin-bottom:6px;">펀드 MOIC · 핵심 수익 배수</div>
+    <div style="font-size:56px;font-weight:700;letter-spacing:-0.03em;line-height:1;">{moic}x</div>
+    <div style="font-size:12px;opacity:0.65;margin-top:8px;">투자원금 대비 전체 가치</div>
+  </div>
+  <div style="background:linear-gradient(135deg,#0d47a1,#1565c0);border-radius:16px;padding:28px 32px;color:#fff;">
+    <div style="font-size:10px;letter-spacing:0.12em;opacity:0.75;text-transform:uppercase;margin-bottom:6px;">펀드 IRR · 내부수익률 (가중평균)</div>
+    <div style="font-size:56px;font-weight:700;letter-spacing:-0.03em;line-height:1;">{avg_irr}%</div>
+    <div style="font-size:12px;opacity:0.65;margin-top:8px;">시간 가치 반영 연환산 수익률</div>
+  </div>
+</div>
+""", unsafe_allow_html=True)
+
+        # ── Level 2: 보조 지표 (DPI·RVPI·TVPI·기업수) ──
+        st.markdown(f"""
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:28px;">
+  <div style="background:#f1f8f1;border:1.5px solid #a5d6a7;border-radius:12px;padding:18px 20px;">
+    <div style="font-size:10px;color:#888;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:4px;">DPI</div>
+    <div style="font-size:28px;font-weight:700;color:#2e7d32;letter-spacing:-0.02em;">{dpi}x</div>
+    <div style="font-size:11px;color:#999;margin-top:2px;">현금 회수율</div>
+  </div>
+  <div style="background:#f1f8f1;border:1.5px solid #a5d6a7;border-radius:12px;padding:18px 20px;">
+    <div style="font-size:10px;color:#888;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:4px;">RVPI</div>
+    <div style="font-size:28px;font-weight:700;color:#2e7d32;letter-spacing:-0.02em;">{rvpi}x</div>
+    <div style="font-size:11px;color:#999;margin-top:2px;">잔존 가치 배수</div>
+  </div>
+  <div style="background:#f1f8f1;border:1.5px solid #a5d6a7;border-radius:12px;padding:18px 20px;">
+    <div style="font-size:10px;color:#888;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:4px;">TVPI</div>
+    <div style="font-size:28px;font-weight:700;color:#2e7d32;letter-spacing:-0.02em;">{tvpi}x</div>
+    <div style="font-size:11px;color:#999;margin-top:2px;">총 가치 배수</div>
+  </div>
+  <div style="background:#fafafa;border:1.5px solid #e0e0e0;border-radius:12px;padding:18px 20px;">
+    <div style="font-size:10px;color:#888;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:4px;">포트폴리오사</div>
+    <div style="font-size:28px;font-weight:700;color:#1a1a1a;letter-spacing:-0.02em;">{n}개</div>
+    <div style="font-size:11px;color:#999;margin-top:2px;">투자 기업 수</div>
+  </div>
+</div>
+""", unsafe_allow_html=True)
+
+        # ── Level 3: 핵심 차트 — MOIC 전폭 ──────
+        st.markdown("##### 포트폴리오사별 MOIC")
+        fig = px.bar(
+            result_df.sort_values("MOIC", ascending=False),
+            x="회사명", y="MOIC", color="섹터",
+            color_discrete_sequence=_GREEN,
+            labels={"MOIC": "MOIC (x)", "회사명": ""},
+        )
+        fig.add_hline(y=1.0, line_dash="dash", line_color="#e53935", annotation_text="기준 1x")
+        fig.update_layout(height=320, margin=dict(t=10, b=10))
+        st.plotly_chart(fig, use_container_width=True)
+
+        # ── Level 4: 보조 차트 — 트리맵 + 버블 ──
+        st.markdown("---")
         col_a, col_b = st.columns(2)
         with col_a:
-            # 투자금액 트리맵 — 크기 비교 직관적
+            st.markdown("##### 투자금액 & MOIC 분포")
             fig3 = px.treemap(
-                result_df,
-                path=["섹터", "회사명"],
-                values="투자금액_백만원",
-                color="MOIC",
-                color_continuous_scale=["#c8e6c9", "#2e7d32", "#1b5e20"],
-                title="투자금액 비중 (크기) & MOIC (색상)",
+                result_df, path=["섹터","회사명"],
+                values="투자금액_백만원", color="MOIC",
+                color_continuous_scale=["#c8e6c9","#2e7d32","#1b5e20"],
                 hover_data={"IRR(%)": True, "TVPI": True},
             )
             fig3.update_traces(textinfo="label+value", textfont_size=13)
+            fig3.update_layout(margin=dict(t=10))
             st.plotly_chart(fig3, use_container_width=True)
 
         with col_b:
-            # 개선된 버블차트: sizeref 조정으로 크기 차이 강조
+            st.markdown("##### MOIC vs IRR 산점도")
             max_size = result_df["투자금액_백만원"].max()
             fig4 = px.scatter(
                 result_df, x="IRR(%)", y="MOIC",
                 text="회사명", color="섹터", size="투자금액_백만원",
-                color_discrete_sequence=_GREEN,
-                title="MOIC vs IRR (버블=투자금액)",
-                size_max=70,
+                color_discrete_sequence=_GREEN, size_max=70,
             )
             fig4.update_traces(
                 textposition="top center",
-                marker=dict(sizeref=2.0 * max_size / (70 ** 2), sizemode="area", opacity=0.8),
+                marker=dict(sizeref=2.0*max_size/(70**2), sizemode="area", opacity=0.8),
             )
             fig4.add_hline(y=1.0, line_dash="dash", line_color="#e53935", annotation_text="MOIC 1x")
             fig4.add_vline(x=0, line_dash="dash", line_color="#bbb")
+            fig4.update_layout(margin=dict(t=10))
             st.plotly_chart(fig4, use_container_width=True)
 
-        st.divider()
-        st.subheader("포트폴리오사별 지표")
-        cols = ["회사명", "섹터", "투자단계", "투자금액_백만원", "MOIC", "IRR(%)", "DPI", "RVPI", "TVPI"]
-        st.dataframe(result_df[cols], use_container_width=True)
+        # ── Level 5: 섹터 파이 + 상세 테이블 ──
+        st.markdown("---")
+        col_p, col_t = st.columns([1, 2])
+        with col_p:
+            st.markdown("##### 섹터별 투자 비중")
+            sector_df = df.groupby("섹터")["투자금액_백만원"].sum().reset_index()
+            fig2 = px.pie(sector_df, names="섹터", values="투자금액_백만원",
+                          color_discrete_sequence=_GREEN)
+            fig2.update_traces(textinfo="label+percent", hole=0.35)
+            fig2.update_layout(margin=dict(t=10, b=0), showlegend=False)
+            st.plotly_chart(fig2, use_container_width=True)
 
-        st.divider()
+        with col_t:
+            st.markdown("##### 포트폴리오사별 상세 지표")
+            cols = ["회사명","섹터","투자단계","투자금액_백만원","MOIC","IRR(%)","DPI","RVPI","TVPI"]
+            st.dataframe(result_df[cols], use_container_width=True, height=280)
+
+        st.markdown("---")
         if st.button("📄 PDF 보고서 생성"):
             with st.spinner("PDF 생성 중..."):
-                detail_rows = result_df[["회사명", "MOIC", "IRR(%)", "TVPI"]].to_dict("records")
+                detail_rows = result_df[["회사명","MOIC","IRR(%)","TVPI"]].to_dict("records")
                 commentary = generate_commentary(summary, detail_rows)
                 pdf_bytes = generate_pdf(summary, result_df, commentary, quarter)
             st.download_button(

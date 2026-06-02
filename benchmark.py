@@ -1,6 +1,7 @@
 import os
 import requests
 import pandas as pd
+import streamlit as st
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -51,6 +52,7 @@ def _ecos_fetch_daily_to_monthly(stat_code: str, item_code: str, start: str, end
         return pd.DataFrame()
 
 
+@st.cache_data(ttl=3600)
 def get_base_rate(months: int = 24) -> pd.DataFrame:
     """한국은행 기준금리 (최근 N개월, 2026년 최신까지)"""
     today = pd.Timestamp.today()
@@ -62,6 +64,7 @@ def get_base_rate(months: int = 24) -> pd.DataFrame:
     return df
 
 
+@st.cache_data(ttl=3600)
 def get_exchange_rate(months: int = 24) -> pd.DataFrame:
     """원/달러 환율 월평균 (최근 N개월, 2026년 최신까지 — 일별→월별 resample)"""
     today = pd.Timestamp.today()
@@ -116,6 +119,7 @@ def get_kvic_funds(year: int = None) -> pd.DataFrame:
     return df.reset_index(drop=True)
 
 
+@st.cache_data(ttl=3600)
 def get_kvic_sector_summary(year: int = None) -> pd.DataFrame:
     """분야별 조합 수 + 총 약정액 집계 (벤치마크용)"""
     df = get_kvic_funds(year)
@@ -131,6 +135,7 @@ def get_kvic_sector_summary(year: int = None) -> pd.DataFrame:
     return summary.drop(columns=["총약정액"])
 
 
+@st.cache_data(ttl=3600)
 def get_kvic_yearly_trend() -> pd.DataFrame:
     """연도별 결성 조합 수 + 총 약정액 추이 (전체 연도, API 1회 호출)"""
     df = _get_kvic_all()
