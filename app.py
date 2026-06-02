@@ -331,9 +331,8 @@ elif use_sample:
     st.sidebar.success("샘플 데이터(8개사) 로드됨")
 
 # ── 탭 ───────────────────────────────────────────
-tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
-    "📊 대시보드", "📈 J-Curve", "🎯 시나리오 시뮬레이터",
-    "📅 분기별 추이", "🏢 DART 조회", "💬 AI 분석", "🌐 거시지표",
+tab1, tab2, tab3, tab4, tab5 = st.tabs([
+    "📊 대시보드", "📈 펀드 추이", "🎯 투자 분석", "🌐 시장 벤치마크", "💬 AI 분석",
 ])
 
 # ── TAB 1: 대시보드 ──────────────────────────────
@@ -478,9 +477,21 @@ with tab1:
                 mime="application/pdf",
             )
 
-# ── TAB 2: J-Curve ───────────────────────────────
+# ── TAB 2: 펀드 추이 (J-Curve + 분기별 추이) ────
 with tab2:
-    st.subheader("J-Curve 분석")
+    # ── J-Curve 섹션 ──────────────────────────────
+    st.markdown("""
+<div style="background:#f1f8f1;border-left:4px solid #2e7d32;border-radius:0 8px 8px 0;padding:14px 18px;margin-bottom:20px;">
+  <div style="font-size:15px;font-weight:600;color:#1b5e20;margin-bottom:6px;">📈 J-Curve란?</div>
+  <div style="font-size:14px;color:#444;line-height:1.6;">
+    사모펀드·VC 펀드는 초기에 투자 집행과 운용 비용으로 <b>누적 현금흐름이 마이너스(−)</b>로 진입합니다.
+    이후 포트폴리오사의 가치가 성장해 회수가 이뤄지면 플러스(+)로 전환되는데,
+    이 흐름이 알파벳 <b>'J'자 형태</b>를 그려 <em>J-Curve</em>라고 부릅니다.
+    손익분기 시점(Break-even)과 회수 속도를 파악하는 데 활용합니다.
+  </div>
+</div>
+""", unsafe_allow_html=True)
+
     cf_upload = st.file_uploader("현금흐름 CSV 업로드", type="csv", key="cf")
     load_cf_sample = st.button("샘플 현금흐름 불러오기")
 
@@ -500,14 +511,21 @@ with tab2:
         fig.add_trace(go.Scatter(
             x=trend["날짜"], y=trend["누적현금흐름"],
             mode="lines+markers", name="누적 순현금흐름",
-            line=dict(color="#2e7d32", width=2),
-            fill="tozeroy", fillcolor="rgba(46,125,50,0.1)",
+            line=dict(color="#2e7d32", width=2.5),
+            fill="tozeroy", fillcolor="rgba(46,125,50,0.12)",
+            marker=dict(color="#2e7d32", size=7),
         ))
-        fig.add_hline(y=0, line_dash="dash", line_color="red", annotation_text="손익분기")
+        fig.add_hline(y=0, line_dash="dash", line_color="#c62828",
+                      annotation_text="손익분기(Break-even)",
+                      annotation_font_color="#c62828")
         fig.update_layout(
             title="J-Curve — 펀드 누적 순현금흐름",
             xaxis_title="날짜", yaxis_title="누적 순현금흐름 (백만원)",
+            plot_bgcolor="#ffffff", paper_bgcolor="#ffffff",
+            font_color="#1a1a1a",
         )
+        fig.update_xaxes(showgrid=True, gridcolor="#f0f0f0")
+        fig.update_yaxes(showgrid=True, gridcolor="#f0f0f0")
         st.plotly_chart(fig, use_container_width=True)
         st.caption("컬럼: 회사명, 날짜(YYYY-MM-DD), 현금흐름_백만원 — 투자=음수, 배당·회수=양수")
 
@@ -525,9 +543,49 @@ with tab2:
     else:
         st.info("현금흐름 CSV를 업로드하거나 샘플을 불러오세요.")
 
-# ── TAB 3: 시나리오 시뮬레이터 ──────────────────
+    # ── 분기별 추이 섹션 ───────────────────────────
+    st.markdown("---")
+    st.markdown("### 📅 분기별 펀드 지표 추이")
+    quarters = load_quarters()
+    if not quarters:
+        st.info("저장된 분기 데이터가 없습니다.\n\n데이터 로드 후 사이드바에서 [현재 데이터 저장]을 눌러 분기를 누적하세요.")
+    else:
+        trend_df = load_trend()
+        _LINE_COLORS = {"TVPI": "#1b5e20", "DPI": "#43a047", "RVPI": "#81c784"}
+        fig_q = go.Figure()
+        for metric in ["TVPI", "DPI", "RVPI"]:
+            fig_q.add_trace(go.Scatter(
+                x=trend_df["quarter"], y=trend_df[metric],
+                mode="lines+markers", name=metric,
+                line=dict(color=_LINE_COLORS[metric], width=2),
+                marker=dict(color=_LINE_COLORS[metric], size=8),
+            ))
+        fig_q.update_layout(
+            title="분기별 펀드 지표 추이 (TVPI · DPI · RVPI)",
+            xaxis_title="분기", yaxis_title="배수 (x)",
+            plot_bgcolor="#ffffff", paper_bgcolor="#ffffff", font_color="#1a1a1a",
+        )
+        fig_q.update_xaxes(showgrid=True, gridcolor="#f0f0f0")
+        fig_q.update_yaxes(showgrid=True, gridcolor="#f0f0f0")
+        st.plotly_chart(fig_q, use_container_width=True)
+        st.dataframe(trend_df, use_container_width=True)
+
+        st.divider()
+        if st.button("📄 분기 추이 보고서 생성 (AI 해석 포함)", key="trend_pdf"):
+            with st.spinner("AI 해석 생성 중..."):
+                ai_text = interpret_quarterly_trend(trend_df)
+                pdf_bytes = generate_quarterly_pdf(trend_df, ai_text, quarter)
+            st.text_area("AI 해석 미리보기", ai_text, height=200)
+            st.download_button(
+                "PDF 다운로드", pdf_bytes,
+                file_name=f"quarterly_trend_{quarter or 'report'}.pdf",
+                mime="application/pdf",
+            )
+
+# ── TAB 3: 투자 분석 (시나리오 + DART) ──────────
 with tab3:
-    st.subheader("회수 시나리오 시뮬레이터")
+    # ── 시나리오 시뮬레이터 섹션 ───────────────────
+    st.markdown("### 🎯 회수 시나리오 시뮬레이터")
     if "result_df" not in st.session_state:
         st.info("먼저 대시보드에서 데이터를 로드하세요.")
     else:
@@ -558,19 +616,22 @@ with tab3:
                 raw_r["투자금액_백만원"], raw_r["투자일"],
                 [0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 4.0, 5.0],
             )
-            fig = px.bar(
+            fig_sim = px.bar(
                 sim_df, x="Exit 배수", y="IRR (%)",
                 color="IRR (%)", color_continuous_scale="Greens",
-                title=f"{company} — Exit 배수별 예상 IRR (목표 {target_irr}% 기준선)",
+                title=f"{company} — Exit 배수별 예상 IRR",
                 text="IRR (%)",
             )
-            fig.add_hline(
+            fig_sim.add_hline(
                 y=target_irr, line_dash="dash", line_color="#2e7d32",
                 annotation_text=f"목표 IRR {target_irr}%",
                 annotation_font_color="#2e7d32",
             )
-            fig.update_traces(texttemplate="%{text}%", textposition="outside")
-            st.plotly_chart(fig, use_container_width=True)
+            fig_sim.update_traces(texttemplate="%{text}%", textposition="outside")
+            fig_sim.update_layout(
+                plot_bgcolor="#ffffff", paper_bgcolor="#ffffff", font_color="#1a1a1a",
+            )
+            st.plotly_chart(fig_sim, use_container_width=True)
             st.dataframe(sim_df, use_container_width=True)
 
         st.divider()
@@ -593,42 +654,9 @@ with tab3:
                 mime="application/pdf",
             )
 
-# ── TAB 4: 분기별 추이 ───────────────────────────
-with tab4:
-    st.subheader("분기별 추이")
-    quarters = load_quarters()
-    if not quarters:
-        st.info("저장된 분기 데이터가 없습니다.\n\n데이터 로드 후 사이드바에서 [현재 데이터 저장]을 눌러 분기를 누적하세요.")
-    else:
-        trend_df = load_trend()
-        _LINE_COLORS = {"TVPI": "#1b5e20", "DPI": "#43a047", "RVPI": "#a5d6a7"}
-        fig = go.Figure()
-        for metric in ["TVPI", "DPI", "RVPI"]:
-            fig.add_trace(go.Scatter(
-                x=trend_df["quarter"], y=trend_df[metric],
-                mode="lines+markers", name=metric,
-                line=dict(color=_LINE_COLORS[metric], width=2),
-                marker=dict(color=_LINE_COLORS[metric], size=8),
-            ))
-        fig.update_layout(title="분기별 펀드 지표 추이", xaxis_title="분기", yaxis_title="배수 (x)")
-        st.plotly_chart(fig, use_container_width=True)
-        st.dataframe(trend_df, use_container_width=True)
-
-        st.divider()
-        if st.button("📄 분기 추이 보고서 생성 (AI 해석 포함)", key="trend_pdf"):
-            with st.spinner("AI 해석 생성 중..."):
-                ai_text = interpret_quarterly_trend(trend_df)
-                pdf_bytes = generate_quarterly_pdf(trend_df, ai_text, quarter)
-            st.text_area("AI 해석 미리보기", ai_text, height=200)
-            st.download_button(
-                "PDF 다운로드", pdf_bytes,
-                file_name=f"quarterly_trend_{quarter or 'report'}.pdf",
-                mime="application/pdf",
-            )
-
-# ── TAB 5: DART 조회 ─────────────────────────────
-with tab5:
-    st.subheader("DART 기업 재무 조회")
+    # ── DART 재무 조회 섹션 ─────────────────────────
+    st.markdown("---")
+    st.markdown("### 🏢 DART 기업 재무 조회")
     corp_name = st.text_input("기업명 입력 (예: 삼성전자, 카카오)")
 
     if st.button("검색", key="dart_search") and corp_name:
@@ -657,13 +685,17 @@ with tab5:
             fin_df = st.session_state["dart_fin_df"]
             selected_name = st.session_state.get("dart_selected", selected)
             st.dataframe(fin_df, use_container_width=True)
-            fig = px.bar(
+            fig_dart = px.bar(
                 fin_df.melt(id_vars="연도", value_vars=["매출액", "영업이익", "당기순이익"]),
                 x="연도", y="value", color="variable", barmode="group",
+                color_discrete_sequence=["#2e7d32", "#66bb6a", "#a5d6a7"],
                 title=f"{selected_name} 연도별 재무 현황",
                 labels={"value": "금액 (원)", "variable": "항목"},
             )
-            st.plotly_chart(fig, use_container_width=True)
+            fig_dart.update_layout(
+                plot_bgcolor="#ffffff", paper_bgcolor="#ffffff", font_color="#1a1a1a",
+            )
+            st.plotly_chart(fig_dart, use_container_width=True)
 
             st.divider()
             if st.button("📄 DART 재무분석 보고서 생성 (AI 해석 포함)", key="dart_pdf"):
@@ -677,39 +709,12 @@ with tab5:
                     mime="application/pdf",
                 )
 
-# ── TAB 6: AI 분석 ───────────────────────────────
-with tab6:
-    st.subheader("AI 분석")
-    if "result_df" not in st.session_state:
-        st.info("먼저 대시보드에서 데이터를 로드하세요.")
-    else:
-        result_df = st.session_state["result_df"]
-        summary = st.session_state["summary"]
-
-        col1, col2 = st.columns(2)
-        with col1:
-            st.markdown("#### 분기 코멘터리")
-            if st.button("코멘터리 생성"):
-                with st.spinner("Claude가 작성 중..."):
-                    detail_rows = result_df[["회사명", "MOIC", "IRR(%)", "TVPI"]].to_dict("records")
-                    commentary = generate_commentary(summary, detail_rows)
-                st.text_area("LP 보고서용 코멘터리", commentary, height=300)
-
-        with col2:
-            st.markdown("#### 자연어 질문")
-            st.caption("예: MOIC 2배 넘는 회사? / 바이오 섹터 현황? / IRR 가장 낮은 곳은?")
-            question = st.text_input("질문 입력")
-            if st.button("질문하기") and question:
-                with st.spinner("답변 생성 중..."):
-                    answer = answer_question(result_df, question)
-                st.info(answer)
-
-# ── TAB 7: 거시지표 ──────────────────────────────
-with tab7:
-    st.subheader("거시지표 & VC 트렌드 벤치마크")
+# ── TAB 4: 시장 벤치마크 (거시지표 + KVIC) ──────
+with tab4:
+    st.markdown("### 🌐 거시지표 — 기준금리 & 환율 (ECOS)")
 
     # ECOS 섹션
-    st.markdown("#### 한국은행 기준금리 & 환율 (ECOS)")
+    st.markdown("#### 한국은행 기준금리 & 원/달러 환율")
     months = st.slider("조회 기간 (개월)", 6, 36, 24, key="ecos_months")
 
     if st.button("거시지표 불러오기"):
@@ -733,7 +738,12 @@ with tab7:
                               title="한국은행 기준금리 (%)", markers=True,
                               color_discrete_sequence=["#2e7d32"])
                 fig.update_traces(line=dict(color="#2e7d32"), marker=dict(color="#2e7d32"))
-                fig.update_layout(xaxis_title="월", yaxis_title="금리 (%)")
+                fig.update_layout(
+                    xaxis_title="월", yaxis_title="금리 (%)",
+                    plot_bgcolor="#ffffff", paper_bgcolor="#ffffff", font_color="#1a1a1a",
+                )
+                fig.update_xaxes(showgrid=True, gridcolor="#f0f0f0")
+                fig.update_yaxes(showgrid=True, gridcolor="#f0f0f0")
                 st.plotly_chart(fig, use_container_width=True)
 
                 latest_rate = rate_df["기준금리(%)"].iloc[-1]
@@ -756,7 +766,12 @@ with tab7:
                                title="원/달러 환율 월평균", markers=True,
                                color_discrete_sequence=["#2e7d32"])
                 fig2.update_traces(line=dict(color="#2e7d32"), marker=dict(color="#2e7d32"))
-                fig2.update_layout(xaxis_title="월", yaxis_title="환율 (원)")
+                fig2.update_layout(
+                    xaxis_title="월", yaxis_title="환율 (원)",
+                    plot_bgcolor="#ffffff", paper_bgcolor="#ffffff", font_color="#1a1a1a",
+                )
+                fig2.update_xaxes(showgrid=True, gridcolor="#f0f0f0")
+                fig2.update_yaxes(showgrid=True, gridcolor="#f0f0f0")
                 st.plotly_chart(fig2, use_container_width=True)
                 latest_fx = fx_df["원/달러(원)"].iloc[-1]
                 st.metric("현재 원/달러", f"{latest_fx:,.0f}원")
@@ -786,7 +801,8 @@ with tab7:
     st.divider()
 
     # ── KVIC 한국벤처투자 섹션
-    st.markdown("#### 🏦 한국벤처투자(KVIC) 모태펀드 시장 벤치마크")
+    st.markdown("---")
+    st.markdown("### 🏦 한국벤처투자(KVIC) 모태펀드 벤치마크")
 
     import os
     if not os.getenv("KVIC_API_KEY"):
@@ -823,7 +839,10 @@ with tab7:
                     title=f"{kvic_year}년 모태펀드 분야별 약정액",
                     labels={"총약정액(억원)": "약정액 (억원)", "투자분야": ""},
                 )
-                fig_s.update_layout(yaxis=dict(autorange="reversed"), height=420)
+                fig_s.update_layout(
+                    yaxis=dict(autorange="reversed"), height=420,
+                    plot_bgcolor="#ffffff", paper_bgcolor="#ffffff", font_color="#1a1a1a",
+                )
                 st.plotly_chart(fig_s, use_container_width=True)
 
                 total_funds = sector_df["조합수"].sum()
@@ -841,6 +860,9 @@ with tab7:
                         text="결성조합수",
                     )
                     fig_t.update_traces(texttemplate="%{text}개", textposition="outside")
+                    fig_t.update_layout(
+                        plot_bgcolor="#ffffff", paper_bgcolor="#ffffff", font_color="#1a1a1a",
+                    )
                     st.plotly_chart(fig_t, use_container_width=True)
 
                 # 포트폴리오 섹터와 시장 비교
@@ -854,3 +876,31 @@ with tab7:
             st.divider()
             with st.expander("전체 분야별 데이터 보기"):
                 st.dataframe(sector_df, use_container_width=True)
+
+# ── TAB 5: AI 분석 ────────────────────────────────
+with tab5:
+    st.markdown("### 💬 AI 분석")
+    if "result_df" not in st.session_state:
+        st.info("먼저 대시보드에서 데이터를 로드하세요.")
+    else:
+        result_df = st.session_state["result_df"]
+        summary = st.session_state["summary"]
+
+        col1, col2 = st.columns(2)
+        with col1:
+            st.markdown("#### 분기 코멘터리")
+            st.caption("포트폴리오 전체를 LP 보고서 형식으로 자동 작성합니다.")
+            if st.button("코멘터리 생성"):
+                with st.spinner("Claude가 작성 중..."):
+                    detail_rows = result_df[["회사명", "MOIC", "IRR(%)", "TVPI"]].to_dict("records")
+                    commentary = generate_commentary(summary, detail_rows)
+                st.text_area("LP 보고서용 코멘터리", commentary, height=300)
+
+        with col2:
+            st.markdown("#### 자연어 질문")
+            st.caption("예: MOIC 2배 넘는 회사? / 바이오 섹터 현황? / IRR 가장 낮은 곳은?")
+            question = st.text_input("질문 입력")
+            if st.button("질문하기") and question:
+                with st.spinner("답변 생성 중..."):
+                    answer = answer_question(result_df, question)
+                st.info(answer)
