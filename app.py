@@ -748,6 +748,157 @@ with tab3:
                     mime="application/pdf",
                 )
 
+    # ── Waterfall 계산기 섹션 ───────────────────────
+    st.markdown("---")
+    st.markdown("### 💧 Waterfall 분배 계산기")
+    st.markdown("""
+<div style="background:#f1f8f1;border-left:4px solid #2e7d32;border-radius:0 8px 8px 0;padding:14px 18px;margin-bottom:20px;">
+  <div style="font-size:15px;font-weight:600;color:#1b5e20;margin-bottom:6px;">Waterfall이란?</div>
+  <div style="font-size:13.5px;color:#444;line-height:1.7;">
+    PE 펀드 회수금을 <b>LP → GP 순서로 단계별 분배</b>하는 구조입니다.
+    ① <b>원금 반환</b> → ② <b>Hurdle Rate 우선수익</b>(LP 독식) → ③ <b>GP 캐치업</b>(GP가 Carry 몫 확보) → ④ <b>초과수익 분배</b>(Carried Interest).
+    GP는 Hurdle을 넘어야만 Carry를 받을 수 있어, LP 이익 보호 장치로 작동합니다.
+  </div>
+</div>
+""", unsafe_allow_html=True)
+
+    wf_c1, wf_c2, wf_c3 = st.columns(3)
+    with wf_c1:
+        wf_invested   = st.number_input("총 투자금액 (백만원)", min_value=100, value=10000, step=100, key="wf_inv")
+        wf_proceeds   = st.number_input("총 회수금액 (백만원)", min_value=100, value=18000, step=100, key="wf_proc")
+        wf_years      = st.number_input("펀드 기간 (년)", min_value=1, max_value=20, value=5, key="wf_years")
+    with wf_c2:
+        wf_hurdle     = st.slider("Hurdle Rate (%)", 0, 20, 8, key="wf_hurdle")
+        wf_catchup    = st.slider("GP 캐치업율 (%)", 0, 100, 100, key="wf_catchup",
+                                   help="100% = GP가 먼저 독식하며 catch-up / 50% = LP·GP 반반 분담")
+    with wf_c3:
+        wf_carry      = st.slider("Carried Interest (%)", 0, 30, 20, key="wf_carry")
+        st.markdown("""
+<div style="font-size:12px;color:#666;line-height:1.6;margin-top:8px;">
+  <b>Hurdle Rate</b>: LP 우선수익률 (보통 8%)<br>
+  <b>캐치업율</b>: GP가 Carry 몫을 따라잡는 속도<br>
+  <b>Carried Interest</b>: GP 성과보수 비율 (보통 20%)
+</div>
+""", unsafe_allow_html=True)
+
+    if st.button("Waterfall 계산", key="wf_calc", type="primary"):
+        total_profit = max(0.0, float(wf_proceeds) - float(wf_invested))
+        remaining    = float(wf_proceeds)
+        steps        = []
+
+        # ① 원금 반환
+        lp1  = min(remaining, float(wf_invested))
+        remaining -= lp1
+        steps.append({"단계": "① 원금 반환", "LP": lp1, "GP": 0.0,
+                       "누적 LP": lp1, "누적 GP": 0.0,
+                       "설명": f"LP 투자원금 {wf_invested:,}백만원 전액 반환"})
+
+        # ② 우선수익 (Hurdle)
+        hurdle_amt = float(wf_invested) * ((1 + wf_hurdle/100) ** wf_years - 1)
+        lp2  = min(remaining, hurdle_amt)
+        remaining -= lp2
+        steps.append({"단계": "② 우선수익 (Hurdle)", "LP": lp2, "GP": 0.0,
+                       "누적 LP": lp1+lp2, "누적 GP": 0.0,
+                       "설명": f"연 {wf_hurdle}% 복리 × {wf_years}년 → {hurdle_amt:,.0f}백만원 (실수취 {lp2:,.0f})"})
+
+        # ③ GP 캐치업
+        gp_carry_target = total_profit * wf_carry / 100
+        if wf_catchup > 0 and remaining > 0 and gp_carry_target > 0:
+            catchup_pool = min(remaining, gp_carry_target / (wf_catchup / 100))
+            gp3  = catchup_pool * wf_catchup / 100
+            lp3  = catchup_pool - gp3
+            remaining -= catchup_pool
+        else:
+            gp3, lp3 = 0.0, 0.0
+        steps.append({"단계": "③ GP 캐치업", "LP": lp3, "GP": gp3,
+                       "누적 LP": lp1+lp2+lp3, "누적 GP": gp3,
+                       "설명": f"GP Carry 목표 {gp_carry_target:,.0f}백만원 → {gp3:,.0f}백만원 확보 (캐치업율 {wf_catchup}%)"})
+
+        # ④ 초과수익 분배
+        gp4  = remaining * wf_carry / 100
+        lp4  = remaining - gp4
+        steps.append({"단계": "④ 초과수익 분배", "LP": lp4, "GP": gp4,
+                       "누적 LP": lp1+lp2+lp3+lp4, "누적 GP": gp3+gp4,
+                       "설명": f"LP {100-wf_carry}% ({lp4:,.0f}) / GP {wf_carry}% ({gp4:,.0f})"})
+
+        total_lp = lp1+lp2+lp3+lp4
+        total_gp = gp3+gp4
+        eff_carry = total_gp/total_profit*100 if total_profit > 0 else 0
+
+        # 요약 지표
+        m1, m2, m3, m4 = st.columns(4)
+        m1.metric("총 투자금액", f"{wf_invested:,}백만원")
+        m2.metric("총 회수금액", f"{wf_proceeds:,}백만원")
+        m3.metric("LP 최종 수취", f"{total_lp:,.0f}백만원",
+                  delta=f"MOIC {total_lp/wf_invested:.2f}x")
+        m4.metric("GP Carry 수취", f"{total_gp:,.0f}백만원",
+                  delta=f"실효 Carry {eff_carry:.1f}%")
+
+        st.markdown("##### 단계별 분배 내역")
+        step_df = pd.DataFrame(steps)[["단계","LP","GP","설명"]]
+        step_df["LP"] = step_df["LP"].apply(lambda x: f"{x:,.0f}")
+        step_df["GP"] = step_df["GP"].apply(lambda x: f"{x:,.0f}")
+        st.dataframe(step_df, use_container_width=True, hide_index=True)
+
+        # 누적 Waterfall 차트
+        st.markdown("##### Waterfall 시각화")
+        wf_chart_df = pd.DataFrame(steps)
+        fig_wf = go.Figure()
+        fig_wf.add_trace(go.Bar(
+            name="LP", x=wf_chart_df["단계"], y=wf_chart_df["LP"],
+            marker_color="#2e7d32", text=wf_chart_df["LP"].apply(lambda x: f"{x:,.0f}"),
+            textposition="inside", insidetextanchor="middle",
+        ))
+        fig_wf.add_trace(go.Bar(
+            name="GP", x=wf_chart_df["단계"], y=wf_chart_df["GP"],
+            marker_color="#81c784", text=wf_chart_df["GP"].apply(lambda x: f"{x:,.0f}" if x>0 else ""),
+            textposition="inside", insidetextanchor="middle",
+        ))
+        fig_wf.update_layout(
+            barmode="stack", height=340,
+            title=f"단계별 LP/GP 분배 (총 회수금 {wf_proceeds:,}백만원)",
+            yaxis_title="금액 (백만원)",
+            plot_bgcolor="#ffffff", paper_bgcolor="#ffffff", font_color="#1a1a1a",
+            legend=dict(orientation="h", yanchor="bottom", y=1.02),
+            margin=dict(t=50, b=10),
+        )
+        fig_wf.update_xaxes(showgrid=False)
+        fig_wf.update_yaxes(showgrid=True, gridcolor="#f0f0f0")
+        st.plotly_chart(fig_wf, use_container_width=True)
+
+        # LP vs GP 최종 파이
+        col_pie, col_txt = st.columns([1, 1])
+        with col_pie:
+            fig_pie = px.pie(
+                values=[total_lp, total_gp],
+                names=["LP", "GP"],
+                color_discrete_sequence=["#2e7d32", "#a5d6a7"],
+                title="최종 LP / GP 분배 비율",
+                hole=0.4,
+            )
+            fig_pie.update_traces(textinfo="label+percent+value",
+                                  texttemplate="%{label}<br>%{percent}<br>%{value:,.0f}백만원")
+            fig_pie.update_layout(showlegend=False, margin=dict(t=40, b=0),
+                                  paper_bgcolor="#ffffff", font_color="#1a1a1a")
+            st.plotly_chart(fig_pie, use_container_width=True)
+        with col_txt:
+            st.markdown(f"""
+<div style="padding:16px 0;font-size:13.5px;line-height:2;color:#333;">
+  <div><b>총 수익</b>: {total_profit:,.0f}백만원</div>
+  <div><b>LP 수익</b>: {total_lp-wf_invested:,.0f}백만원
+    <span style="color:#2e7d32;font-size:12px;"> (원금 제외 순수익)</span></div>
+  <div><b>GP Carry</b>: {total_gp:,.0f}백만원
+    <span style="color:#666;font-size:12px;"> (수익의 {eff_carry:.1f}%)</span></div>
+  <div style="margin-top:12px;padding:10px 14px;background:#f1f8f1;border-radius:8px;">
+    <b>LP MOIC</b>: {total_lp/wf_invested:.2f}x &nbsp;|&nbsp;
+    <b>GP 실효 Carry</b>: {eff_carry:.1f}%
+  </div>
+  <div style="margin-top:8px;font-size:12px;color:#999;">
+    Hurdle {wf_hurdle}% · 캐치업 {wf_catchup}% · Carry {wf_carry}% · {wf_years}년
+  </div>
+</div>
+""", unsafe_allow_html=True)
+
 # ── TAB 4: 시장 벤치마크 (거시지표 + KVIC) ──────
 with tab4:
     st.markdown("### 🌐 거시지표 — 기준금리 & 환율 (ECOS)")
