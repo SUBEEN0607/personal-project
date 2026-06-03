@@ -228,28 +228,6 @@ if st.session_state["show_cover"]:
     이수빈 · SDIC 개인 프로젝트
   </div>
 
-  <!-- 차별점 vs 엑셀 -->
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:0;max-width:580px;margin:0 auto 36px auto;border-radius:12px;overflow:hidden;font-size:12.5px;">
-    <div style="background:rgba(0,0,0,0.35);padding:14px 18px;">
-      <div style="color:rgba(255,255,255,0.5);font-size:11px;letter-spacing:0.08em;margin-bottom:8px;">❌ 기존 엑셀 방식</div>
-      <div style="color:rgba(255,255,255,0.75);line-height:1.9;">
-        DART·ECOS·KVIC 수동 접속<br>
-        XIRR·Waterfall 수식 직접 작성<br>
-        코멘터리 수동 작성 → PDF 변환<br>
-        분기마다 처음부터 반복
-      </div>
-    </div>
-    <div style="background:rgba(46,125,50,0.5);padding:14px 18px;">
-      <div style="color:rgba(255,255,255,0.85);font-size:11px;letter-spacing:0.08em;margin-bottom:8px;">✅ 이 앱의 차별점</div>
-      <div style="color:#ffffff;line-height:1.9;">
-        API 자동 연동 (실시간)<br>
-        원클릭 계산 자동화<br>
-        AI 코멘터리 + PDF 1클릭<br>
-        분기 누적 추이 자동 저장
-      </div>
-    </div>
-  </div>
-
   <!-- API 배지 -->
   <div style="display:flex; gap:14px; flex-wrap:wrap; justify-content:center; margin-bottom:52px; align-items:center;">
     <svg title="DART" width="30" height="30" viewBox="0 0 22 22"><rect width="22" height="22" rx="5" fill="none"/><path d="M5 6h5.8c2.8 0 4.4 1.5 4.4 4s-1.6 4-4.4 4H7.2V17H5V6zm2.2 5.8h3.2c1.4 0 2.2-.7 2.2-1.8s-.8-1.8-2.2-1.8H7.2v3.6z" fill="white"/></svg>
