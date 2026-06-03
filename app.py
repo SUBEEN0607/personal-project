@@ -405,15 +405,7 @@ with tab1:
             "벤치마크": ["≥ 2.0x 우수", "≥ 15% 우수", "1.0x = 원금 회수", "펀드 초기 높음", "≥ 2.0x 우수"],
         }
         perf_df = pd.DataFrame(perf_data)
-        st.dataframe(
-            perf_df.style
-              .apply(lambda s: [
-                  "background-color:#e8f5e9;font-weight:700;color:#1b5e20" if i < 2
-                  else "background-color:#f9fafb"
-                  for i in range(len(s))], axis=0)
-              .set_properties(**{"text-align": "center"}),
-            use_container_width=True, hide_index=True, height=215,
-        )
+        st.dataframe(perf_df, use_container_width=True, hide_index=True, height=215)
 
         with st.expander("📖 지표 용어 해설"):
             st.markdown("""
@@ -439,25 +431,7 @@ with tab1:
         })
         display_df["투자금액(백만)"] = display_df["투자금액(백만)"].apply(lambda x: f"{int(x):,}")
 
-        def _color_moic(val):
-            try:
-                v = float(val)
-                if v >= 2.0: return "color:#1b5e20;font-weight:700"
-                if v >= 1.0: return "color:#e65100;font-weight:600"
-                return "color:#c62828;font-weight:600"
-            except: return ""
-
-        styled = (
-            display_df.style
-            .applymap(_color_moic, subset=["MOIC"])
-            .set_properties(**{"text-align": "center", "font-size": "13px"})
-            .set_table_styles([{
-                "selector": "th",
-                "props": [("background-color","#1b5e20"),("color","white"),
-                          ("font-weight","600"),("text-align","center")]
-            }])
-        )
-        st.dataframe(styled, use_container_width=True, hide_index=True, height=320)
+        st.dataframe(display_df, use_container_width=True, hide_index=True, height=320)
 
         st.markdown("---")
 
