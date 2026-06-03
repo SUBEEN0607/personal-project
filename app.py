@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-import base64, os
+import base64, os, re, requests
 
 from calculator import load_portfolio, run_all, portfolio_summary
 from rag import answer_question
@@ -794,7 +794,61 @@ with tab3:
                                file_name=f"scenario_{company2}_{quarter or 'report'}.pdf",
                                mime="application/pdf")
 
-    # ── ③ Waterfall 계산기 ──────────────────────────
+    # ── ③ IRR Sensitivity Matrix ────────────────────
+    st.markdown("---")
+    st.markdown("### 📊 IRR Sensitivity Matrix")
+    st.caption("Exit 타이밍(년) × Exit 배수 조합별 예상 IRR — 엑셀로는 수작업이 필요한 분석")
+
+    if "df" not in st.session_state:
+        st.info("대시보드에서 데이터를 먼저 로드하세요.")
+    else:
+        mat_company = st.selectbox(
+            "분석 기업 선택", st.session_state["result_df"]["회사명"].tolist(), key="mat_co"
+        )
+        mat_raw = st.session_state["df"]
+        mat_raw = mat_raw[mat_raw["회사명"] == mat_company].iloc[0]
+        invested = float(mat_raw["투자금액_백만원"])
+
+        multiples = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0, 2.5, 3.0, 4.0, 5.0]
+        years_list = list(range(1, 11))
+
+        matrix = []
+        for m in multiples:
+            row = []
+            for y in years_list:
+                irr = round((m ** (1 / y) - 1) * 100, 1)
+                row.append(irr)
+            matrix.append(row)
+
+        mat_df = pd.DataFrame(matrix, index=[f"{m}x" for m in multiples],
+                              columns=[f"{y}년" for y in years_list])
+
+        fig_mat = go.Figure(data=go.Heatmap(
+            z=matrix,
+            x=[f"{y}년" for y in years_list],
+            y=[f"{m}x" for m in multiples],
+            colorscale=[
+                [0.0,  "#c62828"], [0.15, "#e53935"],
+                [0.3,  "#ffb300"], [0.45, "#fff176"],
+                [0.55, "#a5d6a7"], [0.7,  "#43a047"],
+                [1.0,  "#1b5e20"],
+            ],
+            zmid=15,
+            text=[[f"{v}%" for v in row] for row in matrix],
+            texttemplate="%{text}",
+            textfont=dict(size=11),
+            hovertemplate="Exit %{y} · %{x}<br>IRR: %{z:.1f}%<extra></extra>",
+        ))
+        fig_mat.update_layout(
+            title=f"{mat_company} — Exit 배수 × 보유기간별 IRR (%)",
+            xaxis_title="보유 기간", yaxis_title="Exit 배수",
+            height=380, margin=dict(t=40, b=20),
+            plot_bgcolor="#ffffff", paper_bgcolor="#ffffff", font_color="#1a1a1a",
+        )
+        st.plotly_chart(fig_mat, use_container_width=True)
+        st.caption("초록 = IRR 높음 / 빨강 = IRR 낮음 · 기준선 15% (일반적인 PE 목표 IRR)")
+
+    # ── ④ Waterfall 계산기 ──────────────────────────
     st.markdown("---")
     st.markdown("### 💧 Waterfall 분배 계산기")
     st.markdown("""
@@ -1127,7 +1181,7 @@ with tab5:
         st.info("먼저 대시보드에서 데이터를 로드하세요.")
     else:
         result_df = st.session_state["result_df"]
-        summary = st.session_state["summary"]
+        summary   = st.session_state["summary"]
 
         col1, col2 = st.columns(2)
         with col1:
@@ -1147,3 +1201,65 @@ with tab5:
                 with st.spinner("답변 생성 중..."):
                     answer = answer_question(result_df, question)
                 st.info(answer)
+
+    # ── 포트폴리오사 뉴스 모니터링 ────────────────────
+    st.markdown("---")
+    st.markdown("### 📰 포트폴리오사 뉴스 모니터링")
+    st.caption("네이버 뉴스 API로 포트폴리오사 최신 기사를 실시간 검색 — 엑셀로는 불가능한 기능")
+
+    _naver_id     = os.getenv("NAVER_CLIENT_ID")
+    _naver_secret = os.getenv("NAVER_CLIENT_SECRET")
+
+    if not _naver_id:
+        st.info("NAVER_CLIENT_ID가 .env에 없습니다.")
+    elif "result_df" not in st.session_state:
+        st.info("먼저 대시보드에서 데이터를 로드하세요.")
+    else:
+        companies = st.session_state["result_df"]["회사명"].tolist()
+        news_company = st.selectbox("기업 선택", ["전체 포트폴리오"] + companies, key="news_co")
+        news_display = st.slider("기사 수", 3, 10, 5, key="news_n")
+
+        if st.button("뉴스 검색", key="news_btn"):
+            targets = companies if news_company == "전체 포트폴리오" else [news_company]
+            all_news = {}
+
+            headers = {
+                "X-Naver-Client-Id": _naver_id,
+                "X-Naver-Client-Secret": _naver_secret,
+            }
+
+            for corp in targets:
+                try:
+                    r = requests.get(
+                        "https://openapi.naver.com/v1/search/news.json",
+                        headers=headers,
+                        params={"query": corp, "display": news_display, "sort": "date"},
+                        timeout=8,
+                    )
+                    items = r.json().get("items", [])
+                    if items:
+                        all_news[corp] = items
+                except Exception:
+                    pass
+
+            st.session_state["news_results"] = all_news
+
+        if "news_results" in st.session_state and st.session_state["news_results"]:
+            def _clean(text):
+                return re.sub(r"<[^>]+>", "", text or "")
+
+            for corp, items in st.session_state["news_results"].items():
+                st.markdown(f"**{corp}** — {len(items)}건")
+                for item in items:
+                    title = _clean(item.get("title", ""))
+                    desc  = _clean(item.get("description", ""))
+                    date  = item.get("pubDate", "")[:16]
+                    link  = item.get("link", "#")
+                    st.markdown(f"""
+<div style="border:1px solid #e8e8e8;border-radius:8px;padding:12px 16px;margin-bottom:8px;background:#fafafa;">
+  <a href="{link}" target="_blank" style="font-size:14px;font-weight:600;color:#1b5e20;text-decoration:none;">{title}</a>
+  <div style="font-size:12px;color:#666;margin-top:4px;">{desc[:120]}{"..." if len(desc)>120 else ""}</div>
+  <div style="font-size:11px;color:#aaa;margin-top:4px;">{date}</div>
+</div>
+""", unsafe_allow_html=True)
+                st.markdown("")
