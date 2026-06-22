@@ -8,3 +8,5 @@ scipy
 dart-fss
 openpyxl
 fpdf2
+beautifulsoup4
+python-pptx

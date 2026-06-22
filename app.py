@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import io
 import plotly.express as px
 import plotly.graph_objects as go
 import base64, os, re, requests
@@ -11,6 +12,7 @@ from simulator import simulate_exit, optimal_exit_timing
 from db import save_snapshot, load_quarters, load_trend
 from report import (
     generate_pdf,
+    generate_full_pdf,
     generate_jcurve_pdf,
     generate_scenario_pdf,
     generate_quarterly_pdf,
@@ -31,6 +33,8 @@ from commentary import (
     interpret_macro,
 )
 
+# valuation_fetcher는 버튼 클릭 시 지연 import (BeautifulSoup 로딩 지연)
+
 st.set_page_config(page_title="PE/VC 분기 보고 도우미", layout="wide")
 
 # ── 표지/앱 전환 상태 ─────────────────────────────
@@ -39,272 +43,491 @@ if "show_cover" not in st.session_state:
 
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap');
 @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css');
 
+/* ── Design System ── */
 html, body, [class*="css"], .stApp {
-    font-family: 'Pretendard', 'Noto Sans KR', sans-serif;
-    background-color: #ffffff !important;
+    font-family: 'Pretendard', -apple-system, system-ui, sans-serif !important;
+    background-color: #fafaf8 !important;
     color: #1a1a1a !important;
 }
-[data-testid="stAppViewContainer"] { background-color: #ffffff !important; }
+[data-testid="stAppViewContainer"] { background-color: #fafaf8 !important; }
+
+/* Sidebar — clean, borderless */
 [data-testid="stSidebar"] {
-    background-color: #f2f2f2 !important;
-    border-right: 1px solid #eeeeee !important;
-    border-left: 3px solid #2e7d32 !important;
-}
-h1, h2, h3, h4, h5, h6 {
-    color: #1a1a1a !important;
-    font-weight: 500 !important;
-    letter-spacing: -0.02em !important;
-}
-.stMarkdown, .stText, label, .stDataFrame, .stAlert, .stSidebar, .stSidebar * {
-    color: #1a1a1a !important;
-}
-.stTextInput > div > div > input {
-    border: 1px solid #e0e0e0 !important;
-    border-radius: 6px !important;
-    padding: 10px 14px !important;
-    font-size: 15px !important;
     background-color: #ffffff !important;
-    color: #1a1a1a !important;
-    transition: border-color 0.2s ease !important;
+    border-right: 1px solid #eae8e4 !important;
+    border-left: none !important;
 }
-.stTextInput > div > div > input:focus {
-    border-color: #2e7d32 !important;
-    box-shadow: 0 0 0 3px rgba(46,125,50,0.15) !important;
-}
-[data-baseweb="input"]:focus-within {
-    border-color: #2e7d32 !important;
-    box-shadow: 0 0 0 3px rgba(46,125,50,0.15) !important;
-}
-.stButton > button {
-    color: #2e7d32 !important;
-    border: 1.5px solid #2e7d32 !important;
-    background-color: #ffffff !important;
-    border-radius: 6px !important;
-    padding: 10px 28px !important;
-    font-size: 14px !important;
-    font-weight: 500 !important;
-    transition: all 0.2s ease !important;
-}
-.stButton > button:hover {
-    background-color: #2e7d32 !important;
-    color: #ffffff !important;
-}
-[data-testid="stDataFrame"] thead th, [data-testid="stDataFrame"] th {
-    background-color: #2e7d32 !important;
-    color: #ffffff !important;
-    font-weight: 600 !important;
-    text-align: center !important;
-    padding: 12px 16px !important;
-    border: none !important;
-}
-[data-testid="stDataFrame"] tbody td, [data-testid="stDataFrame"] td {
-    text-align: center !important;
-    padding: 10px 16px !important;
-    border-bottom: 1px solid #f0f0f0 !important;
-    color: #1a1a1a !important;
-    font-size: 14px !important;
-}
-[data-testid="stDataFrame"] tbody tr:nth-child(even) td { background-color: #f9fafb !important; }
-[data-testid="stDataFrame"] tbody tr:hover td { background-color: #e8f5e9 !important; }
-hr { border: none !important; border-top: 1px solid #eeeeee !important; margin: 12px 0 !important; }
+
+/* Typography — tight, bold headings */
+h1 { font-size: 32px !important; font-weight: 800 !important; letter-spacing: -0.04em !important; }
+h2 { font-size: 22px !important; font-weight: 700 !important; letter-spacing: -0.03em !important; }
+h3 { font-size: 18px !important; font-weight: 700 !important; letter-spacing: -0.02em !important; }
+h4 { font-size: 15px !important; font-weight: 600 !important; letter-spacing: -0.01em !important; }
+h1,h2,h3,h4,h5,h6 { color: #1a1a1a !important; }
+
+/* Cards — flat, no heavy shadows */
 [data-testid="stVerticalBlockBorderWrapper"] {
-    border: 1px solid #e8e8e8 !important;
-    border-radius: 12px !important;
-    box-shadow: 0 6px 20px rgba(0,0,0,0.12), 0 2px 6px rgba(0,0,0,0.08) !important;
+    border: 1px solid #eae8e4 !important;
+    border-radius: 10px !important;
+    box-shadow: none !important;
     background: #ffffff !important;
-    transition: transform 0.2s ease, box-shadow 0.2s ease !important;
+    transition: box-shadow 0.15s ease !important;
 }
 [data-testid="stVerticalBlockBorderWrapper"]:hover {
-    transform: translateY(-4px) !important;
-    box-shadow: 0 12px 32px rgba(46,125,50,0.15), 0 4px 10px rgba(0,0,0,0.08) !important;
+    transform: none !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04) !important;
 }
+
+/* Metrics — large, clean */
 [data-testid="stMetric"] {
     background: #ffffff;
-    border: 1px solid #e8e8e8;
-    border-radius: 12px;
-    padding: 16px 20px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    border: 1px solid #eae8e4;
+    border-radius: 10px;
+    padding: 20px 24px;
+    box-shadow: none;
 }
-[data-testid="stMetricLabel"] { font-size: 11px !important; color: #999 !important; letter-spacing: 0.07em; text-transform: uppercase; }
-[data-testid="stMetricValue"] { font-size: 28px !important; font-weight: 700 !important; color: #1a1a1a !important; letter-spacing: -0.03em; }
-[data-testid="stMetricDelta"] { font-size: 13px !important; font-weight: 500 !important; }
-[data-baseweb="tab-list"] { border-bottom: 2px solid #eeeeee !important; gap: 4px; }
-[data-baseweb="tab"] {
-    font-size: 14px !important;
+[data-testid="stMetricLabel"] {
+    font-size: 10px !important; color: #999 !important;
+    letter-spacing: 0.1em !important; text-transform: uppercase !important;
     font-weight: 500 !important;
-    color: #666 !important;
-    padding: 10px 18px !important;
-    border-radius: 6px 6px 0 0 !important;
+}
+[data-testid="stMetricValue"] {
+    font-size: 30px !important; font-weight: 800 !important;
+    color: #1a1a1a !important; letter-spacing: -0.04em !important;
+}
+[data-testid="stMetricDelta"] { font-size: 12px !important; font-weight: 500 !important; }
+
+/* Tabs — minimal underline */
+[data-baseweb="tab-list"] { border-bottom: 1px solid #eae8e4 !important; gap: 0 !important; }
+[data-baseweb="tab"] {
+    font-size: 13px !important; font-weight: 500 !important;
+    color: #999 !important; padding: 12px 20px !important;
+    border-radius: 0 !important; letter-spacing: 0.01em !important;
 }
 [aria-selected="true"][data-baseweb="tab"] {
-    color: #2e7d32 !important;
-    border-bottom: 2px solid #2e7d32 !important;
-    background-color: #f1f8f1 !important;
-}
-[data-testid="stSelectbox"] > div > div {
-    border: 1px solid #e0e0e0 !important;
-    border-radius: 6px !important;
-}
-[data-testid="stSlider"] [data-baseweb="slider"] [data-testid="stThumbValue"],
-[data-testid="stSlider"] [role="slider"] { color: #2e7d32 !important; }
-[data-testid="stSlider"] [data-baseweb="slider"] div[style*="background"] { background-color: #2e7d32 !important; }
-.stDownloadButton > button {
-    background-color: #f1f8f1 !important;
-    color: #2e7d32 !important;
-    border: 1px solid #2e7d32 !important;
-    border-radius: 6px !important;
-}
-.stDownloadButton > button:hover { background-color: #2e7d32 !important; color: #ffffff !important; }
-[data-testid="stExpander"] { border: 1px solid #e8e8e8 !important; border-radius: 8px !important; }
-
-/* 표지 시작하기 버튼 */
-.cover-btn > button {
-    background-color: rgba(255,255,255,0.15) !important;
-    color: #ffffff !important;
-    border: 2px solid rgba(255,255,255,0.7) !important;
-    border-radius: 30px !important;
-    padding: 14px 40px !important;
-    font-size: 16px !important;
+    color: #1a1a1a !important;
+    border-bottom: 2px solid #1b5e20 !important;
+    background-color: transparent !important;
     font-weight: 600 !important;
-    letter-spacing: 0.06em !important;
-    backdrop-filter: blur(4px) !important;
-    transition: all 0.25s ease !important;
+}
+
+/* Buttons — clean, subtle */
+.stButton > button {
+    color: #1a1a1a !important;
+    border: 1px solid #ddd !important;
+    background-color: #ffffff !important;
+    border-radius: 8px !important;
+    padding: 8px 20px !important;
+    font-size: 13px !important;
+    font-weight: 500 !important;
+    transition: all 0.15s ease !important;
+    box-shadow: none !important;
+}
+.stButton > button:hover {
+    border-color: #1b5e20 !important;
+    color: #1b5e20 !important;
+    background-color: #f5f9f5 !important;
+}
+.stButton > button[kind="primary"],
+.stButton > button[data-testid="stBaseButton-primary"] {
+    background-color: #1b5e20 !important;
+    color: #ffffff !important;
+    border: none !important;
+}
+.stButton > button[kind="primary"]:hover,
+.stButton > button[data-testid="stBaseButton-primary"]:hover {
+    background-color: #14471a !important;
+    color: #ffffff !important;
+}
+
+/* Download button — accent */
+.stDownloadButton > button {
+    background-color: #1b5e20 !important;
+    color: #ffffff !important;
+    border: none !important;
+    border-radius: 8px !important;
+    font-weight: 500 !important;
+}
+.stDownloadButton > button:hover {
+    background-color: #14471a !important;
+    color: #ffffff !important;
+}
+
+/* DataFrames — clean, minimal borders */
+[data-testid="stDataFrame"] thead th, [data-testid="stDataFrame"] th {
+    background-color: #1a1a1a !important;
+    color: #ffffff !important;
+    font-weight: 600 !important;
+    font-size: 11px !important;
+    letter-spacing: 0.05em !important;
+    text-transform: uppercase !important;
+    text-align: center !important;
+    padding: 10px 14px !important;
+    border: none !important;
+}
+[data-testid="stDataFrame"] tbody td {
+    text-align: center !important;
+    padding: 10px 14px !important;
+    border-bottom: 1px solid #f0eeeb !important;
+    font-size: 13px !important;
+}
+[data-testid="stDataFrame"] tbody tr:hover td { background-color: #f5f9f5 !important; }
+
+/* Inputs — subtle */
+.stTextInput > div > div > input,
+.stNumberInput > div > div > input {
+    border: 1px solid #ddd !important;
+    border-radius: 8px !important;
+    padding: 10px 14px !important;
+    font-size: 14px !important;
+    background-color: #ffffff !important;
+}
+.stTextInput > div > div > input:focus,
+.stNumberInput > div > div > input:focus {
+    border-color: #1b5e20 !important;
+    box-shadow: 0 0 0 2px rgba(27,94,32,0.08) !important;
+}
+[data-baseweb="input"]:focus-within {
+    border-color: #1b5e20 !important;
+    box-shadow: 0 0 0 2px rgba(27,94,32,0.08) !important;
+}
+
+/* Selectbox, Slider */
+[data-testid="stSelectbox"] > div > div { border: 1px solid #ddd !important; border-radius: 8px !important; }
+[data-testid="stSlider"] [role="slider"] { color: #1b5e20 !important; }
+
+/* Expander */
+[data-testid="stExpander"] { border: 1px solid #eae8e4 !important; border-radius: 10px !important; background: #ffffff !important; }
+
+/* Divider */
+hr { border: none !important; border-top: 1px solid #eae8e4 !important; margin: 20px 0 !important; }
+
+/* Alert */
+.stAlert > div { border-radius: 10px !important; }
+
+/* Hide clutter */
+#MainMenu { visibility: hidden; }
+footer { visibility: hidden; }
+
+/* Cover button */
+.cover-btn > button {
+    background-color: transparent !important;
+    color: #ffffff !important;
+    border: 1.5px solid rgba(255,255,255,0.5) !important;
+    border-radius: 24px !important;
+    padding: 12px 36px !important;
+    font-size: 14px !important;
+    font-weight: 500 !important;
+    letter-spacing: 0.05em !important;
 }
 .cover-btn > button:hover {
-    background-color: rgba(255,255,255,0.30) !important;
+    background-color: rgba(255,255,255,0.12) !important;
     border-color: #ffffff !important;
+    color: #ffffff !important;
+}
+
+/* Custom card class */
+.clean-card {
+    background: #ffffff;
+    border: 1px solid #eae8e4;
+    border-radius: 10px;
+    padding: 24px;
+}
+.stat-large {
+    font-size: 48px;
+    font-weight: 800;
+    letter-spacing: -0.04em;
+    line-height: 1;
+    color: #1a1a1a;
+}
+.stat-label {
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #999;
+    font-weight: 500;
+    margin-bottom: 6px;
+}
+.stat-desc {
+    font-size: 12px;
+    color: #999;
+    margin-top: 8px;
+}
+.accent { color: #1b5e20; }
+.section-label {
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: #bbb;
+    font-weight: 600;
+    margin-bottom: 4px;
 }
 </style>
 """, unsafe_allow_html=True)
 
 # ── 배경 이미지 base64 로드 ───────────────────────
-_wp_path = os.path.join(os.path.dirname(__file__), "skku_wallpaper.jpg")
 _wp_b64 = ""
-if os.path.exists(_wp_path):
-    with open(_wp_path, "rb") as _f:
-        _wp_b64 = base64.b64encode(_f.read()).decode()
+for _try_path in [
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "skku_wallpaper.jpg"),
+    os.path.join(os.getcwd(), "skku_wallpaper.jpg"),
+    r"C:\Users\Lenovo\personal-project\skku_wallpaper.jpg",
+]:
+    if os.path.exists(_try_path):
+        with open(_try_path, "rb") as _f:
+            _wp_b64 = base64.b64encode(_f.read()).decode()
+        break
 
 if st.session_state["show_cover"]:
-    # ── 표지 페이지 ──────────────────────────────
+    _b64_src = f"data:image/jpeg;base64,{_wp_b64}" if _wp_b64 else ""
+
     st.markdown(f"""
-<style>
-[data-testid="stAppViewContainer"] {{
-    background:
-        linear-gradient(160deg, rgba(180,210,160,0.85) 0%, rgba(30,60,35,0.92) 100%),
-        url('data:image/jpeg;base64,{_wp_b64}') center 60%/cover no-repeat !important;
-}}
-[data-testid="stSidebar"] {{ display: none !important; }}
-[data-testid="stMain"] * {{
-    background-color: transparent !important;
-    background: transparent !important;
-}}
-</style>
-<div style="
-    display:flex; flex-direction:column; align-items:center; justify-content:center;
-    min-height:72vh; text-align:center; padding: 60px 20px 40px 20px;
-">
-  <!-- 로고 -->
-  <div style="line-height:1; margin-bottom:10px;">
-    <span style="font-family:'Georgia',serif; font-size:72px; font-weight:700;
-                 color:#ffffff; text-shadow:2px 3px 12px rgba(0,0,0,0.4);">S</span>
-    <span style="font-family:'Georgia',serif; font-size:72px; font-weight:700;
-                 color:#e8f5e9; text-shadow:2px 3px 12px rgba(0,0,0,0.4);">DIC</span>
-  </div>
-  <div style="font-size:13px; color:rgba(255,255,255,0.75); letter-spacing:0.18em;
-              font-weight:500; margin-bottom:36px;">
-    SKKU · Digital IT Consulting
-  </div>
+    <style>
+    [data-testid="stAppViewContainer"] {{ background: #0d3b10 !important; }}
+    [data-testid="stSidebar"] {{ display: none !important; }}
+    [data-testid="stHeader"] {{ display: none !important; }}
+    section[data-testid="stMain"] > div {{ padding: 0 !important; }}
+    .block-container {{ padding: 0 !important; max-width: 100% !important; }}
 
-  <!-- 타이틀 -->
-  <div style="font-size:42px; font-weight:700; color:#ffffff;
-              letter-spacing:-0.02em; text-shadow:1px 2px 10px rgba(0,0,0,0.35);
-              margin-bottom:12px; line-height:1.2;">
-    PE/VC 분기 보고 도우미
-  </div>
-  <div style="font-size:15px; color:rgba(255,255,255,0.7); margin-bottom:48px;">
-    이수빈 · SDIC 개인 프로젝트
-  </div>
+    .cv-full {{
+        position: relative; width: 100%; min-height: 100vh; overflow: hidden;
+        margin: -1rem; margin-bottom: 0; padding: 0;
+    }}
+    .cv-bg {{
+        position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+        background: {"url('" + _b64_src + "') center/cover no-repeat" if _b64_src else "linear-gradient(135deg,#2d7a35,#1b5e20)"};
+    }}
+    .cv-overlay {{
+        position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+        background: linear-gradient(180deg,
+            rgba(15,50,20,0.3) 0%,
+            rgba(20,60,25,0.45) 40%,
+            rgba(15,45,18,0.6) 65%,
+            rgba(10,30,12,0.8) 100%);
+    }}
+    .cv-content {{
+        position: relative; width: 100%; min-height: 100vh;
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        text-align: center; z-index: 10; padding: 40px 20px;
+    }}
+    .cv-top {{ font-size:12px; color:rgba(255,255,255,0.7); letter-spacing:0.3em;
+        text-transform:uppercase; margin-bottom:40px; font-weight:600;
+        text-shadow:0 2px 10px rgba(0,0,0,0.5); }}
+    .cv-title {{ font-size:clamp(80px,12vw,150px); font-weight:900; line-height:0.88;
+        letter-spacing:-0.04em; color:#fff;
+        text-shadow:0 0 80px rgba(255,255,255,0.15), 0 6px 30px rgba(0,0,0,0.5); }}
+    .cv-sub {{ font-size:clamp(24px,3.5vw,42px); font-weight:700; letter-spacing:0.08em;
+        margin-top:10px; color:rgba(255,255,255,0.9);
+        text-shadow:0 4px 15px rgba(0,0,0,0.5); }}
+    .cv-tags {{ display:flex; gap:10px; flex-wrap:wrap; justify-content:center;
+        margin-top:50px; margin-bottom:25px; }}
+    .cv-tag {{ font-size:10px; color:rgba(255,255,255,0.55); letter-spacing:0.06em;
+        padding:4px 14px; border:1px solid rgba(255,255,255,0.2); border-radius:20px; }}
+    .cv-name {{ font-size:12px; color:rgba(255,255,255,0.55); letter-spacing:0.08em;
+        font-weight:500; text-shadow:0 2px 8px rgba(0,0,0,0.4); }}
+    .cv-enter {{ margin-top:30px; }}
+    .cv-enter button {{
+        background: transparent !important; color: #fff !important;
+        border: 1.5px solid rgba(255,255,255,0.4) !important;
+        border-radius: 24px !important; padding: 10px 40px !important;
+        font-size: 13px !important; letter-spacing: 0.05em !important;
+        cursor: pointer !important;
+    }}
+    .cv-enter button:hover {{
+        background: rgba(255,255,255,0.1) !important;
+        border-color: rgba(255,255,255,0.6) !important;
+    }}
+    </style>
 
-  <!-- API 배지 -->
-  <div style="display:flex; gap:14px; flex-wrap:wrap; justify-content:center; margin-bottom:52px; align-items:center;">
-    <svg title="DART" width="30" height="30" viewBox="0 0 22 22"><rect width="22" height="22" rx="5" fill="none"/><path d="M5 6h5.8c2.8 0 4.4 1.5 4.4 4s-1.6 4-4.4 4H7.2V17H5V6zm2.2 5.8h3.2c1.4 0 2.2-.7 2.2-1.8s-.8-1.8-2.2-1.8H7.2v3.6z" fill="white"/></svg>
-    <svg title="ECOS (한국은행)" width="30" height="30" viewBox="0 0 22 22"><circle cx="11" cy="11" r="11" fill="none"/><text x="11" y="15.5" text-anchor="middle" fill="white" font-size="11" font-weight="700" font-family="serif">₩</text></svg>
-    <svg title="KVIC" width="30" height="30" viewBox="0 0 22 22"><circle cx="11" cy="11" r="11" fill="none"/><path d="M6 6h2.3v4.2l3.8-4.2H14.8l-4.2 4.5 4.4 5.5h-2.8l-3.1-3.9-1 1.1V16H6z" fill="white"/></svg>
-    <svg title="Naver" width="30" height="30" viewBox="0 0 22 22"><rect width="22" height="22" rx="5" fill="none"/><path d="M5.5 5.5h3.3l3.9 5.8V5.5h3V16.5h-3.2l-4-5.9v5.9h-3z" fill="white"/></svg>
-    <span title="Claude AI" style="color:white;font-size:28px;line-height:1;display:inline-flex;align-items:center;justify-content:center;">✳</span>
-  </div>
-</div>
-""", unsafe_allow_html=True)
+    <div class="cv-full">
+        <div class="cv-bg"></div>
+        <div class="cv-overlay"></div>
+        <div class="cv-content">
+            <div class="cv-top">SDIC &middot; SKKU Digital IT Consulting</div>
+            <div class="cv-title">PE/VC</div>
+            <div class="cv-sub">분기 보고 도우미</div>
+            <div class="cv-tags">
+                <span class="cv-tag">DART</span>
+                <span class="cv-tag">ECOS</span>
+                <span class="cv-tag">KVIC</span>
+                <span class="cv-tag">Claude AI</span>
+            </div>
+            <div class="cv-name">이수빈 &middot; 개인 프로젝트</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
-    # 시작하기 버튼 — 가운데 배치
+    st.markdown(
+        '<div style="margin-top:-80px; position:relative; z-index:100; text-align:center; padding-bottom:30px;">',
+        unsafe_allow_html=True,
+    )
     col_l, col_c, col_r = st.columns([2, 1, 2])
     with col_c:
-        st.markdown('<div class="cover-btn">', unsafe_allow_html=True)
-        if st.button("시작하기 →", use_container_width=True):
+        if st.button("Enter →", use_container_width=True, type="primary"):
             st.session_state["show_cover"] = False
             st.rerun()
-        st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
 
     st.stop()
 
 # ── 일반 헤더: 표지 통과 후 ──────────────────────
 st.markdown("""
-<div style="display:flex; align-items:center; gap:16px;
-            padding: 8px 0 20px 0; border-bottom: 2px solid #2e7d32; margin-bottom: 24px;">
-  <div style="line-height:1;">
-    <span style="font-family:'Georgia',serif; font-size:36px; font-weight:700; color:#2e7d32;">S</span>
-    <span style="font-family:'Georgia',serif; font-size:36px; font-weight:700; color:#1a1a1a;">DIC</span>
-  </div>
-  <div style="width:1px; height:40px; background:#ddd;"></div>
-  <div>
-    <div style="font-size:22px; font-weight:600; color:#1a1a1a; letter-spacing:-0.02em;">PE/VC 분기 보고 도우미</div>
-    <div style="font-size:12px; color:#999; margin-top:2px;">이수빈 · SKKU Digital IT Consulting</div>
-  </div>
+<div style="display:flex; align-items:baseline; gap:12px;
+            padding: 0 0 16px 0; border-bottom: 1px solid #eae8e4; margin-bottom: 24px;">
+  <span style="font-size:24px; font-weight:800; color:#1a1a1a; letter-spacing:-0.04em;">PE/VC</span>
+  <span style="font-size:13px; font-weight:400; color:#bbb; letter-spacing:0.02em;">분기 보고 도우미</span>
 </div>
 """, unsafe_allow_html=True)
 
-# ── 사이드바: 표지 ───────────────────────────────
+# ── 사이드바 ─────────────────────────────────────
 with st.sidebar:
     st.markdown("""
-<div style="padding: 20px 8px 12px 8px; border-bottom: 1px solid #e0e0e0; margin-bottom: 16px;">
-
-  <!-- SDIC 로고 -->
-  <div style="line-height:1; margin-bottom: 4px;">
-    <span style="font-family: 'Georgia', serif; font-size: 42px; font-weight: 700; color: #2e7d32; letter-spacing:-1px;">S</span><span style="font-family: 'Georgia', serif; font-size: 42px; font-weight: 700; color: #1a1a1a; letter-spacing:-1px;">DIC</span>
-  </div>
-  <div style="font-size: 10px; color: #888; letter-spacing: 0.12em; font-weight: 500; margin-bottom: 14px;">SKKU · Digital IT Consulting</div>
-
-  <!-- 프로젝트명 + 이름 -->
-  <div style="font-size: 15px; font-weight: 600; color: #1a1a1a; margin-bottom: 2px;">PE/VC 분기 보고 도우미</div>
-  <div style="font-size: 11px; color: #999; margin-bottom: 16px;">이수빈 개인 프로젝트</div>
-
-  <!-- API 배지 -->
-  <div style="font-size: 10px; color: #aaa; letter-spacing:0.08em; margin-bottom: 8px; font-weight:500;">POWERED BY</div>
-  <div style="display:flex; flex-wrap:wrap; gap:7px; align-items:center;">
-    <svg title="DART" width="22" height="22" viewBox="0 0 22 22" style="flex-shrink:0;"><rect width="22" height="22" rx="5" fill="none"/><path d="M5 6h5.8c2.8 0 4.4 1.5 4.4 4s-1.6 4-4.4 4H7.2V17H5V6zm2.2 5.8h3.2c1.4 0 2.2-.7 2.2-1.8s-.8-1.8-2.2-1.8H7.2v3.6z" fill="#1a1a1a"/></svg>
-    <svg title="ECOS (한국은행)" width="22" height="22" viewBox="0 0 22 22" style="flex-shrink:0;"><circle cx="11" cy="11" r="11" fill="none"/><text x="11" y="15.5" text-anchor="middle" fill="#1a1a1a" font-size="11" font-weight="700" font-family="serif">₩</text></svg>
-    <svg title="KVIC" width="22" height="22" viewBox="0 0 22 22" style="flex-shrink:0;"><circle cx="11" cy="11" r="11" fill="none"/><path d="M6 6h2.3v4.2l3.8-4.2H14.8l-4.2 4.5 4.4 5.5h-2.8l-3.1-3.9-1 1.1V16H6z" fill="#1a1a1a"/></svg>
-    <svg title="Naver" width="22" height="22" viewBox="0 0 22 22" style="flex-shrink:0;"><rect width="22" height="22" rx="5" fill="none"/><path d="M5.5 5.5h3.3l3.9 5.8V5.5h3V16.5h-3.2l-4-5.9v5.9h-3z" fill="#1a1a1a"/></svg>
-    <span title="Claude AI" style="color:#1a1a1a;font-size:20px;line-height:1;display:inline-flex;align-items:center;justify-content:center;">✳</span>
-  </div>
+<div style="padding: 12px 0 16px 0; border-bottom: 1px solid #eae8e4; margin-bottom: 20px;">
+  <div style="font-size: 20px; font-weight: 800; color: #1a1a1a; letter-spacing:-0.04em;">PE/VC</div>
+  <div style="font-size: 10px; color: #bbb; letter-spacing: 0.1em; font-weight: 500; margin-top: 2px;">SDIC · 이수빈</div>
 </div>
 """, unsafe_allow_html=True)
 
-    st.header("펀드 정보")
+    st.markdown('<p style="font-size:12px;letter-spacing:0.1em;text-transform:uppercase;color:#1b5e20;font-weight:700;margin-bottom:6px;">펀드 정보</p>', unsafe_allow_html=True)
     fund_name = st.text_input("펀드명", value="SDIC 성장투자 1호")
     fund_strategy = st.selectbox("전략", ["벤처캐피탈(VC)", "성장투자(Growth)", "바이아웃(Buyout)", "혼합(Hybrid)"])
 
-    st.divider()
-    st.header("데이터 로드")
-    uploaded = st.file_uploader("CSV 또는 Excel 업로드", type=["csv", "xlsx"])
+    st.markdown("---")
+    st.markdown('<p style="font-size:12px;letter-spacing:0.1em;text-transform:uppercase;color:#1b5e20;font-weight:700;margin-bottom:6px;">데이터</p>', unsafe_allow_html=True)
+    uploaded = st.file_uploader("CSV / Excel", type=["csv", "xlsx"])
     use_sample = st.button("샘플 데이터 불러오기")
 
-    st.divider()
-    st.header("분기 저장")
-    quarter = st.text_input("분기 입력 (예: 2024Q1)", value="2024Q1")
+    st.markdown("---")
+    st.markdown('<p style="font-size:12px;letter-spacing:0.1em;text-transform:uppercase;color:#1b5e20;font-weight:700;margin-bottom:6px;">템플릿</p>', unsafe_allow_html=True)
+    if st.button("Excel 입력 가이드 다운로드", use_container_width=True):
+        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+
+        guide_buf = io.BytesIO()
+        with pd.ExcelWriter(guide_buf, engine="openpyxl") as w:
+            # ── 시트1: 샘플 데이터 (5개사) ──
+            sample = pd.DataFrame({
+                "회사명": ["넥스틸바이오", "코리아로지텍", "그린솔라원", "미래모빌리티", "케어에이아이"],
+                "섹터": ["바이오", "SaaS/물류", "신재생에너지", "모빌리티", "의료AI"],
+                "투자단계": ["Series B", "Series A", "Pre-A", "Series C", "Series B"],
+                "투자일": ["2020-04-10", "2021-02-20", "2020-08-15", "2021-11-01", "2020-06-30"],
+                "기준일": ["2024-06-30", "2024-06-30", "2024-06-30", "2024-06-30", "2024-06-30"],
+                "투자금액_백만원": [1500, 600, 300, 4000, 1200],
+                "현재가치_백만원": [5100, 1560, 0, 3200, 3840],
+                "회수금액_백만원": [0, 0, 960, 0, 0],
+                "지분율_%": [8.5, 12.0, 15.0, 5.0, 10.0],
+            })
+            sample.to_excel(w, sheet_name="샘플데이터", index=False)
+
+            # ── 시트2: 컬럼 가이드 ──
+            guide = pd.DataFrame({
+                "컬럼명": ["회사명","섹터","투자단계","투자일","기준일","투자금액_백만원","현재가치_백만원","회수금액_백만원","지분율_%"],
+                "필수": ["필수","필수","필수","필수","필수","필수","선택","필수","선택"],
+                "데이터 타입": ["텍스트","텍스트","텍스트","날짜","날짜","숫자","숫자","숫자","숫자"],
+                "설명": [
+                    "포트폴리오 회사명 (정확한 법인명 권장 — DART 검색에 사용)",
+                    "투자 섹터 (바이오, SaaS, 모빌리티, 에듀테크, 핀테크, AI, 딥테크, 애그테크 등)",
+                    "투자 라운드 단계 (Pre-A, Seed, Series A, Series B, Series C, Growth 등)",
+                    "최초 투자 실행일 (YYYY-MM-DD 형식, 예: 2022-01-15)",
+                    "현재가치 평가 기준일 (YYYY-MM-DD 형식, 보통 분기 말일)",
+                    "투자 원금 (백만원 단위, 예: 1500 = 15억원)",
+                    "현재 평가가치 (백만원). 0이면 자동 밸류에이션 조회 기능 사용 가능",
+                    "이미 회수한 금액 (백만원). 배당, 일부 매각 등. 미회수 시 0",
+                    "취득 지분율 (%). 자동 밸류에이션 시 시가총액 × 지분율로 계산. 미입력 시 10% 기본값",
+                ],
+                "예시값": ["넥스틸바이오","바이오","Series B","2020-04-10","2024-06-30","1500","5100","0","8.5"],
+            })
+            guide.to_excel(w, sheet_name="입력가이드", index=False)
+
+            # ── 시트3: 섹터 목록 ──
+            sectors = pd.DataFrame({
+                "섹터명": ["바이오","의료AI","SaaS","SaaS/물류","모빌리티","자율주행","에듀테크",
+                          "신재생에너지","딥테크","AI","반도체","핀테크","커머스","콘텐츠","게임",
+                          "애그테크","푸드테크","물류","ESG","헬스케어"],
+                "P/S 배수 (참고)": [8.0,7.0,5.0,4.5,3.0,5.0,3.5,2.5,5.0,7.0,6.0,4.5,2.0,3.0,4.0,3.0,2.5,2.0,2.0,4.0],
+                "설명": [
+                    "제약/바이오텍 (임상 단계에 따라 변동 큼)",
+                    "의료 AI/디지털 헬스케어",
+                    "B2B SaaS, 클라우드 서비스",
+                    "물류 SaaS, 물류 플랫폼",
+                    "전기차, 공유 모빌리티",
+                    "자율주행 기술, 라이다/센서",
+                    "에듀테크, 온라인 교육",
+                    "태양광, 풍력, ESS",
+                    "소재, 양자컴퓨팅 등 원천기술",
+                    "생성형 AI, MLOps",
+                    "팹리스, 시스템 반도체",
+                    "간편결제, 로보어드바이저",
+                    "이커머스, D2C",
+                    "미디어, 웹툰, IP",
+                    "모바일/PC 게임",
+                    "스마트팜, 농업기술",
+                    "대체식품, 배달",
+                    "풀필먼트, 라스트마일",
+                    "탄소배출, 그린테크",
+                    "디지털 치료제, 원격의료",
+                ],
+            })
+            sectors.to_excel(w, sheet_name="섹터목록", index=False)
+
+            # ── 스타일 적용 ──
+            wb = w.book
+            green_fill = PatternFill(start_color="1B5E20", end_color="1B5E20", fill_type="solid")
+            light_fill = PatternFill(start_color="E8F5E9", end_color="E8F5E9", fill_type="solid")
+            white_font = Font(name="맑은 고딕", bold=True, color="FFFFFF", size=11)
+            body_font  = Font(name="맑은 고딕", size=10)
+            thin_border = Border(
+                left=Side(style="thin", color="C8E6C9"),
+                right=Side(style="thin", color="C8E6C9"),
+                top=Side(style="thin", color="C8E6C9"),
+                bottom=Side(style="thin", color="C8E6C9"),
+            )
+            center = Alignment(horizontal="center", vertical="center", wrap_text=True)
+            left_wrap = Alignment(horizontal="left", vertical="center", wrap_text=True)
+
+            for sheet_name in wb.sheetnames:
+                ws = wb[sheet_name]
+                # 헤더 스타일
+                for cell in ws[1]:
+                    cell.fill = green_fill
+                    cell.font = white_font
+                    cell.alignment = center
+                    cell.border = thin_border
+                # 바디 스타일
+                for row in ws.iter_rows(min_row=2, max_row=ws.max_row):
+                    for i, cell in enumerate(row):
+                        cell.font = body_font
+                        cell.border = thin_border
+                        cell.alignment = left_wrap if isinstance(cell.value, str) and len(str(cell.value)) > 15 else center
+                    # 짝수 행 연한 초록
+                    if cell.row % 2 == 0:
+                        for c in row:
+                            c.fill = light_fill
+                # 컬럼 너비 자동
+                for col in ws.columns:
+                    max_len = 0
+                    col_letter = col[0].column_letter
+                    for cell in col:
+                        val = str(cell.value) if cell.value else ""
+                        # 한글은 2칸으로 계산
+                        char_len = sum(2 if ord(c) > 127 else 1 for c in val)
+                        max_len = max(max_len, char_len)
+                    ws.column_dimensions[col_letter].width = min(max_len + 4, 50)
+                # 행 높이
+                ws.row_dimensions[1].height = 28
+                for r in range(2, ws.max_row + 1):
+                    ws.row_dimensions[r].height = 24 if sheet_name != "입력가이드" else 40
+
+        st.download_button(
+            "다운로드", guide_buf.getvalue(),
+            file_name="PE_VC_입력_가이드.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            use_container_width=True,
+        )
+
+    st.markdown("---")
+    st.markdown('<p style="font-size:12px;letter-spacing:0.1em;text-transform:uppercase;color:#1b5e20;font-weight:700;margin-bottom:6px;">분기 저장</p>', unsafe_allow_html=True)
+    quarter = st.text_input("분기 (예: 2024Q1)", value="2024Q1")
     if st.button("현재 데이터 저장"):
         if "result_df" in st.session_state:
             save_snapshot(st.session_state["result_df"], quarter)
@@ -328,7 +551,6 @@ if uploaded:
     st.sidebar.success(f"{len(raw)}개사 로드 완료")
 
 elif use_sample:
-    # 샘플: KVIC 2020~2024 결성 펀드 수익률 통계 기반 가상 포트폴리오 (출처: 한국벤처투자 연차보고서)
     raw = load_portfolio("sample_portfolio.csv")
     result_df = run_all(raw)
     st.session_state["df"] = raw
@@ -336,9 +558,57 @@ elif use_sample:
     st.session_state["summary"] = portfolio_summary(raw)
     st.sidebar.success("샘플 데이터(8개사) 로드됨")
 
+# ── 자동 밸류에이션 조회 (데이터 로드 후 표시) ──────
+if "df" in st.session_state:
+    with st.expander("자동 밸류에이션 조회 — DART·네이버 금융에서 현재가치 자동 추정"):
+        st.markdown("""
+<div style="font-size:13px; color:#6b6b6b; line-height:1.7; margin-bottom:16px;">
+  <b>상장사</b>: 네이버 금융 시가총액 × 지분율(%)로 자동 계산<br>
+  <b>비상장사</b>: DART 매출 × 섹터 P/S 배수로 추정<br>
+  지분율(%)을 입력한 후 <b>자동 조회</b>를 클릭하세요.
+</div>
+""", unsafe_allow_html=True)
+        av_df = st.session_state["df"][["회사명", "섹터", "투자금액_백만원", "현재가치_백만원"]].copy()
+        if "지분율_%" not in av_df.columns:
+            av_df["지분율_%"] = 10.0
+        else:
+            av_df["지분율_%"] = st.session_state["df"]["지분율_%"]
+
+        edited_av = st.data_editor(
+            av_df[["회사명", "섹터", "지분율_%"]],
+            column_config={"지분율_%": st.column_config.NumberColumn("지분율 (%)", min_value=0, max_value=100, step=0.1)},
+            use_container_width=True, hide_index=True, key="av_editor",
+        )
+
+        if st.button("자동 조회 실행", key="auto_val_btn"):
+            with st.spinner("DART · 네이버 금융 병렬 조회 중..."):
+                from valuation_fetcher import bulk_fetch_valuations
+                val_result = bulk_fetch_valuations(edited_av)
+            st.session_state["val_result"] = val_result
+
+        if "val_result" in st.session_state:
+            vr = st.session_state["val_result"]
+            display_cols = ["회사명", "source", "근거", "현재가치_백만원_추정"]
+            available = [c for c in display_cols if c in vr.columns]
+            st.dataframe(vr[available], use_container_width=True, hide_index=True)
+
+            if st.button("이 값으로 분석 실행", key="apply_val"):
+                raw_updated = st.session_state["df"].copy()
+                for _, row in vr.iterrows():
+                    est = row.get("현재가치_백만원_추정")
+                    if est and est > 0:
+                        mask = raw_updated["회사명"] == row["회사명"]
+                        raw_updated.loc[mask, "현재가치_백만원"] = est
+                result_df = run_all(raw_updated)
+                st.session_state["df"] = raw_updated
+                st.session_state["result_df"] = result_df
+                st.session_state["summary"] = portfolio_summary(raw_updated)
+                st.success("밸류에이션 업데이트 완료 — 대시보드가 갱신됩니다.")
+                st.rerun()
+
 # ── 탭 ───────────────────────────────────────────
 tab1, tab2, tab3, tab4, tab5 = st.tabs([
-    "📊 대시보드", "📈 펀드 추이", "🎯 투자 분석", "🌐 시장 벤치마크", "💬 AI 분석",
+    "Dashboard", "Fund Trend", "Analysis", "Benchmark", "AI",
 ])
 
 # ── TAB 1: 대시보드 ──────────────────────────────
@@ -361,110 +631,137 @@ with tab1:
         total_value    = df["현재가치_백만원"].sum() + df["회수금액_백만원"].sum()
         base_date      = pd.to_datetime(df["기준일"]).max().strftime("%Y-%m-%d")
 
-        # ── Section 0: 펀드 헤더 (ILPA Cover) ───────
+        # ── 펀드 헤더 ───────────────────────────────
         st.markdown(f"""
-<div style="background:#1b5e20;border-radius:12px;padding:18px 28px;margin-bottom:20px;color:#fff;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+<div style="display:flex; justify-content:space-between; align-items:baseline;
+            margin-bottom:28px; flex-wrap:wrap; gap:8px;">
   <div>
-    <div style="font-size:11px;opacity:0.65;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:4px;">Fund Report</div>
-    <div style="font-size:22px;font-weight:700;letter-spacing:-0.01em;">{fund_name}</div>
-    <div style="font-size:13px;opacity:0.75;margin-top:2px;">{fund_strategy}</div>
+    <div style="font-size:28px; font-weight:800; letter-spacing:-0.04em; color:#1a1a1a;">{fund_name}</div>
+    <div style="font-size:12px; color:#bbb; margin-top:2px; letter-spacing:0.02em;">{fund_strategy} &middot; {quarter} &middot; {base_date}</div>
   </div>
-  <div style="display:flex;gap:32px;flex-wrap:wrap;">
-    <div style="text-align:center;">
-      <div style="font-size:10px;opacity:0.6;letter-spacing:0.08em;text-transform:uppercase;">기준일</div>
-      <div style="font-size:15px;font-weight:600;">{base_date}</div>
+  <div style="display:flex; gap:20px;">
+    <div style="text-align:right;">
+      <div style="font-size:10px; color:#bbb; letter-spacing:0.1em; text-transform:uppercase;">Portfolio</div>
+      <div style="font-size:14px; font-weight:600; color:#1a1a1a;">{n}개사</div>
     </div>
-    <div style="text-align:center;">
-      <div style="font-size:10px;opacity:0.6;letter-spacing:0.08em;text-transform:uppercase;">분기</div>
-      <div style="font-size:15px;font-weight:600;">{quarter}</div>
-    </div>
-    <div style="text-align:center;">
-      <div style="font-size:10px;opacity:0.6;letter-spacing:0.08em;text-transform:uppercase;">투자기업</div>
-      <div style="font-size:15px;font-weight:600;">{n}개사</div>
-    </div>
-    <div style="text-align:center;">
-      <div style="font-size:10px;opacity:0.6;letter-spacing:0.08em;text-transform:uppercase;">총투자금액</div>
-      <div style="font-size:15px;font-weight:600;">{total_invested:,.0f}백만원</div>
+    <div style="text-align:right;">
+      <div style="font-size:10px; color:#bbb; letter-spacing:0.1em; text-transform:uppercase;">Invested</div>
+      <div style="font-size:14px; font-weight:600; color:#1a1a1a;">{total_invested:,.0f}M</div>
     </div>
   </div>
 </div>
 """, unsafe_allow_html=True)
 
-        # ── Level 1: Hero — MOIC + IRR (가장 중요) ──
+        # ── Hero Metrics — MOIC + IRR ───────────────
         st.markdown(f"""
-<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
-  <div style="background:linear-gradient(135deg,#1b5e20,#2e7d32);border-radius:14px;padding:24px 28px;color:#fff;">
-    <div style="font-size:11px;letter-spacing:0.1em;opacity:0.7;text-transform:uppercase;margin-bottom:4px;">① 핵심 — MOIC</div>
-    <div style="font-size:52px;font-weight:700;letter-spacing:-0.03em;line-height:1;">{moic}x</div>
-    <div style="font-size:12px;opacity:0.65;margin-top:6px;">투자원금 대비 전체 가치 배수</div>
+<div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
+  <div style="background:#ffffff; border:1px solid #c8e6c9; border-radius:12px; padding:28px 28px 24px;
+              box-shadow: 0 4px 20px rgba(27,94,32,0.08), 0 8px 40px rgba(46,125,50,0.06), 0 0 0 1px rgba(200,230,201,0.3);">
+    <div class="stat-label">MOIC</div>
+    <div class="stat-large" style="color:#1b5e20;">{moic}<span style="font-size:24px; color:#81c784;">x</span></div>
+    <div class="stat-desc">투자원금 대비 전체 가치 배수</div>
   </div>
-  <div style="background:linear-gradient(135deg,#1b5e20,#388e3c);border-radius:14px;padding:24px 28px;color:#fff;">
-    <div style="font-size:11px;letter-spacing:0.1em;opacity:0.7;text-transform:uppercase;margin-bottom:4px;">① 핵심 — IRR</div>
-    <div style="font-size:52px;font-weight:700;letter-spacing:-0.03em;line-height:1;">{avg_irr}%</div>
-    <div style="font-size:12px;opacity:0.65;margin-top:6px;">시간가치 반영 연환산 수익률</div>
-  </div>
-</div>
-""", unsafe_allow_html=True)
-
-        # ── Level 2: 보조 — DPI · RVPI · TVPI · 기업수 ──
-        st.markdown(f"""
-<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:22px;">
-  <div style="background:#f1f8f1;border:1.5px solid #a5d6a7;border-radius:10px;padding:14px 16px;">
-    <div style="font-size:11px;color:#888;letter-spacing:0.06em;text-transform:uppercase;margin-bottom:4px;">② 보조 — DPI</div>
-    <div style="font-size:26px;font-weight:700;color:#2e7d32;">{dpi}x</div>
-    <div style="font-size:11px;color:#666;margin-top:2px;">현금 회수율</div>
-  </div>
-  <div style="background:#f1f8f1;border:1.5px solid #a5d6a7;border-radius:10px;padding:14px 16px;">
-    <div style="font-size:11px;color:#888;letter-spacing:0.06em;text-transform:uppercase;margin-bottom:4px;">② 보조 — RVPI</div>
-    <div style="font-size:26px;font-weight:700;color:#2e7d32;">{rvpi}x</div>
-    <div style="font-size:11px;color:#666;margin-top:2px;">잔존 가치 배수</div>
-  </div>
-  <div style="background:#f1f8f1;border:1.5px solid #a5d6a7;border-radius:10px;padding:14px 16px;">
-    <div style="font-size:11px;color:#888;letter-spacing:0.06em;text-transform:uppercase;margin-bottom:4px;">② 보조 — TVPI</div>
-    <div style="font-size:26px;font-weight:700;color:#2e7d32;">{tvpi}x</div>
-    <div style="font-size:11px;color:#666;margin-top:2px;">총 가치 배수</div>
-  </div>
-  <div style="background:#fafafa;border:1.5px solid #e0e0e0;border-radius:10px;padding:14px 16px;">
-    <div style="font-size:11px;color:#888;letter-spacing:0.06em;text-transform:uppercase;margin-bottom:4px;">참고 — 기업수</div>
-    <div style="font-size:26px;font-weight:700;color:#1a1a1a;">{n}개</div>
-    <div style="font-size:11px;color:#666;margin-top:2px;">투자 기업 수</div>
+  <div style="background:#ffffff; border:1px solid #c8e6c9; border-radius:12px; padding:28px 28px 24px;
+              box-shadow: 0 4px 20px rgba(27,94,32,0.08), 0 8px 40px rgba(46,125,50,0.06), 0 0 0 1px rgba(200,230,201,0.3);">
+    <div class="stat-label">IRR</div>
+    <div class="stat-large" style="color:#1b5e20;">{avg_irr}<span style="font-size:24px; color:#81c784;">%</span></div>
+    <div class="stat-desc">시간가치 반영 연환산 수익률</div>
   </div>
 </div>
 """, unsafe_allow_html=True)
 
-        # ── Section 1: 성과 요약 테이블 (정의 + 벤치마크 참고용) ──
-        st.markdown("#### 성과 요약 상세 (Performance Summary)")
+        # ── 보조 Metrics — DPI · RVPI · TVPI ───────
+        m1, m2, m3, m4 = st.columns(4)
+        m1.metric("DPI", f"{dpi}x", help="현금 회수 배수")
+        m2.metric("RVPI", f"{rvpi}x", help="잔존 가치 배수")
+        m3.metric("TVPI", f"{tvpi}x", help="DPI + RVPI")
+        m4.metric("Companies", f"{n}개")
+
+        # ── PE / VC 전략별 KPI ───────────────────────
+        st.markdown("---")
+        _is_vc = fund_strategy in ["벤처캐피탈(VC)"]
+        _is_pe = fund_strategy in ["바이아웃(Buyout)"]
+        _is_growth = fund_strategy in ["성장투자(Growth)"]
+
+        if _is_vc:
+            st.markdown("#### VC KPI — Growth Metrics")
+            st.caption("벤처캐피탈 전략 선택 시 표시되는 성장 중심 지표")
+            vc_cols = ["회사명", "섹터", "투자단계", "투자금액_백만원", "현재가치_백만원", "MOIC", "IRR(%)"]
+            vc_available = [c for c in vc_cols if c in result_df.columns]
+            vc_df = result_df[vc_available].copy()
+            # VC 관점: 성장률 기반 추정 (현재가치/투자금액 = 성장배수)
+            vc_df["성장배수"] = (result_df["현재가치_백만원"] / result_df["투자금액_백만원"]).round(2)
+            invest_days = (pd.to_datetime(df["기준일"]) - pd.to_datetime(df["투자일"])).dt.days
+            vc_df["투자기간(월)"] = (invest_days / 30).astype(int).values
+            vc_df["월평균성장률(%)"] = ((vc_df["성장배수"] ** (1 / (vc_df["투자기간(월)"].clip(lower=1) / 12)) - 1) * 100).round(1)
+
+            kv1, kv2, kv3 = st.columns(3)
+            kv1.metric("평균 성장배수", f"{vc_df['성장배수'].mean():.2f}x")
+            kv2.metric("평균 투자기간", f"{vc_df['투자기간(월)'].mean():.0f}개월")
+            kv3.metric("연환산 성장률", f"{vc_df['월평균성장률(%)'].mean():.1f}%")
+
+            st.dataframe(
+                vc_df[["회사명", "섹터", "투자단계", "성장배수", "투자기간(월)", "월평균성장률(%)", "MOIC"]],
+                use_container_width=True, hide_index=True,
+            )
+
+        elif _is_pe:
+            st.markdown("#### PE KPI — Value Metrics")
+            st.caption("바이아웃 전략 선택 시 표시되는 밸류에이션 중심 지표")
+            pe_df = result_df[["회사명", "섹터", "투자금액_백만원", "현재가치_백만원", "회수금액_백만원", "MOIC", "IRR(%)", "DPI"]].copy()
+            pe_df["실현비율(%)"] = (result_df["회수금액_백만원"] / (result_df["현재가치_백만원"] + result_df["회수금액_백만원"]).clip(lower=1) * 100).round(1)
+            pe_df["미실현가치"] = result_df["현재가치_백만원"].apply(lambda x: f"{int(x):,}")
+
+            kp1, kp2, kp3 = st.columns(3)
+            kp1.metric("평균 DPI", f"{dpi}x", help="현금 회수 배수")
+            kp2.metric("평균 실현비율", f"{pe_df['실현비율(%)'].mean():.1f}%")
+            kp3.metric("총 회수금액", f"{int(df['회수금액_백만원'].sum()):,}M")
+
+            st.dataframe(
+                pe_df[["회사명", "섹터", "MOIC", "IRR(%)", "DPI", "실현비율(%)", "미실현가치"]],
+                use_container_width=True, hide_index=True,
+            )
+
+        else:
+            st.markdown("#### Fund KPI")
+            if _is_growth:
+                st.caption("성장투자 전략 — Growth + Value 혼합 지표")
+            else:
+                st.caption("혼합 전략 — 공통 지표")
+
+        # ── Performance Summary ──────────────────────
+        st.markdown("---")
+        st.markdown("#### Performance Summary")
         perf_data = {
-            "지표": ["MOIC", "IRR (가중평균)", "DPI", "RVPI", "TVPI"],
+            "지표": ["MOIC", "IRR", "DPI", "RVPI", "TVPI"],
             "값": [f"{moic}x", f"{avg_irr}%", f"{dpi}x", f"{rvpi}x", f"{tvpi}x"],
             "정의": [
-                "투자원금 대비 전체 가치 배수 (실현+미실현)",
-                "현금흐름 시간가치 반영 연환산 수익률 (XIRR)",
+                "투자원금 대비 전체 가치 배수",
+                "현금흐름 시간가치 반영 연환산 수익률",
                 "LP 출자금 대비 현금 회수 배수",
-                "LP 출자금 대비 잔존 미실현 가치 배수",
-                "DPI + RVPI (총 가치 배수)",
+                "LP 출자금 대비 잔존 미실현 가치",
+                "DPI + RVPI",
             ],
-            "벤치마크": ["≥ 2.0x 우수", "≥ 15% 우수", "1.0x = 원금 회수", "펀드 초기 높음", "≥ 2.0x 우수"],
+            "벤치마크": ["≥ 2.0x", "≥ 15%", "1.0x = 원금회수", "초기 높음", "≥ 2.0x"],
         }
         perf_df = pd.DataFrame(perf_data)
         st.dataframe(perf_df, use_container_width=True, hide_index=True, height=215)
 
-        with st.expander("📖 지표 용어 해설"):
+        with st.expander("용어 해설"):
             st.markdown("""
-<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 24px;font-size:13px;line-height:1.7;color:#333;">
-  <div><b style="color:#1b5e20;">MOIC</b> — 원금 대비 총 가치. 시간가치 미반영. 2x = 2배 수익.</div>
-  <div><b style="color:#1b5e20;">IRR</b> — 투자·회수 타이밍 반영 연환산 수익률. 장기 보유일수록 낮아짐.</div>
-  <div><b style="color:#2e7d32;">DPI</b> — 실제 현금으로 돌아온 배수. 1.0x 이상 = 원금 회수 완료.</div>
-  <div><b style="color:#2e7d32;">RVPI</b> — 아직 회수 안 된 평가 가치 배수. 펀드 초기일수록 높음.</div>
-  <div><b style="color:#2e7d32;">TVPI</b> — DPI + RVPI. MOIC와 유사하나 LP 기준 지표.</div>
-  <div><b style="color:#555;">IRR vs MOIC</b> — 같은 MOIC도 빠를수록 IRR 높음. 2x 3년=IRR 26%, 5년=IRR 15%.</div>
-</div>
-""", unsafe_allow_html=True)
+| 지표 | 설명 |
+|------|------|
+| **MOIC** | 원금 대비 총 가치. 시간가치 미반영. 2x = 2배 |
+| **IRR** | 투자·회수 타이밍 반영 연환산 수익률. 장기 보유 시 낮아짐 |
+| **DPI** | 실제 현금 회수 배수. 1.0x 이상 = 원금 회수 완료 |
+| **RVPI** | 미회수 평가가치 배수. 펀드 초기에 높음 |
+| **TVPI** | DPI + RVPI. LP 관점 총 가치 배수 |
+""")
 
         st.markdown("---")
 
-        # ── Section 2: 포트폴리오 상세 테이블 (ILPA Portfolio Detail) ──
-        st.markdown("#### 2. 포트폴리오 상세 (Portfolio Company Detail)")
+        # ── Portfolio Detail ─────────────────────────
+        st.markdown("#### Portfolio Detail")
 
         display_df = result_df[["회사명","섹터","투자단계","투자금액_백만원","MOIC","IRR(%)","DPI","RVPI","TVPI"]].copy()
         display_df = display_df.rename(columns={
@@ -477,110 +774,171 @@ with tab1:
 
         st.markdown("---")
 
-        # ── Section 3: 시각화 차트 (Supporting Charts) ──
-        st.markdown("#### 3. 성과 시각화 (Supporting Charts)")
+        # ── Charts ────────────────────────────────────
+        st.markdown("#### Charts")
+
+        # ── 초록 인포그래픽 차트 팔레트 ──────────────
+        _GP = ["#1b5e20","#2e7d32","#43a047","#66bb6a","#81c784","#a5d6a7","#c8e6c9","#e8f5e9"]
+        _CHART = dict(
+            height=300, margin=dict(t=30,b=20,l=20,r=20),
+            plot_bgcolor="#ffffff", paper_bgcolor="#ffffff",
+            font=dict(family="Pretendard, sans-serif", color="#1a1a1a", size=12),
+        )
+        _GRID  = dict(showgrid=True, gridcolor="#f0f0f0", gridwidth=1, zeroline=False)
+        _NOGRID = dict(showgrid=False, zeroline=False)
 
         col_a, col_b = st.columns(2)
         with col_a:
-            st.markdown("##### MOIC 분포 (포트폴리오사별)")
+            st.markdown('<p style="font-size:12px;letter-spacing:0.1em;text-transform:uppercase;color:#1b5e20;font-weight:700;margin-bottom:6px;">MOIC Distribution</p>', unsafe_allow_html=True)
             fig_bar = px.bar(
                 result_df.sort_values("MOIC", ascending=False),
                 x="회사명", y="MOIC", color="섹터",
-                color_discrete_sequence=_GREEN,
+                color_discrete_sequence=_GP,
                 labels={"MOIC": "MOIC (x)", "회사명": ""},
             )
-            fig_bar.add_hline(y=1.0, line_dash="dash", line_color="#e53935", annotation_text="기준 1x")
-            fig_bar.update_layout(
-                height=280, margin=dict(t=10,b=10),
-                plot_bgcolor="#ffffff", paper_bgcolor="#ffffff", font_color="#1a1a1a",
-                legend=dict(font_size=11),
-            )
-            fig_bar.update_xaxes(showgrid=False)
-            fig_bar.update_yaxes(showgrid=True, gridcolor="#f0f0f0")
+            fig_bar.add_hline(y=1.0, line_dash="dot", line_color="#c8e6c9",
+                              annotation_text="1.0x", annotation_font_color="#81c784",
+                              annotation_font_size=10)
+            fig_bar.update_traces(marker_line_width=0, opacity=0.9)
+            fig_bar.update_layout(**_CHART,
+                                  legend=dict(font_size=10, orientation="h", y=-0.15, bgcolor="rgba(0,0,0,0)"),
+                                  bargap=0.3)
+            fig_bar.update_xaxes(**_NOGRID, tickfont_size=10)
+            fig_bar.update_yaxes(**_GRID, tickfont_size=10)
             st.plotly_chart(fig_bar, use_container_width=True)
 
         with col_b:
-            st.markdown("##### MOIC vs IRR 산점도")
+            st.markdown('<p style="font-size:12px;letter-spacing:0.1em;text-transform:uppercase;color:#1b5e20;font-weight:700;margin-bottom:6px;">MOIC vs IRR</p>', unsafe_allow_html=True)
             max_size = result_df["투자금액_백만원"].max()
             fig_sc = px.scatter(
                 result_df, x="IRR(%)", y="MOIC",
                 text="회사명", color="섹터", size="투자금액_백만원",
-                color_discrete_sequence=_GREEN, size_max=55,
+                color_discrete_sequence=_GP, size_max=55,
             )
             fig_sc.update_traces(
-                textposition="top center", textfont_size=10,
-                marker=dict(sizeref=2.0*max_size/(55**2), sizemode="area", opacity=0.8),
+                textposition="top center", textfont_size=10, textfont_color="#666",
+                marker=dict(sizeref=2.0*max_size/(55**2), sizemode="area", opacity=0.75,
+                            line=dict(width=1, color="#ffffff")),
             )
-            fig_sc.add_hline(y=1.0, line_dash="dash", line_color="#e53935", annotation_text="MOIC 1x")
-            fig_sc.add_vline(x=0, line_dash="dash", line_color="#ccc")
-            fig_sc.update_layout(
-                height=280, margin=dict(t=10,b=10),
-                plot_bgcolor="#ffffff", paper_bgcolor="#ffffff", font_color="#1a1a1a",
-            )
+            fig_sc.add_hline(y=1.0, line_dash="dot", line_color="#e8f5e9")
+            fig_sc.add_vline(x=0, line_dash="dot", line_color="#e8f5e9")
+            fig_sc.update_layout(**_CHART,
+                                  legend=dict(font_size=10, orientation="h", y=-0.15, bgcolor="rgba(0,0,0,0)"))
+            fig_sc.update_xaxes(**_GRID, tickfont_size=10)
+            fig_sc.update_yaxes(**_GRID, tickfont_size=10)
             st.plotly_chart(fig_sc, use_container_width=True)
 
         col_c, col_d = st.columns(2)
         with col_c:
-            st.markdown("##### 섹터별 투자 배분")
+            st.markdown('<p style="font-size:12px;letter-spacing:0.1em;text-transform:uppercase;color:#1b5e20;font-weight:700;margin-bottom:6px;">Sector Allocation</p>', unsafe_allow_html=True)
             sector_df = df.groupby("섹터")["투자금액_백만원"].sum().reset_index()
             fig_pie = px.pie(sector_df, names="섹터", values="투자금액_백만원",
-                             color_discrete_sequence=_GREEN)
-            fig_pie.update_traces(textinfo="label+percent", hole=0.35, textfont_size=12)
+                             color_discrete_sequence=_GP)
+            fig_pie.update_traces(
+                textinfo="label+percent", hole=0.5, textfont_size=11,
+                marker_line_width=2, marker_line_color="#ffffff",
+                pull=[0.02]*len(sector_df),
+            )
             fig_pie.update_layout(
-                height=260, margin=dict(t=10,b=0), showlegend=False,
-                paper_bgcolor="#ffffff", font_color="#1a1a1a",
+                height=300, margin=dict(t=10,b=10), showlegend=False,
+                paper_bgcolor="#ffffff", font=dict(color="#1a1a1a"),
             )
             st.plotly_chart(fig_pie, use_container_width=True)
 
         with col_d:
-            st.markdown("##### 투자금액 & MOIC 트리맵")
+            st.markdown('<p style="font-size:12px;letter-spacing:0.1em;text-transform:uppercase;color:#1b5e20;font-weight:700;margin-bottom:6px;">Investment & MOIC Treemap</p>', unsafe_allow_html=True)
             fig_tree = px.treemap(
                 result_df, path=["섹터","회사명"],
                 values="투자금액_백만원", color="MOIC",
-                color_continuous_scale=["#c8e6c9","#2e7d32","#1b5e20"],
+                color_continuous_scale=["#e8f5e9","#66bb6a","#2e7d32","#1b5e20"],
                 hover_data={"IRR(%)": True, "TVPI": True},
             )
-            fig_tree.update_traces(textinfo="label+value", textfont_size=12)
-            fig_tree.update_layout(height=260, margin=dict(t=10), paper_bgcolor="#ffffff")
+            fig_tree.update_traces(
+                textinfo="label+value", textfont_size=11,
+                marker_line_width=2, marker_line_color="#ffffff",
+            )
+            fig_tree.update_layout(
+                height=300, margin=dict(t=10,b=0),
+                paper_bgcolor="#ffffff",
+                coloraxis_colorbar=dict(title="MOIC", thickness=12, len=0.5),
+            )
             st.plotly_chart(fig_tree, use_container_width=True)
 
         st.markdown("---")
-        if st.button("📄 LP 보고서 PDF 생성"):
-            with st.spinner("PDF 생성 중..."):
-                detail_rows = result_df[["회사명","MOIC","IRR(%)","TVPI"]].to_dict("records")
-                commentary = generate_commentary(summary, detail_rows)
-                pdf_bytes = generate_pdf(
-                    summary, result_df, commentary, quarter,
-                    fund_name=fund_name, fund_strategy=fund_strategy,
-                    base_date=base_date,
-                )
-            st.download_button(
-                "PDF 다운로드", pdf_bytes,
-                file_name=f"LP_report_{quarter}.pdf",
-                mime="application/pdf",
-            )
+        st.markdown("#### Export")
+        st.caption("전체 탭 내용을 포함한 통합 보고서를 생성합니다.")
+        exp1, exp2, exp3 = st.columns(3)
+        with exp1:
+            if st.button("통합 PDF", use_container_width=True, type="primary"):
+                with st.spinner("통합 PDF 생성 중..."):
+                    detail_rows = result_df[["회사명","MOIC","IRR(%)","TVPI"]].to_dict("records")
+                    _comm = generate_commentary(summary, detail_rows)
+                    _jc = st.session_state.get("jcurve_trend")
+                    _tr = None
+                    from db import load_quarters, load_trend
+                    if load_quarters():
+                        _tr = load_trend()
+                    _rate = st.session_state.get("macro_rate_df")
+                    _fx = st.session_state.get("macro_fx_df")
+                    pdf_bytes = generate_full_pdf(
+                        summary, result_df, df, _comm, quarter,
+                        fund_name=fund_name, fund_strategy=fund_strategy, base_date=base_date,
+                        jcurve_df=_jc, trend_df=_tr,
+                        rate_df=_rate, fx_df=_fx,
+                        spread=st.session_state.get("macro_spread"),
+                    )
+                st.download_button("PDF 다운로드", pdf_bytes,
+                                   file_name=f"Full_Report_{quarter}.pdf",
+                                   mime="application/pdf", use_container_width=True)
+        with exp2:
+            if st.button("통합 PPTX", use_container_width=True):
+                with st.spinner("PPTX 생성 중..."):
+                    from report_pptx import generate_lp_pptx
+                    _comm = generate_commentary(summary,
+                        result_df[["회사명","MOIC","IRR(%)","TVPI"]].to_dict("records"))
+                    pptx_bytes = generate_lp_pptx(
+                        summary, result_df, _comm, quarter,
+                        fund_name=fund_name, fund_strategy=fund_strategy, base_date=base_date)
+                st.download_button("PPTX 다운로드", pptx_bytes,
+                                   file_name=f"Full_Report_{quarter}.pptx",
+                                   mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
+                                   use_container_width=True)
+        with exp3:
+            if st.button("Excel 데이터", use_container_width=True):
+                from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+                excel_buf = io.BytesIO()
+                with pd.ExcelWriter(excel_buf, engine="openpyxl") as writer:
+                    result_df.to_excel(writer, sheet_name="Portfolio", index=False)
+                    perf_df.to_excel(writer, sheet_name="Performance", index=False)
+                    sector_df.to_excel(writer, sheet_name="Sector", index=False)
+                    df.to_excel(writer, sheet_name="Raw Data", index=False)
+                    wb = writer.book
+                    gf = PatternFill(start_color="1B5E20", end_color="1B5E20", fill_type="solid")
+                    wf = Font(name="맑은 고딕", bold=True, color="FFFFFF", size=11)
+                    for sn in wb.sheetnames:
+                        ws = wb[sn]
+                        for cell in ws[1]:
+                            cell.fill = gf; cell.font = wf
+                            cell.alignment = Alignment(horizontal="center")
+                        for col in ws.columns:
+                            cl = col[0].column_letter
+                            mx = max(sum(2 if ord(c)>127 else 1 for c in str(cell.value or "")) for cell in col)
+                            ws.column_dimensions[cl].width = min(mx + 4, 40)
+                st.download_button("Excel 다운로드", excel_buf.getvalue(),
+                                   file_name=f"Full_Data_{quarter}.xlsx",
+                                   mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                                   use_container_width=True)
 
 # ── TAB 2: 펀드 추이 (J-Curve + 분기별 추이) ────
 with tab2:
-    st.markdown("""
-<div style="background:#f9fafb;border:1px solid #e8e8e8;border-radius:10px;padding:12px 18px;margin-bottom:20px;font-size:13px;color:#555;line-height:1.8;">
-  <b style="color:#1a1a1a;">이 탭에서 확인할 수 있는 것</b><br>
-  📈 <b>J-Curve</b> — 현금흐름 CSV 업로드 시 펀드의 누적 현금흐름 궤적 시각화 &nbsp;|&nbsp;
-  📅 <b>분기별 추이</b> — 분기마다 저장한 TVPI·DPI·RVPI 변화 추적
-</div>
-""", unsafe_allow_html=True)
-    # ── J-Curve 섹션 ──────────────────────────────
-    st.markdown("""
-<div style="background:#f1f8f1;border-left:4px solid #2e7d32;border-radius:0 8px 8px 0;padding:14px 18px;margin-bottom:20px;">
-  <div style="font-size:15px;font-weight:600;color:#1b5e20;margin-bottom:6px;">📈 J-Curve란?</div>
-  <div style="font-size:14px;color:#444;line-height:1.6;">
-    사모펀드·VC 펀드는 초기에 투자 집행과 운용 비용으로 <b>누적 현금흐름이 마이너스(−)</b>로 진입합니다.
-    이후 포트폴리오사의 가치가 성장해 회수가 이뤄지면 플러스(+)로 전환되는데,
-    이 흐름이 알파벳 <b>'J'자 형태</b>를 그려 <em>J-Curve</em>라고 부릅니다.
-    손익분기 시점(Break-even)과 회수 속도를 파악하는 데 활용합니다.
-  </div>
-</div>
-""", unsafe_allow_html=True)
+    st.caption("J-Curve — 펀드 누적 현금흐름  |  분기별 추이 — TVPI·DPI·RVPI 변화 추적")
+
+    with st.expander("J-Curve란?"):
+        st.markdown("""
+사모펀드·VC 펀드는 초기에 투자 집행으로 **누적 현금흐름이 마이너스(−)**로 진입합니다.
+이후 포트폴리오사 가치가 성장해 회수가 이뤄지면 플러스(+)로 전환되는데,
+이 흐름이 알파벳 **'J'자 형태**를 그려 J-Curve라고 부릅니다.
+""")
 
     cf_upload = st.file_uploader("현금흐름 CSV 업로드", type="csv", key="cf")
     load_cf_sample = st.button("샘플 현금흐름 불러오기")
@@ -601,26 +959,26 @@ with tab2:
         fig.add_trace(go.Scatter(
             x=trend["날짜"], y=trend["누적현금흐름"],
             mode="lines+markers", name="누적 순현금흐름",
-            line=dict(color="#2e7d32", width=2.5),
-            fill="tozeroy", fillcolor="rgba(46,125,50,0.12)",
-            marker=dict(color="#2e7d32", size=7),
+            line=dict(color="#2e7d32", width=3, shape="spline"),
+            fill="tozeroy", fillcolor="rgba(200,230,201,0.3)",
+            marker=dict(color="#1b5e20", size=8, line=dict(width=2, color="#ffffff")),
         ))
-        fig.add_hline(y=0, line_dash="dash", line_color="#c62828",
-                      annotation_text="손익분기(Break-even)",
-                      annotation_font_color="#c62828")
+        fig.add_hline(y=0, line_dash="dot", line_color="#c8e6c9",
+                      annotation_text="Break-even",
+                      annotation_font_color="#81c784", annotation_font_size=10)
         fig.update_layout(
-            title="J-Curve — 펀드 누적 순현금흐름",
-            xaxis_title="날짜", yaxis_title="누적 순현금흐름 (백만원)",
+            height=350, margin=dict(t=30,b=20,l=20,r=20),
             plot_bgcolor="#ffffff", paper_bgcolor="#ffffff",
-            font_color="#1a1a1a",
+            font=dict(family="Pretendard, sans-serif", color="#1a1a1a", size=12),
+            xaxis_title="", yaxis_title="누적 순현금흐름 (백만원)",
         )
-        fig.update_xaxes(showgrid=True, gridcolor="#f0f0f0")
-        fig.update_yaxes(showgrid=True, gridcolor="#f0f0f0")
+        fig.update_xaxes(showgrid=False, zeroline=False, tickfont_size=10)
+        fig.update_yaxes(showgrid=True, gridcolor="#f0f0f0", zeroline=False, tickfont_size=10)
         st.plotly_chart(fig, use_container_width=True)
         st.caption("컬럼: 회사명, 날짜(YYYY-MM-DD), 현금흐름_백만원 — 투자=음수, 배당·회수=양수")
 
         st.divider()
-        if st.button("📄 J-Curve 보고서 생성 (AI 해석 포함)", key="jcurve_pdf"):
+        if st.button("J-Curve 보고서 생성", key="jcurve_pdf"):
             with st.spinner("AI 해석 생성 중..."):
                 ai_text = interpret_jcurve(trend)
                 pdf_bytes = generate_jcurve_pdf(trend, ai_text, quarter)
@@ -635,33 +993,36 @@ with tab2:
 
     # ── 분기별 추이 섹션 ───────────────────────────
     st.markdown("---")
-    st.markdown("### 📅 분기별 펀드 지표 추이")
+    st.markdown("### 분기별 펀드 지표 추이")
     quarters = load_quarters()
     if not quarters:
         st.info("저장된 분기 데이터가 없습니다.\n\n데이터 로드 후 사이드바에서 [현재 데이터 저장]을 눌러 분기를 누적하세요.")
     else:
         trend_df = load_trend()
-        _LINE_COLORS = {"TVPI": "#1b5e20", "DPI": "#43a047", "RVPI": "#81c784"}
+        _LINE_COLORS = {"TVPI": "#1b5e20", "DPI": "#43a047", "RVPI": "#a5d6a7"}
         fig_q = go.Figure()
         for metric in ["TVPI", "DPI", "RVPI"]:
             fig_q.add_trace(go.Scatter(
                 x=trend_df["quarter"], y=trend_df[metric],
                 mode="lines+markers", name=metric,
-                line=dict(color=_LINE_COLORS[metric], width=2),
-                marker=dict(color=_LINE_COLORS[metric], size=8),
+                line=dict(color=_LINE_COLORS[metric], width=3, shape="spline"),
+                marker=dict(color=_LINE_COLORS[metric], size=9,
+                            line=dict(width=2, color="#ffffff")),
             ))
         fig_q.update_layout(
-            title="분기별 펀드 지표 추이 (TVPI · DPI · RVPI)",
-            xaxis_title="분기", yaxis_title="배수 (x)",
-            plot_bgcolor="#ffffff", paper_bgcolor="#ffffff", font_color="#1a1a1a",
+            height=350, margin=dict(t=30,b=20,l=20,r=20),
+            xaxis_title="", yaxis_title="배수 (x)",
+            plot_bgcolor="#ffffff", paper_bgcolor="#ffffff",
+            font=dict(family="Pretendard, sans-serif", color="#1a1a1a", size=12),
+            legend=dict(orientation="h", y=-0.15, bgcolor="rgba(0,0,0,0)", font_size=11),
         )
-        fig_q.update_xaxes(showgrid=True, gridcolor="#f0f0f0")
-        fig_q.update_yaxes(showgrid=True, gridcolor="#f0f0f0")
+        fig_q.update_xaxes(showgrid=False, zeroline=False, tickfont_size=10)
+        fig_q.update_yaxes(showgrid=True, gridcolor="#f0f0f0", zeroline=False, tickfont_size=10)
         st.plotly_chart(fig_q, use_container_width=True)
         st.dataframe(trend_df, use_container_width=True)
 
         st.divider()
-        if st.button("📄 분기 추이 보고서 생성 (AI 해석 포함)", key="trend_pdf"):
+        if st.button("분기 추이 보고서 생성", key="trend_pdf"):
             with st.spinner("AI 해석 생성 중..."):
                 ai_text = interpret_quarterly_trend(trend_df)
                 pdf_bytes = generate_quarterly_pdf(trend_df, ai_text, quarter)
@@ -674,17 +1035,10 @@ with tab2:
 
 # ── TAB 3: 투자 분석 (DART + 시나리오 + Waterfall) ──
 with tab3:
-    st.markdown("""
-<div style="background:#f9fafb;border:1px solid #e8e8e8;border-radius:10px;padding:12px 18px;margin-bottom:20px;font-size:13px;color:#555;line-height:1.8;">
-  <b style="color:#1a1a1a;">이 탭에서 확인할 수 있는 것</b><br>
-  🏢 <b>DART 재무 조회</b> — 투자 대상 기업의 공시 재무제표(매출·영업이익·순이익) 조회 &nbsp;|&nbsp;
-  🎯 <b>시나리오 시뮬레이터</b> — 목표 IRR 달성에 필요한 Exit 배수 계산 &nbsp;|&nbsp;
-  💧 <b>Waterfall 계산기</b> — Hurdle Rate·Catch-up·Carry 구조별 GP/LP 분배 시뮬레이션
-</div>
-""", unsafe_allow_html=True)
+    st.caption("DART 재무 조회  |  시나리오 시뮬레이터  |  IRR Sensitivity  |  Waterfall 분배")
 
     # ── ① DART 재무 조회 ────────────────────────────
-    st.markdown("### 🏢 DART 기업 재무 조회")
+    st.markdown("### DART 기업 재무 조회")
     corp_name = st.text_input("기업명 입력 (예: 삼성전자, 카카오)")
 
     if st.button("검색", key="dart_search") and corp_name:
@@ -716,17 +1070,23 @@ with tab3:
             fig_dart = px.bar(
                 fin_df.melt(id_vars="연도", value_vars=["매출액", "영업이익", "당기순이익"]),
                 x="연도", y="value", color="variable", barmode="group",
-                color_discrete_sequence=["#2e7d32", "#66bb6a", "#a5d6a7"],
-                title=f"{selected_name} 연도별 재무 현황",
-                labels={"value": "금액 (원)", "variable": "항목"},
+                color_discrete_sequence=["#1b5e20", "#43a047", "#c8e6c9"],
+                labels={"value": "금액 (원)", "variable": ""},
             )
+            fig_dart.update_traces(marker_line_width=0, opacity=0.9)
             fig_dart.update_layout(
-                plot_bgcolor="#ffffff", paper_bgcolor="#ffffff", font_color="#1a1a1a",
+                height=320, margin=dict(t=20,b=20,l=20,r=20),
+                plot_bgcolor="#ffffff", paper_bgcolor="#ffffff",
+                font=dict(family="Pretendard, sans-serif", color="#1a1a1a", size=12),
+                legend=dict(orientation="h", y=-0.15, bgcolor="rgba(0,0,0,0)", font_size=10),
+                bargap=0.25,
             )
+            fig_dart.update_xaxes(showgrid=False, zeroline=False)
+            fig_dart.update_yaxes(showgrid=True, gridcolor="#f0f0f0", zeroline=False)
             st.plotly_chart(fig_dart, use_container_width=True)
 
             st.divider()
-            if st.button("📄 DART 재무분석 보고서 생성 (AI 해석 포함)", key="dart_pdf"):
+            if st.button("DART 재무분석 보고서 생성", key="dart_pdf"):
                 with st.spinner("AI 해석 생성 중..."):
                     ai_text = interpret_dart_financials(selected_name, fin_df)
                     pdf_bytes = generate_dart_pdf(selected_name, fin_df, ai_text, quarter)
@@ -739,7 +1099,7 @@ with tab3:
 
     # ── ② 시나리오 시뮬레이터 ───────────────────────
     st.markdown("---")
-    st.markdown("### 🎯 회수 시나리오 시뮬레이터")
+    st.markdown("### 회수 시나리오 시뮬레이터")
     if "result_df" not in st.session_state:
         st.info("먼저 대시보드에서 데이터를 로드하세요.")
     else:
@@ -770,22 +1130,29 @@ with tab3:
             )
             fig_sim2 = px.bar(
                 sim_df2, x="Exit 배수", y="IRR (%)",
-                color="IRR (%)", color_continuous_scale="Greens",
-                title=f"{company2} — Exit 배수별 예상 IRR",
+                color="IRR (%)", color_continuous_scale=["#e8f5e9","#66bb6a","#2e7d32","#1b5e20"],
                 text="IRR (%)",
             )
             fig_sim2.add_hline(
-                y=target_irr2, line_dash="dash", line_color="#2e7d32",
-                annotation_text=f"목표 IRR {target_irr2}%",
-                annotation_font_color="#2e7d32",
+                y=target_irr2, line_dash="dot", line_color="#a5d6a7",
+                annotation_text=f"Target {target_irr2}%",
+                annotation_font_color="#66bb6a", annotation_font_size=10,
             )
-            fig_sim2.update_traces(texttemplate="%{text}%", textposition="outside")
-            fig_sim2.update_layout(plot_bgcolor="#ffffff", paper_bgcolor="#ffffff", font_color="#1a1a1a")
+            fig_sim2.update_traces(texttemplate="%{text}%", textposition="outside",
+                                   marker_line_width=0)
+            fig_sim2.update_layout(
+                height=320, margin=dict(t=20,b=20,l=20,r=20),
+                plot_bgcolor="#ffffff", paper_bgcolor="#ffffff",
+                font=dict(family="Pretendard, sans-serif", color="#1a1a1a", size=12),
+                bargap=0.3, showlegend=False,
+            )
+            fig_sim2.update_xaxes(showgrid=False, zeroline=False)
+            fig_sim2.update_yaxes(showgrid=True, gridcolor="#f0f0f0", zeroline=False)
             st.plotly_chart(fig_sim2, use_container_width=True)
             st.dataframe(sim_df2, use_container_width=True)
 
         st.divider()
-        if st.button("📄 시나리오 보고서 생성 (AI 해석 포함)", key="sim_pdf"):
+        if st.button("시나리오 보고서 생성", key="sim_pdf"):
             with st.spinner("AI 해석 생성 중..."):
                 ai_text = interpret_scenario(company2, sim_df2, opt2)
                 pdf_bytes = generate_scenario_pdf(company2, sim_df2, opt2, ai_text, quarter)
@@ -796,7 +1163,7 @@ with tab3:
 
     # ── ③ IRR Sensitivity Matrix ────────────────────
     st.markdown("---")
-    st.markdown("### 📊 IRR Sensitivity Matrix")
+    st.markdown("### IRR Sensitivity Matrix")
     st.caption("Exit 타이밍(년) × Exit 배수 조합별 예상 IRR — 엑셀로는 수작업이 필요한 분석")
 
     if "df" not in st.session_state:
@@ -828,44 +1195,48 @@ with tab3:
             x=[f"{y}년" for y in years_list],
             y=[f"{m}x" for m in multiples],
             colorscale=[
-                [0.0,  "#c62828"], [0.15, "#e53935"],
-                [0.3,  "#ffb300"], [0.45, "#fff176"],
-                [0.55, "#a5d6a7"], [0.7,  "#43a047"],
-                [1.0,  "#1b5e20"],
+                [0.0,  "#e8f5e9"], [0.2, "#c8e6c9"],
+                [0.4,  "#a5d6a7"], [0.6, "#66bb6a"],
+                [0.8,  "#43a047"], [1.0, "#1b5e20"],
             ],
             zmid=15,
             text=[[f"{v}%" for v in row] for row in matrix],
             texttemplate="%{text}",
-            textfont=dict(size=11),
+            textfont=dict(size=10, color="#ffffff"),
             hovertemplate="Exit %{y} · %{x}<br>IRR: %{z:.1f}%<extra></extra>",
         ))
         fig_mat.update_layout(
-            title=f"{mat_company} — Exit 배수 × 보유기간별 IRR (%)",
-            xaxis_title="보유 기간", yaxis_title="Exit 배수",
-            height=380, margin=dict(t=40, b=20),
-            plot_bgcolor="#ffffff", paper_bgcolor="#ffffff", font_color="#1a1a1a",
+            xaxis_title="", yaxis_title="",
+            height=400, margin=dict(t=20, b=20, l=20, r=20),
+            plot_bgcolor="#ffffff", paper_bgcolor="#ffffff",
+            font=dict(family="Pretendard, sans-serif", color="#1a1a1a", size=12),
         )
         st.plotly_chart(fig_mat, use_container_width=True)
         st.caption("초록 = IRR 높음 / 빨강 = IRR 낮음 · 기준선 15% (일반적인 PE 목표 IRR)")
 
     # ── ④ Waterfall 계산기 ──────────────────────────
     st.markdown("---")
-    st.markdown("### 💧 Waterfall 분배 계산기")
-    st.markdown("""
-<div style="background:#f1f8f1;border-left:4px solid #2e7d32;border-radius:0 8px 8px 0;padding:14px 18px;margin-bottom:20px;">
-  <div style="font-size:15px;font-weight:600;color:#1b5e20;margin-bottom:6px;">Waterfall이란?</div>
-  <div style="font-size:13.5px;color:#444;line-height:1.7;">
-    PE 펀드 회수금을 <b>LP → GP 순서로 단계별 분배</b>하는 구조입니다.
-    ① <b>원금 반환</b> → ② <b>Hurdle Rate 우선수익</b>(LP 독식) → ③ <b>GP 캐치업</b>(GP가 Carry 몫 확보) → ④ <b>초과수익 분배</b>(Carried Interest).
-    GP는 Hurdle을 넘어야만 Carry를 받을 수 있어, LP 이익 보호 장치로 작동합니다.
-  </div>
-</div>
-""", unsafe_allow_html=True)
+    st.markdown("### Waterfall 분배 계산기")
+    with st.expander("Waterfall이란?"):
+        st.markdown("""
+PE 펀드 회수금을 **LP → GP 순서로 단계별 분배**하는 구조입니다.
+① 원금 반환 → ② Hurdle Rate 우선수익 → ③ GP 캐치업 → ④ 초과수익 분배 (Carried Interest).
+GP는 Hurdle을 넘어야 Carry를 받을 수 있어 LP 이익 보호 장치로 작동합니다.
+""")
+
+    if "result_df" in st.session_state and st.button("현재 포트폴리오 데이터로 자동 채움", key="wf_auto"):
+        _df = st.session_state["df"]
+        st.session_state["wf_auto_inv"] = int(_df["투자금액_백만원"].sum())
+        st.session_state["wf_auto_proc"] = int(_df["현재가치_백만원"].sum() + _df["회수금액_백만원"].sum())
+        st.rerun()
+
+    _auto_inv = st.session_state.get("wf_auto_inv", 10000)
+    _auto_proc = st.session_state.get("wf_auto_proc", 18000)
 
     wf_c1, wf_c2, wf_c3 = st.columns(3)
     with wf_c1:
-        wf_invested   = st.number_input("총 투자금액 (백만원)", min_value=100, value=10000, step=100, key="wf_inv")
-        wf_proceeds   = st.number_input("총 회수금액 (백만원)", min_value=100, value=18000, step=100, key="wf_proc")
+        wf_invested   = st.number_input("총 투자금액 (백만원)", min_value=100, value=_auto_inv, step=100, key="wf_inv")
+        wf_proceeds   = st.number_input("총 회수금액 (백만원)", min_value=100, value=_auto_proc, step=100, key="wf_proc")
         wf_years      = st.number_input("펀드 기간 (년)", min_value=1, max_value=20, value=5, key="wf_years")
     with wf_c2:
         wf_hurdle     = st.slider("Hurdle Rate (%)", 0, 20, 8, key="wf_hurdle")
@@ -946,24 +1317,26 @@ with tab3:
         fig_wf = go.Figure()
         fig_wf.add_trace(go.Bar(
             name="LP", x=wf_chart_df["단계"], y=wf_chart_df["LP"],
-            marker_color="#2e7d32", text=wf_chart_df["LP"].apply(lambda x: f"{x:,.0f}"),
+            marker_color="#1b5e20", text=wf_chart_df["LP"].apply(lambda x: f"{x:,.0f}"),
             textposition="inside", insidetextanchor="middle",
+            marker_line_width=0,
         ))
         fig_wf.add_trace(go.Bar(
             name="GP", x=wf_chart_df["단계"], y=wf_chart_df["GP"],
-            marker_color="#81c784", text=wf_chart_df["GP"].apply(lambda x: f"{x:,.0f}" if x>0 else ""),
+            marker_color="#a5d6a7", text=wf_chart_df["GP"].apply(lambda x: f"{x:,.0f}" if x>0 else ""),
             textposition="inside", insidetextanchor="middle",
+            marker_line_width=0,
         ))
         fig_wf.update_layout(
-            barmode="stack", height=340,
-            title=f"단계별 LP/GP 분배 (총 회수금 {wf_proceeds:,}백만원)",
+            barmode="stack", height=350,
             yaxis_title="금액 (백만원)",
-            plot_bgcolor="#ffffff", paper_bgcolor="#ffffff", font_color="#1a1a1a",
-            legend=dict(orientation="h", yanchor="bottom", y=1.02),
-            margin=dict(t=50, b=10),
+            plot_bgcolor="#ffffff", paper_bgcolor="#ffffff",
+            font=dict(family="Pretendard, sans-serif", color="#1a1a1a", size=12),
+            legend=dict(orientation="h", y=1.02, bgcolor="rgba(0,0,0,0)", font_size=11),
+            margin=dict(t=40, b=10, l=20, r=20), bargap=0.3,
         )
-        fig_wf.update_xaxes(showgrid=False)
-        fig_wf.update_yaxes(showgrid=True, gridcolor="#f0f0f0")
+        fig_wf.update_xaxes(showgrid=False, zeroline=False, tickfont_size=10)
+        fig_wf.update_yaxes(showgrid=True, gridcolor="#f0f0f0", zeroline=False, tickfont_size=10)
         st.plotly_chart(fig_wf, use_container_width=True)
 
         # LP vs GP 최종 파이
@@ -972,43 +1345,34 @@ with tab3:
             fig_pie = px.pie(
                 values=[total_lp, total_gp],
                 names=["LP", "GP"],
-                color_discrete_sequence=["#2e7d32", "#a5d6a7"],
-                title="최종 LP / GP 분배 비율",
-                hole=0.4,
+                color_discrete_sequence=["#1b5e20", "#c8e6c9"],
+                hole=0.5,
             )
-            fig_pie.update_traces(textinfo="label+percent+value",
-                                  texttemplate="%{label}<br>%{percent}<br>%{value:,.0f}백만원")
-            fig_pie.update_layout(showlegend=False, margin=dict(t=40, b=0),
-                                  paper_bgcolor="#ffffff", font_color="#1a1a1a")
+            fig_pie.update_traces(
+                textinfo="label+percent+value",
+                texttemplate="%{label}<br>%{percent}<br>%{value:,.0f}M",
+                marker_line_width=2, marker_line_color="#ffffff",
+            )
+            fig_pie.update_layout(
+                showlegend=False, margin=dict(t=20, b=0),
+                paper_bgcolor="#ffffff",
+                font=dict(family="Pretendard, sans-serif", color="#1a1a1a", size=12),
+            )
             st.plotly_chart(fig_pie, use_container_width=True)
         with col_txt:
+            st.metric("총 수익", f"{total_profit:,.0f}M")
+            st.metric("LP 순수익", f"{total_lp-wf_invested:,.0f}M")
+            st.metric("GP Carry", f"{total_gp:,.0f}M", delta=f"수익의 {eff_carry:.1f}%")
             st.markdown(f"""
-<div style="padding:16px 0;font-size:13.5px;line-height:2;color:#333;">
-  <div><b>총 수익</b>: {total_profit:,.0f}백만원</div>
-  <div><b>LP 수익</b>: {total_lp-wf_invested:,.0f}백만원
-    <span style="color:#2e7d32;font-size:12px;"> (원금 제외 순수익)</span></div>
-  <div><b>GP Carry</b>: {total_gp:,.0f}백만원
-    <span style="color:#666;font-size:12px;"> (수익의 {eff_carry:.1f}%)</span></div>
-  <div style="margin-top:12px;padding:10px 14px;background:#f1f8f1;border-radius:8px;">
-    <b>LP MOIC</b>: {total_lp/wf_invested:.2f}x &nbsp;|&nbsp;
-    <b>GP 실효 Carry</b>: {eff_carry:.1f}%
-  </div>
-  <div style="margin-top:8px;font-size:12px;color:#999;">
-    Hurdle {wf_hurdle}% · 캐치업 {wf_catchup}% · Carry {wf_carry}% · {wf_years}년
-  </div>
-</div>
+**LP MOIC** {total_lp/wf_invested:.2f}x · **GP 실효 Carry** {eff_carry:.1f}%
+
+<span style="font-size:11px;color:#999;">Hurdle {wf_hurdle}% · 캐치업 {wf_catchup}% · Carry {wf_carry}% · {wf_years}년</span>
 """, unsafe_allow_html=True)
 
 # ── TAB 4: 시장 벤치마크 (거시지표 + KVIC) ──────
 with tab4:
-    st.markdown("""
-<div style="background:#f9fafb;border:1px solid #e8e8e8;border-radius:10px;padding:12px 18px;margin-bottom:20px;font-size:13px;color:#555;line-height:1.8;">
-  <b style="color:#1a1a1a;">이 탭에서 확인할 수 있는 것</b><br>
-  🌐 <b>ECOS 거시지표</b> — 한국은행 기준금리 및 원/달러 환율 추이 (펀드 IRR과 스프레드 비교) &nbsp;|&nbsp;
-  🏦 <b>KVIC 벤치마크</b> — 모태펀드 분야별 조합 현황 및 내 포트폴리오 섹터 비교
-</div>
-""", unsafe_allow_html=True)
-    st.markdown("### 🌐 거시지표 — 기준금리 & 환율 (ECOS)")
+    st.caption("ECOS 거시지표 — 기준금리·환율  |  KVIC 벤치마크 — 모태펀드 분야별 현황")
+    st.markdown("### 거시지표 — 기준금리 & 환율 (ECOS)")
 
     # ECOS 섹션
     st.markdown("#### 한국은행 기준금리 & 원/달러 환율")
@@ -1076,7 +1440,7 @@ with tab4:
                 st.warning("환율 데이터를 불러올 수 없습니다.")
 
         st.divider()
-        if st.button("📄 거시지표 보고서 생성 (AI 해석 포함)", key="macro_pdf"):
+        if st.button("거시지표 보고서 생성", key="macro_pdf"):
             with st.spinner("AI 해석 생성 중..."):
                 ai_text = interpret_macro(
                     rate_df if rate_df is not None else pd.DataFrame(),
@@ -1099,7 +1463,7 @@ with tab4:
 
     # ── KVIC 한국벤처투자 섹션
     st.markdown("---")
-    st.markdown("### 🏦 한국벤처투자(KVIC) 모태펀드 벤치마크")
+    st.markdown("### 한국벤처투자(KVIC) 모태펀드 벤치마크")
 
     import os
     if not os.getenv("KVIC_API_KEY"):
@@ -1176,7 +1540,7 @@ with tab4:
 
 # ── TAB 5: AI 분석 ────────────────────────────────
 with tab5:
-    st.markdown("### 💬 AI 분석")
+    st.markdown("### AI 분석")
     if "result_df" not in st.session_state:
         st.info("먼저 대시보드에서 데이터를 로드하세요.")
     else:
@@ -1204,7 +1568,7 @@ with tab5:
 
     # ── 포트폴리오사 뉴스 모니터링 ────────────────────
     st.markdown("---")
-    st.markdown("### 📰 포트폴리오사 뉴스 모니터링")
+    st.markdown("### 포트폴리오사 뉴스 모니터링")
     st.caption("네이버 뉴스 API로 포트폴리오사 최신 기사를 실시간 검색 — 엑셀로는 불가능한 기능")
 
     _naver_id     = os.getenv("NAVER_CLIENT_ID")
@@ -1256,10 +1620,10 @@ with tab5:
                     date  = item.get("pubDate", "")[:16]
                     link  = item.get("link", "#")
                     st.markdown(f"""
-<div style="border:1px solid #e8e8e8;border-radius:8px;padding:12px 16px;margin-bottom:8px;background:#fafafa;">
-  <a href="{link}" target="_blank" style="font-size:14px;font-weight:600;color:#1b5e20;text-decoration:none;">{title}</a>
-  <div style="font-size:12px;color:#666;margin-top:4px;">{desc[:120]}{"..." if len(desc)>120 else ""}</div>
-  <div style="font-size:11px;color:#aaa;margin-top:4px;">{date}</div>
+<div style="border:1px solid #eae8e4;border-radius:10px;padding:14px 18px;margin-bottom:8px;background:#ffffff;">
+  <a href="{link}" target="_blank" style="font-size:13px;font-weight:600;color:#1a1a1a;text-decoration:none;">{title}</a>
+  <div style="font-size:12px;color:#999;margin-top:6px;line-height:1.5;">{desc[:120]}{"..." if len(desc)>120 else ""}</div>
+  <div style="font-size:10px;color:#ccc;margin-top:6px;">{date}</div>
 </div>
 """, unsafe_allow_html=True)
                 st.markdown("")

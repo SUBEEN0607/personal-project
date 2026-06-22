@@ -1,10 +1,16 @@
 import os
-from anthropic import Anthropic
 from dotenv import load_dotenv
 
 load_dotenv()
 
-_client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+_client = None
+
+def _get_client():
+    global _client
+    if _client is None:
+        from anthropic import Anthropic
+        _client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+    return _client
 
 
 def generate_commentary(summary: dict, detail_rows: list[dict]) -> str:
@@ -33,9 +39,10 @@ def generate_commentary(summary: dict, detail_rows: list[dict]) -> str:
 1. 3~4문단, 각 문단 3~4문장
 2. 이번 분기 전체 성과 평가 → 주목할 포트폴리오사 언급 → 리스크 및 향후 전망 순서
 3. 숫자는 반드시 포함, LP가 바로 활용할 수 있는 수준으로 작성
-4. 전문적이고 간결한 한국어 사용"""
+4. 전문적이고 간결한 한국어 사용
+5. 절대로 **굵은글씨**, *기울임*, #제목 등 마크다운 문법을 사용하지 마세요. 순수 텍스트만 작성하세요."""
 
-    response = _client.messages.create(
+    response = _get_client().messages.create(
         model="claude-haiku-4-5",
         max_tokens=1024,
         messages=[{"role": "user", "content": prompt}],
@@ -64,9 +71,10 @@ def interpret_jcurve(trend_df) -> str:
 1. J-Curve 형태 분석 (현재 어느 단계인지)
 2. 손익분기 시점 평가
 3. 투자 회수 진행 속도에 대한 LP 관점 코멘트
-4. 2~3문단, 전문적인 한국어로 작성"""
+4. 2~3문단, 전문적인 한국어로 작성
+5. 절대로 **굵은글씨**, *기울임*, #제목 등 마크다운 문법을 사용하지 마세요. 순수 텍스트만 작성하세요."""
 
-    response = _client.messages.create(
+    response = _get_client().messages.create(
         model="claude-haiku-4-5",
         max_tokens=800,
         messages=[{"role": "user", "content": prompt}],
@@ -96,7 +104,7 @@ def interpret_scenario(company: str, sim_df, opt: dict) -> str:
 3. IRR 20% 달성 가능성 평가
 4. 2~3문단, LP/GP에게 전달 가능한 수준의 한국어 작성"""
 
-    response = _client.messages.create(
+    response = _get_client().messages.create(
         model="claude-haiku-4-5",
         max_tokens=800,
         messages=[{"role": "user", "content": prompt}],
@@ -125,9 +133,10 @@ def interpret_quarterly_trend(trend_df) -> str:
 1. TVPI 개선 또는 하락 추세 분석
 2. DPI(실현) vs RVPI(미실현) 비중 변화 해석
 3. 분기별 주요 변곡점 식별
-4. 2~3문단, 전문적인 한국어로 작성"""
+4. 2~3문단, 전문적인 한국어로 작성
+5. 절대로 **굵은글씨**, *기울임*, #제목 등 마크다운 문법을 사용하지 마세요. 순수 텍스트만 작성하세요."""
 
-    response = _client.messages.create(
+    response = _get_client().messages.create(
         model="claude-haiku-4-5",
         max_tokens=800,
         messages=[{"role": "user", "content": prompt}],
@@ -148,9 +157,10 @@ def interpret_dart_financials(corp_name: str, fin_df) -> str:
 1. 매출 성장률 및 수익성(영업이익률, 순이익률) 계산 및 평가
 2. 재무 건전성 및 성장 모멘텀 분석
 3. PE/VC 투자자 관점에서의 투자 가치 평가
-4. 2~3문단, 투자 심사 보고서 수준의 한국어로 작성"""
+4. 2~3문단, 투자 심사 보고서 수준의 한국어로 작성
+5. 절대로 **굵은글씨**, *기울임*, #제목 등 마크다운 문법을 사용하지 마세요. 순수 텍스트만 작성하세요."""
 
-    response = _client.messages.create(
+    response = _get_client().messages.create(
         model="claude-haiku-4-5",
         max_tokens=800,
         messages=[{"role": "user", "content": prompt}],
@@ -189,9 +199,10 @@ def interpret_macro(rate_df, fx_df, spread: float = None) -> str:
 1. 금리 변동이 PE/VC 투자 환경에 미치는 영향
 2. 환율 변동이 해외 투자 포트폴리오 및 IRR에 미치는 영향
 3. 현 거시 환경에서의 투자 전략 시사점
-4. 2~3문단, 전문적인 한국어로 작성"""
+4. 2~3문단, 전문적인 한국어로 작성
+5. 절대로 **굵은글씨**, *기울임*, #제목 등 마크다운 문법을 사용하지 마세요. 순수 텍스트만 작성하세요."""
 
-    response = _client.messages.create(
+    response = _get_client().messages.create(
         model="claude-haiku-4-5",
         max_tokens=800,
         messages=[{"role": "user", "content": prompt}],

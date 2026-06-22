@@ -1,14 +1,28 @@
 import os
 import numpy as np
 import pandas as pd
-from anthropic import Anthropic
 from dotenv import load_dotenv
-from sentence_transformers import SentenceTransformer
 
 load_dotenv()
 
-_client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
-_model = SentenceTransformer("paraphrase-multilingual-MiniLM-L12-v2")
+_client = None
+_model = None
+
+
+def _get_client():
+    global _client
+    if _client is None:
+        from anthropic import Anthropic
+        _client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+    return _client
+
+
+def _get_model():
+    global _model
+    if _model is None:
+        from sentence_transformers import SentenceTransformer
+        _model = SentenceTransformer("paraphrase-multilingual-MiniLM-L12-v2")
+    return _model
 
 
 def _build_docs(result_df: pd.DataFrame) -> list[str]:
@@ -27,8 +41,9 @@ def _build_docs(result_df: pd.DataFrame) -> list[str]:
 def answer_question(result_df: pd.DataFrame, question: str) -> str:
     docs = _build_docs(result_df)
 
-    doc_embeddings = _model.encode(docs)
-    q_embedding = _model.encode([question])[0]
+    model = _get_model()
+    doc_embeddings = model.encode(docs)
+    q_embedding = model.encode([question])[0]
 
     scores = np.dot(doc_embeddings, q_embedding) / (
         np.linalg.norm(doc_embeddings, axis=1) * np.linalg.norm(q_embedding) + 1e-9
@@ -36,7 +51,7 @@ def answer_question(result_df: pd.DataFrame, question: str) -> str:
     top_idx = np.argsort(scores)[::-1][:3]
     context = "\n".join(docs[i] for i in top_idx)
 
-    response = _client.messages.create(
+    response = _get_client().messages.create(
         model="claude-haiku-4-5",
         max_tokens=512,
         messages=[{
