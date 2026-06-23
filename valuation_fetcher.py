@@ -70,15 +70,20 @@ def _naver_market_cap_억(stock_code: str) -> float | None:
             _mktcap_cache[code] = None
             return None
 
-        text = tag.get_text(strip=True)
-        # 단위 처리: "조" 포함 시 × 10,000 / 그 외 억원 그대로
-        if "조" in text:
-            num = float(re.sub(r"[^\d.]", "", text)) * 10_000
-        else:
-            num_str = re.sub(r"[^\d]", "", text)
-            num = float(num_str) if num_str else 0.0
+        # 태그 안의 숫자들만 추출 (조/억 인코딩 깨짐 대응)
+        nums = re.findall(r"[\d,]+", tag.get_text())
+        nums = [n.replace(",", "") for n in nums if n.replace(",", "").isdigit()]
 
-        result = num if num > 0 else None
+        if len(nums) >= 2:
+            # "X조 Y억" → 숫자 2개: [X, Y] → X * 10000 + Y
+            num = int(nums[0]) * 10_000 + int(nums[1])
+        elif len(nums) == 1:
+            # 억원 단위만 (소형주)
+            num = int(nums[0])
+        else:
+            num = 0
+
+        result = float(num) if num > 0 else None
         _mktcap_cache[code] = result
         return result
     except Exception:

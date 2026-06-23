@@ -48,15 +48,15 @@ st.markdown("""
 /* ── Design System ── */
 html, body, [class*="css"], .stApp {
     font-family: 'Pretendard', -apple-system, system-ui, sans-serif !important;
-    background-color: #fafaf8 !important;
+    background-color: #ffffff !important;
     color: #1a1a1a !important;
 }
-[data-testid="stAppViewContainer"] { background-color: #fafaf8 !important; }
+[data-testid="stAppViewContainer"] { background-color: #ffffff !important; }
 
-/* Sidebar — clean, borderless */
+/* Sidebar */
 [data-testid="stSidebar"] {
     background-color: #ffffff !important;
-    border-right: 1px solid #eae8e4 !important;
+    border-right: 1px solid #e5e5e5 !important;
     border-left: none !important;
 }
 
@@ -67,24 +67,23 @@ h3 { font-size: 18px !important; font-weight: 700 !important; letter-spacing: -0
 h4 { font-size: 15px !important; font-weight: 600 !important; letter-spacing: -0.01em !important; }
 h1,h2,h3,h4,h5,h6 { color: #1a1a1a !important; }
 
-/* Cards — flat, no heavy shadows */
+/* Cards */
 [data-testid="stVerticalBlockBorderWrapper"] {
-    border: 1px solid #eae8e4 !important;
-    border-radius: 10px !important;
+    border: 1px solid #e5e5e5 !important;
+    border-radius: 12px !important;
     box-shadow: none !important;
     background: #ffffff !important;
-    transition: box-shadow 0.15s ease !important;
 }
 [data-testid="stVerticalBlockBorderWrapper"]:hover {
     transform: none !important;
     box-shadow: 0 2px 8px rgba(0,0,0,0.04) !important;
 }
 
-/* Metrics — large, clean */
+/* Metrics */
 [data-testid="stMetric"] {
     background: #ffffff;
-    border: 1px solid #eae8e4;
-    border-radius: 10px;
+    border: 1px solid #e5e5e5;
+    border-radius: 12px;
     padding: 20px 24px;
     box-shadow: none;
 }
@@ -132,14 +131,18 @@ h1,h2,h3,h4,h5,h6 { color: #1a1a1a !important; }
 }
 .stButton > button[kind="primary"],
 .stButton > button[data-testid="stBaseButton-primary"] {
-    background-color: #1b5e20 !important;
-    color: #ffffff !important;
+    background-color: #e8dcc8 !important;
+    color: #1a1a1a !important;
     border: none !important;
+    border-radius: 24px !important;
+    padding: 10px 36px !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.03em !important;
 }
 .stButton > button[kind="primary"]:hover,
 .stButton > button[data-testid="stBaseButton-primary"]:hover {
-    background-color: #14471a !important;
-    color: #ffffff !important;
+    background-color: #d4c4a8 !important;
+    color: #1a1a1a !important;
 }
 
 /* Download button — accent */
@@ -155,13 +158,13 @@ h1,h2,h3,h4,h5,h6 { color: #1a1a1a !important; }
     color: #ffffff !important;
 }
 
-/* DataFrames — clean, minimal borders */
+/* DataFrames — green header */
 [data-testid="stDataFrame"] thead th, [data-testid="stDataFrame"] th {
-    background-color: #1a1a1a !important;
+    background-color: #1b5e20 !important;
     color: #ffffff !important;
     font-weight: 600 !important;
     font-size: 11px !important;
-    letter-spacing: 0.05em !important;
+    letter-spacing: 0.04em !important;
     text-transform: uppercase !important;
     text-align: center !important;
     padding: 10px 14px !important;
@@ -170,10 +173,11 @@ h1,h2,h3,h4,h5,h6 { color: #1a1a1a !important; }
 [data-testid="stDataFrame"] tbody td {
     text-align: center !important;
     padding: 10px 14px !important;
-    border-bottom: 1px solid #f0eeeb !important;
+    border-bottom: 1px solid #eee !important;
     font-size: 13px !important;
+    background-color: #ffffff !important;
 }
-[data-testid="stDataFrame"] tbody tr:hover td { background-color: #f5f9f5 !important; }
+[data-testid="stDataFrame"] tbody tr:hover td { background-color: #f0f7f0 !important; }
 
 /* Inputs — subtle */
 .stTextInput > div > div > input,
@@ -199,10 +203,10 @@ h1,h2,h3,h4,h5,h6 { color: #1a1a1a !important; }
 [data-testid="stSlider"] [role="slider"] { color: #1b5e20 !important; }
 
 /* Expander */
-[data-testid="stExpander"] { border: 1px solid #eae8e4 !important; border-radius: 10px !important; background: #ffffff !important; }
+[data-testid="stExpander"] { border: 1px solid #e5e5e5 !important; border-radius: 12px !important; background: #ffffff !important; }
 
 /* Divider */
-hr { border: none !important; border-top: 1px solid #eae8e4 !important; margin: 20px 0 !important; }
+hr { border: none !important; border-top: 1px solid #ddd !important; margin: 20px 0 !important; }
 
 /* Alert */
 .stAlert > div { border-radius: 10px !important; }
@@ -284,15 +288,21 @@ if st.session_state["show_cover"]:
 
     st.markdown(f"""
     <style>
-    [data-testid="stAppViewContainer"] {{ background: #0d3b10 !important; }}
+    [data-testid="stAppViewContainer"] {{ background: transparent !important; }}
+    [data-testid="stMain"] {{ background: transparent !important; }}
+    .block-container {{ padding: 0 !important; max-width: 100% !important; }}
+    [data-testid="stMainBlockContainer"] {{ padding: 0 !important; max-width: 100% !important; }}
+    section[data-testid="stMain"] > div {{ padding: 0 !important; }}
+    .stMainBlockContainer {{ max-width: 100% !important; padding: 0 !important; }}
+    html, body, .stApp {{ background: transparent !important; }}
     [data-testid="stSidebar"] {{ display: none !important; }}
     [data-testid="stHeader"] {{ display: none !important; }}
     section[data-testid="stMain"] > div {{ padding: 0 !important; }}
     .block-container {{ padding: 0 !important; max-width: 100% !important; }}
 
     .cv-full {{
-        position: relative; width: 100%; min-height: 100vh; overflow: hidden;
-        margin: -1rem; margin-bottom: 0; padding: 0;
+        position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+        overflow: hidden; z-index: 0; pointer-events: none;
     }}
     .cv-bg {{
         position: absolute; top: 0; left: 0; width: 100%; height: 100%;
@@ -359,7 +369,7 @@ if st.session_state["show_cover"]:
     """, unsafe_allow_html=True)
 
     st.markdown(
-        '<div style="margin-top:-80px; position:relative; z-index:100; text-align:center; padding-bottom:30px;">',
+        '<div style="margin-top:500px; position:relative; z-index:100; text-align:center; padding-bottom:50px;">',
         unsafe_allow_html=True,
     )
     col_l, col_c, col_r = st.columns([2, 1, 2])
@@ -654,17 +664,17 @@ with tab1:
 
         # ── Hero Metrics — MOIC + IRR ───────────────
         st.markdown(f"""
-<div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
+<div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:14px;">
   <div style="background:#ffffff; border:1px solid #c8e6c9; border-radius:12px; padding:28px 28px 24px;
-              box-shadow: 0 4px 20px rgba(27,94,32,0.08), 0 8px 40px rgba(46,125,50,0.06), 0 0 0 1px rgba(200,230,201,0.3);">
+              box-shadow: 0 4px 20px rgba(27,94,32,0.08);">
     <div class="stat-label">MOIC</div>
-    <div class="stat-large" style="color:#1b5e20;">{moic}<span style="font-size:24px; color:#81c784;">x</span></div>
+    <div class="stat-large" style="color:#1b5e20;">{moic}<span style="font-size:24px; color:#66bb6a;">x</span></div>
     <div class="stat-desc">투자원금 대비 전체 가치 배수</div>
   </div>
   <div style="background:#ffffff; border:1px solid #c8e6c9; border-radius:12px; padding:28px 28px 24px;
-              box-shadow: 0 4px 20px rgba(27,94,32,0.08), 0 8px 40px rgba(46,125,50,0.06), 0 0 0 1px rgba(200,230,201,0.3);">
+              box-shadow: 0 4px 20px rgba(27,94,32,0.08);">
     <div class="stat-label">IRR</div>
-    <div class="stat-large" style="color:#1b5e20;">{avg_irr}<span style="font-size:24px; color:#81c784;">%</span></div>
+    <div class="stat-large" style="color:#1b5e20;">{avg_irr}<span style="font-size:24px; color:#66bb6a;">%</span></div>
     <div class="stat-desc">시간가치 반영 연환산 수익률</div>
   </div>
 </div>
@@ -1195,9 +1205,10 @@ with tab3:
             x=[f"{y}년" for y in years_list],
             y=[f"{m}x" for m in multiples],
             colorscale=[
-                [0.0,  "#e8f5e9"], [0.2, "#c8e6c9"],
-                [0.4,  "#a5d6a7"], [0.6, "#66bb6a"],
-                [0.8,  "#43a047"], [1.0, "#1b5e20"],
+                [0.0,  "#d32f2f"], [0.15, "#e53935"],
+                [0.3,  "#ff9800"], [0.45, "#ffc107"],
+                [0.55, "#cddc39"], [0.7,  "#66bb6a"],
+                [0.85, "#43a047"], [1.0,  "#1b5e20"],
             ],
             zmid=15,
             text=[[f"{v}%" for v in row] for row in matrix],
