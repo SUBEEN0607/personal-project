@@ -387,20 +387,9 @@ if st.session_state["show_cover"]:
 # ── 일반 헤더: 표지 통과 후 ──────────────────────
 st.markdown("""
 <div style="padding: 0 0 20px 0; border-bottom: 1px solid #e5e5e5; margin-bottom: 24px;">
-  <div style="display:flex; align-items:baseline; gap:12px; margin-bottom:8px;">
+  <div style="display:flex; align-items:baseline; gap:12px;">
     <span style="font-size:24px; font-weight:800; color:#1a1a1a; letter-spacing:-0.04em;">PE/VC</span>
     <span style="font-size:13px; font-weight:400; color:#bbb;">분기 보고 도우미</span>
-  </div>
-  <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-    <span style="font-size:10px; color:#fff; background:#1b5e20; padding:3px 10px; border-radius:4px; font-weight:600;">DATA</span>
-    <span style="font-size:11px; color:#ccc;">→</span>
-    <span style="font-size:10px; color:#fff; background:#2e7d32; padding:3px 10px; border-radius:4px; font-weight:600;">ANALYSIS</span>
-    <span style="font-size:11px; color:#ccc;">→</span>
-    <span style="font-size:10px; color:#fff; background:#43a047; padding:3px 10px; border-radius:4px; font-weight:600;">LP Report</span>
-    <span style="font-size:11px; color:#ccc;">·</span>
-    <span style="font-size:10px; color:#fff; background:#43a047; padding:3px 10px; border-radius:4px; font-weight:600;">IC Deck</span>
-    <span style="font-size:11px; color:#ccc;">·</span>
-    <span style="font-size:10px; color:#fff; background:#43a047; padding:3px 10px; border-radius:4px; font-weight:600;">Excel</span>
   </div>
 </div>
 """, unsafe_allow_html=True)
@@ -747,10 +736,10 @@ if "df" in st.session_state:
 
 # ── 탭 ───────────────────────────────────────────
 tab1, tab2, tab3, tab4, tab5 = st.tabs([
-    "Dashboard", "Fund Trend", "Analysis", "Benchmark", "AI",
+    "Performance", "Portfolio", "Market", "Tools", "Report",
 ])
 
-# ── TAB 1: 대시보드 ──────────────────────────────
+# ── TAB 1: Performance ────────────────────────────
 with tab1:
     if "result_df" not in st.session_state:
         st.info("사이드바에서 데이터를 로드하세요.")
@@ -1337,9 +1326,9 @@ span[data-baseweb="tag"] svg { fill: #999 !important; width: 12px !important; }
                                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                                    use_container_width=True)
 
-# ── TAB 2: 펀드 추이 (J-Curve + 분기별 추이) ────
+# ── TAB 2: Portfolio ──────────────────────────────
 with tab2:
-    st.caption("J-Curve — 펀드 누적 현금흐름  |  분기별 추이 — TVPI·DPI·RVPI 변화 추적")
+    st.caption("J-Curve 현금흐름 추이  |  분기별 TVPI·DPI·RVPI 변화 추적")
 
     with st.expander("J-Curve란?"):
         st.markdown("""
@@ -1441,7 +1430,7 @@ with tab2:
                 mime="application/pdf",
             )
 
-# ── TAB 3: 투자 분석 (DART + 시나리오 + Waterfall) ──
+# ── TAB 3: Market ────────────────────────────────
 with tab3:
     st.caption("DART 재무 조회  |  시나리오 시뮬레이터  |  IRR Sensitivity  |  Waterfall 분배")
 
@@ -1778,9 +1767,9 @@ GP는 Hurdle을 넘어야 Carry를 받을 수 있어 LP 이익 보호 장치로 
 <span style="font-size:11px;color:#999;">Hurdle {wf_hurdle}% · 캐치업 {wf_catchup}% · Carry {wf_carry}% · {wf_years}년</span>
 """, unsafe_allow_html=True)
 
-# ── TAB 4: 시장 벤치마크 (거시지표 + KVIC) ──────
+# ── TAB 4: Tools ─────────────────────────────────
 with tab4:
-    st.caption("ECOS 거시지표 — 기준금리·환율  |  KVIC 벤치마크 — 모태펀드 분야별 현황")
+    st.caption("ECOS 거시지표  |  KVIC 벤치마크  |  기준금리·환율 스프레드")
     st.markdown("### 거시지표 — 기준금리 & 환율 (ECOS)")
 
     # ECOS 섹션
@@ -1947,9 +1936,9 @@ with tab4:
             with st.expander("전체 분야별 데이터 보기"):
                 st.dataframe(sector_df, use_container_width=True)
 
-# ── TAB 5: AI 분석 ────────────────────────────────
+# ── TAB 5: Report ────────────────────────────────
 with tab5:
-    st.markdown("### AI 분석")
+    st.markdown("### AI 분석 · 보고서")
     if "result_df" not in st.session_state:
         st.info("먼저 대시보드에서 데이터를 로드하세요.")
     else:
