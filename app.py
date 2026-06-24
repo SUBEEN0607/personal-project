@@ -357,6 +357,9 @@ if st.session_state["show_cover"]:
             <div class="cv-top">SDIC &middot; SKKU Digital IT Consulting</div>
             <div class="cv-title">PE/VC</div>
             <div class="cv-sub">분기 보고 도우미</div>
+            <div style="font-size:13px;color:rgba(255,255,255,0.5);margin-bottom:32px;line-height:1.6;max-width:520px;">
+                데이터 수집부터 성과 분석, LP 보고서와 IC 장표 작성까지<br>분기 보고에 필요한 모든 과정을 하나의 화면에서 완결합니다.
+            </div>
             <div class="cv-tags">
                 <span class="cv-tag">DART</span>
                 <span class="cv-tag">ECOS</span>
@@ -1118,25 +1121,60 @@ with tab1:
 </div>
 """, unsafe_allow_html=True)
 
-        # 섹션 선택
+        # multiselect 태그 스타일 — 베이지 + 작게
+        st.markdown("""
+<style>
+span[data-baseweb="tag"] {
+    background-color: #e8dcc8 !important;
+    color: #1a1a1a !important;
+    font-size: 11px !important;
+    height: 26px !important;
+    border-radius: 6px !important;
+    padding: 0 8px !important;
+}
+span[data-baseweb="tag"] span { color: #1a1a1a !important; }
+span[data-baseweb="tag"] svg { fill: #999 !important; width: 12px !important; }
+</style>
+""", unsafe_allow_html=True)
+
+        # 5탭 기준 섹션 구성
+        st.markdown("""
+<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px;">
+  <div style="background:#fafafa;border-radius:8px;padding:10px 14px;">
+    <div style="font-size:10px;color:#1b5e20;font-weight:700;letter-spacing:0.08em;margin-bottom:4px;">DASHBOARD</div>
+    <div style="font-size:10px;color:#999;line-height:1.5;">성과 요약 · 포트폴리오 상세<br>Top/Bottom · 섹터 · 집중도 · 리스크</div>
+  </div>
+  <div style="background:#fafafa;border-radius:8px;padding:10px 14px;">
+    <div style="font-size:10px;color:#1b5e20;font-weight:700;letter-spacing:0.08em;margin-bottom:4px;">FUND TREND · ANALYSIS</div>
+    <div style="font-size:10px;color:#999;line-height:1.5;">J-Curve · 분기 추이<br>시나리오 · IRR Sensitivity · Waterfall</div>
+  </div>
+  <div style="background:#fafafa;border-radius:8px;padding:10px 14px;">
+    <div style="font-size:10px;color:#1b5e20;font-weight:700;letter-spacing:0.08em;margin-bottom:4px;">BENCHMARK · AI</div>
+    <div style="font-size:10px;color:#999;line-height:1.5;">거시지표 (금리·환율)<br>AI 코멘터리 · 뉴스 모니터링</div>
+  </div>
+</div>
+""", unsafe_allow_html=True)
+
         all_sections = [
-            "Performance Summary (MOIC·IRR·DPI·RVPI·TVPI)",
-            "Portfolio Detail (포트폴리오사별 상세)",
-            "Top/Bottom Performers (상위·하위 성과 분석)",
-            "Sector Analysis (섹터별 투자 비중)",
-            "Portfolio Analytics (HHI 집중도·투자기간·실현율)",
-            "Risk Assessment (리스크 평가)",
-            "AI Commentary (Claude AI 코멘터리)",
-            "J-Curve (누적 현금흐름)",
-            "Quarterly Trend (분기별 추이)",
-            "Macro Indicators (기준금리·환율·스프레드)",
-            "Waterfall Distribution (GP/LP 분배)",
+            "성과 요약 (MOIC·IRR·DPI·RVPI·TVPI)",
+            "포트폴리오 상세",
+            "Top/Bottom 성과 분석",
+            "섹터별 투자 비중",
+            "집중도·투자기간·실현율",
+            "리스크 평가",
+            "AI 코멘터리",
+            "J-Curve 현금흐름",
+            "분기별 추이",
+            "거시지표 (금리·환율)",
+            "Waterfall 분배",
+            "시나리오 분석",
+            "IRR Sensitivity",
+            "뉴스 모니터링",
         ]
         selected = st.multiselect(
-            "보고서에 포함할 섹션 선택",
+            "포함할 섹션",
             all_sections,
             default=all_sections[:7],
-            help="체크한 섹션만 PDF/PPTX에 포함됩니다.",
         )
         st.session_state["report_sections"] = selected
 
