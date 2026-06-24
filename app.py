@@ -33,7 +33,7 @@ from commentary import (
     interpret_macro,
 )
 
-# valuation_fetcher는 버튼 클릭 시 지연 import (BeautifulSoup 로딩 지연)
+
 
 st.set_page_config(page_title="PE/VC 분기 보고 도우미", layout="wide")
 
@@ -200,7 +200,10 @@ h1,h2,h3,h4,h5,h6 { color: #1a1a1a !important; }
 
 /* Selectbox, Slider */
 [data-testid="stSelectbox"] > div > div { border: 1px solid #ddd !important; border-radius: 8px !important; }
-[data-testid="stSlider"] [role="slider"] { color: #1b5e20 !important; }
+[data-testid="stSlider"] [role="slider"] { color: #1a1a1a !important; }
+[data-baseweb="slider"] [role="slider"] { background-color: #1a1a1a !important; border-color: #1a1a1a !important; }
+[data-baseweb="slider"] [role="progressbar"] > div:first-child { background-color: #1a1a1a !important; }
+[data-baseweb="slider"] [role="progressbar"] { background-color: #e0e0e0 !important; }
 
 /* Expander */
 [data-testid="stExpander"] { border: 1px solid #e5e5e5 !important; border-radius: 12px !important; background: #ffffff !important; }
@@ -409,18 +412,15 @@ with st.sidebar:
 
     st.markdown("---")
     st.markdown('<p style="font-size:12px;letter-spacing:0.1em;text-transform:uppercase;color:#1b5e20;font-weight:700;margin-bottom:6px;">데이터</p>', unsafe_allow_html=True)
-    st.markdown('<p style="font-size:10px;color:#999;line-height:1.5;margin-bottom:8px;">표준 양식을 사용하면 가장 정확합니다. 다른 양식도 자동 인식합니다.</p>', unsafe_allow_html=True)
-    uploaded = st.file_uploader("CSV / Excel", type=["csv", "xlsx"])
-    col_s1, col_s2 = st.columns(2)
-    with col_s1:
-        use_sample = st.button("샘플 불러오기", use_container_width=True)
-    with col_s2:
-        if st.button("입력 가이드", use_container_width=True):
-            from data_parser import generate_guide_excel
-            guide_buf = generate_guide_excel()
-            st.download_button("다운로드", guide_buf, file_name="PE_VC_입력_가이드.xlsx",
-                               mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                               use_container_width=True)
+    st.markdown('<p style="font-size:10px;color:#999;line-height:1.5;margin-bottom:8px;">엑셀 또는 CSV 파일을 업로드하세요. 다양한 양식을 자동으로 인식합니다.</p>', unsafe_allow_html=True)
+    uploaded = st.file_uploader("CSV / Excel", type=["csv", "xlsx"], label_visibility="collapsed")
+    use_sample = st.button("샘플 불러오기", use_container_width=True)
+    if st.button("입력 가이드", use_container_width=True):
+        from data_parser import generate_guide_excel
+        guide_buf = generate_guide_excel()
+        st.download_button("다운로드", guide_buf, file_name="PE_VC_입력_가이드.xlsx",
+                           mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                           use_container_width=True)
 
     st.markdown("---")
     st.markdown('<p style="font-size:12px;letter-spacing:0.1em;text-transform:uppercase;color:#1b5e20;font-weight:700;margin-bottom:6px;">분기 저장</p>', unsafe_allow_html=True)
@@ -464,175 +464,30 @@ elif use_sample:
     st.session_state["summary"] = portfolio_summary(raw)
     st.sidebar.success("샘플 데이터(8개사) 로드됨")
 
-# ── 자동 밸류에이션 조회 ──────────────────────────
-if "df" in st.session_state:
-    with st.expander("Automated Valuation — 포트폴리오 현재가치 자동 추정"):
-        st.markdown("""
-<div style="background:#ffffff;border:1px solid #c8e6c9;border-radius:10px;padding:18px 22px;margin-bottom:16px;">
-  <div style="font-size:14px;font-weight:700;color:#1b5e20;margin-bottom:10px;">밸류에이션 방법론</div>
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;font-size:12px;color:#555;line-height:1.7;">
-    <div>
-      <div style="font-weight:600;color:#1a1a1a;margin-bottom:4px;">상장사 (Market Cap)</div>
-      네이버 금융에서 실시간 시가총액을 크롤링한 후 입력된 지분율(%)을 곱하여 보유 지분 가치를 산출합니다.
-      <div style="color:#999;font-size:11px;margin-top:4px;">시총 × 지분율 = 현재가치</div>
-    </div>
-    <div>
-      <div style="font-weight:600;color:#1a1a1a;margin-bottom:4px;">비상장사 (Comparable Multiple)</div>
-      DART에서 최근 재무제표를 조회하고, P/S · EV/EBITDA · P/E 3가지 멀티플의 가중평균으로 기업가치를 추정합니다.
-      <div style="color:#999;font-size:11px;margin-top:4px;">매출×P/S + 영업이익×EV/EBITDA + 순이익×P/E → 평균 EV × 지분율</div>
-    </div>
-  </div>
-</div>
-""", unsafe_allow_html=True)
 
-        st.markdown('<p style="font-size:11px;letter-spacing:0.1em;color:#999;font-weight:700;margin-bottom:6px;">INPUT — 지분율 입력</p>', unsafe_allow_html=True)
-
-        av_df = st.session_state["df"][["회사명", "섹터", "투자금액_백만원", "현재가치_백만원"]].copy()
-        if "지분율_%" not in av_df.columns:
-            av_df["지분율_%"] = 10.0
-        else:
-            av_df["지분율_%"] = st.session_state["df"]["지분율_%"]
-
-        edited_av = st.data_editor(
-            av_df[["회사명", "섹터", "투자금액_백만원", "지분율_%"]],
-            column_config={
-                "회사명": st.column_config.TextColumn("회사명", disabled=True),
-                "섹터": st.column_config.TextColumn("섹터", disabled=True),
-                "투자금액_백만원": st.column_config.NumberColumn("투자금액 (M)", disabled=True, format="%d"),
-                "지분율_%": st.column_config.NumberColumn("지분율 (%)", min_value=0, max_value=100, step=0.1, help="취득 지분율. 시가총액 × 이 비율 = 현재가치"),
-            },
-            use_container_width=True, hide_index=True, key="av_editor",
-        )
-
-        st.caption("ThreadPoolExecutor(6)으로 최대 6개사를 동시 병렬 조회합니다. 조회 시간 약 5~15초.")
-
-        if st.button("자동 조회 실행", key="auto_val_btn", type="primary"):
-            with st.spinner("DART · 네이버 금융 병렬 조회 중..."):
-                from valuation_fetcher import bulk_fetch_valuations
-                val_result = bulk_fetch_valuations(edited_av)
-            st.session_state["val_result"] = val_result
-
-        if "val_result" in st.session_state:
-            vr = st.session_state["val_result"]
-
-            st.markdown("---")
-            st.markdown('<p style="font-size:11px;letter-spacing:0.1em;color:#999;font-weight:700;margin-bottom:6px;">RESULT — 밸류에이션 결과</p>', unsafe_allow_html=True)
-
-            # 회사별 결과 카드
-            for _, row in vr.iterrows():
-                est = row.get("현재가치_백만원_추정")
-                source = row.get("source", "")
-                basis = row.get("근거", "")
-                detail = row.get("method_detail")
-                corp = row.get("회사명", "")
-                sector = row.get("섹터", "")
-                inv = row.get("투자금액_백만원", 0)
-
-                # 색상 결정
-                if est and est > 0:
-                    if inv > 0 and est > inv:
-                        border_color = "#c8e6c9"
-                        val_color = "#1b5e20"
-                        moic_est = round(est / inv, 2)
-                    else:
-                        border_color = "#ffcdd2"
-                        val_color = "#c62828"
-                        moic_est = round(est / inv, 2) if inv > 0 else 0
-                else:
-                    border_color = "#e5e5e5"
-                    val_color = "#999"
-                    moic_est = 0
-
-                # 상세 정보 라인
-                detail_lines = []
-                if detail and isinstance(detail, dict):
-                    if "매출액_억" in detail and detail["매출액_억"]:
-                        detail_lines.append(f"매출 {detail['매출액_억']}억")
-                    if "영업이익률" in detail and detail["영업이익률"] is not None:
-                        detail_lines.append(f"영업이익률 {detail['영업이익률']}%")
-                    if "매출성장률" in detail and detail["매출성장률"] is not None:
-                        g = detail["매출성장률"]
-                        g_color = "#1b5e20" if g > 0 else "#c62828"
-                        detail_lines.append(f"성장률 {g:+.1f}%")
-                    if "적용배수" in detail and detail["적용배수"]:
-                        multiples = " / ".join(f"{k}={v:.0f}억" for k, v in detail["적용배수"].items())
-                        detail_lines.append(multiples)
-                    if "시가총액_억" in detail:
-                        mc = detail["시가총액_억"]
-                        if mc >= 10000:
-                            detail_lines.append(f"시총 {mc/10000:.1f}조")
-                        else:
-                            detail_lines.append(f"시총 {mc:,.0f}억")
-
-                detail_str = " · ".join(detail_lines) if detail_lines else ""
-
-                est_display = f"{est:,.0f}M" if est and est > 0 else "조회 실패"
-                moic_display = f"MOIC {moic_est}x" if moic_est > 0 else ""
-
-                st.markdown(f"""
-<div style="background:#ffffff;border:1px solid {border_color};border-radius:10px;padding:16px 20px;margin-bottom:8px;">
-  <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;">
-    <div>
-      <span style="font-size:15px;font-weight:700;color:#1a1a1a;">{corp}</span>
-      <span style="font-size:11px;color:#999;margin-left:8px;">{sector}</span>
-      <span style="font-size:10px;color:#ccc;margin-left:8px;background:#f5f5f5;padding:2px 8px;border-radius:10px;">{source}</span>
-    </div>
-    <div style="text-align:right;">
-      <span style="font-size:22px;font-weight:800;color:{val_color};">{est_display}</span>
-      <span style="font-size:11px;color:{val_color};margin-left:6px;">{moic_display}</span>
-    </div>
-  </div>
-  <div style="font-size:11px;color:#888;margin-top:6px;line-height:1.6;">
-    {basis}
-  </div>
-  {"<div style='font-size:10px;color:#aaa;margin-top:4px;'>" + detail_str + "</div>" if detail_str else ""}
-</div>
-""", unsafe_allow_html=True)
-
-            # 요약
-            success = vr[vr["현재가치_백만원_추정"].notna() & (vr["현재가치_백만원_추정"] > 0)]
-            failed = len(vr) - len(success)
-            if len(success) > 0:
-                total_est = success["현재가치_백만원_추정"].sum()
-                st.markdown(f"""
-<div style="background:#e8f5e9;border-radius:10px;padding:14px 20px;margin-top:12px;">
-  <div style="display:flex;justify-content:space-between;align-items:center;">
-    <div>
-      <span style="font-size:12px;color:#1b5e20;font-weight:600;">조회 성공 {len(success)}개사</span>
-      {"<span style='font-size:11px;color:#c62828;margin-left:12px;'>실패 " + str(failed) + "개사</span>" if failed > 0 else ""}
-    </div>
-    <div>
-      <span style="font-size:11px;color:#666;">추정 총 가치</span>
-      <span style="font-size:18px;font-weight:800;color:#1b5e20;margin-left:8px;">{total_est:,.0f}M</span>
-    </div>
-  </div>
-</div>
-""", unsafe_allow_html=True)
-
-            st.markdown("")
-            if st.button("이 값으로 분석 실행", key="apply_val", type="primary"):
-                raw_updated = st.session_state["df"].copy()
-                applied = 0
-                for _, row in vr.iterrows():
-                    est = row.get("현재가치_백만원_추정")
-                    if est and est > 0:
-                        mask = raw_updated["회사명"] == row["회사명"]
-                        raw_updated.loc[mask, "현재가치_백만원"] = est
-                        applied += 1
-                result_df = run_all(raw_updated)
-                st.session_state["df"] = raw_updated
-                st.session_state["result_df"] = result_df
-                st.session_state["summary"] = portfolio_summary(raw_updated)
-                st.success(f"{applied}개사 밸류에이션 업데이트 완료")
-                st.rerun()
 
 # ── 탭 ───────────────────────────────────────────
 tab1, tab2, tab3, tab4, tab5 = st.tabs([
-    "Overview", "Portfolio", "Analysis", "Benchmark", "Report",
+    "Overview", "Fund Trend", "Analysis", "Benchmark", "Report",
 ])
 
 # ── TAB 1: Performance ────────────────────────────
 with tab1:
+    st.markdown("""
+<div style="background:#ffffff;border:1px solid #e5e5e5;border-radius:10px;padding:16px 20px;margin-bottom:20px;">
+  <div style="font-size:13px;color:#1a1a1a;font-weight:600;margin-bottom:8px;">펀드 성과 한눈에 보기</div>
+  <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:11px;">
+    <span style="background:#1b5e20;color:#fff;padding:3px 10px;border-radius:4px;">1. 핵심 지표</span>
+    <span style="color:#ccc;">→</span>
+    <span style="background:#2e7d32;color:#fff;padding:3px 10px;border-radius:4px;">2. 포트폴리오 상세</span>
+    <span style="color:#ccc;">→</span>
+    <span style="background:#43a047;color:#fff;padding:3px 10px;border-radius:4px;">3. Top/Bottom</span>
+    <span style="color:#ccc;">→</span>
+    <span style="background:#66bb6a;color:#fff;padding:3px 10px;border-radius:4px;">4. 섹터·리스크</span>
+  </div>
+  <div style="font-size:10px;color:#999;margin-top:6px;">MOIC·IRR 등 핵심 성과부터 개별 기업, 섹터 집중도까지 펀드 전체를 파악합니다.</div>
+</div>
+""", unsafe_allow_html=True)
     if "result_df" not in st.session_state:
         st.info("사이드바에서 데이터를 로드하세요.")
     else:
@@ -993,13 +848,23 @@ with tab1:
 
 # ── TAB 2: Portfolio ──────────────────────────────
 with tab2:
-    st.caption("J-Curve 현금흐름 추이  |  분기별 TVPI·DPI·RVPI 변화 추적")
+    st.markdown("""
+<div style="background:#ffffff;border:1px solid #e5e5e5;border-radius:10px;padding:16px 20px;margin-bottom:20px;">
+  <div style="font-size:13px;color:#1a1a1a;font-weight:600;margin-bottom:8px;">펀드 추이 분석</div>
+  <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:11px;">
+    <span style="background:#1b5e20;color:#fff;padding:3px 10px;border-radius:4px;">1. J-Curve</span>
+    <span style="color:#ccc;">→</span>
+    <span style="background:#2e7d32;color:#fff;padding:3px 10px;border-radius:4px;">2. 분기별 추이</span>
+  </div>
+  <div style="font-size:10px;color:#999;margin-top:6px;">펀드 설정 이후 현금흐름 곡선과 분기별 성과 변화를 추적합니다.</div>
+</div>
+""", unsafe_allow_html=True)
 
     with st.expander("J-Curve란?"):
         st.markdown("""
-사모펀드·VC 펀드는 초기에 투자 집행으로 **누적 현금흐름이 마이너스(−)**로 진입합니다.
+사모펀드·VC 펀드는 초기에 투자 집행으로 누적 현금흐름이 마이너스(−)로 진입합니다.
 이후 포트폴리오사 가치가 성장해 회수가 이뤄지면 플러스(+)로 전환되는데,
-이 흐름이 알파벳 **'J'자 형태**를 그려 J-Curve라고 부릅니다.
+이 흐름이 알파벳 J자 형태를 그려 J-Curve라고 부릅니다.
 """)
 
     cf_upload = st.file_uploader("현금흐름 CSV 업로드", type="csv", key="cf")
@@ -1040,17 +905,7 @@ with tab2:
         st.plotly_chart(fig, use_container_width=True)
         st.caption("컬럼: 회사명, 날짜(YYYY-MM-DD), 현금흐름_백만원 — 투자=음수, 배당·회수=양수")
 
-        st.divider()
-        if st.button("J-Curve 보고서 생성", key="jcurve_pdf"):
-            with st.spinner("AI 해석 생성 중..."):
-                ai_text = interpret_jcurve(trend)
-                pdf_bytes = generate_jcurve_pdf(trend, ai_text, quarter)
-            st.text_area("AI 해석 미리보기", ai_text, height=200)
-            st.download_button(
-                "PDF 다운로드", pdf_bytes,
-                file_name=f"jcurve_{quarter or 'report'}.pdf",
-                mime="application/pdf",
-            )
+        st.caption("Report 탭에서 J-Curve를 선택하면 통합 보고서에 포함됩니다.")
     else:
         st.info("현금흐름 CSV를 업로드하거나 샘플을 불러오세요.")
 
@@ -1233,27 +1088,19 @@ with tab3:
             st.plotly_chart(fig_sim2, use_container_width=True)
             st.dataframe(sim_df2, use_container_width=True)
 
-        st.divider()
-        if st.button("시나리오 보고서 생성", key="sim_pdf"):
-            with st.spinner("AI 해석 생성 중..."):
-                ai_text = interpret_scenario(company2, sim_df2, opt2)
-                pdf_bytes = generate_scenario_pdf(company2, sim_df2, opt2, ai_text, quarter)
-            st.text_area("AI 해석 미리보기", ai_text, height=200)
-            st.download_button("PDF 다운로드", pdf_bytes,
-                               file_name=f"scenario_{company2}_{quarter or 'report'}.pdf",
-                               mime="application/pdf")
 
     # ── ③ IRR Sensitivity Matrix ────────────────────
     st.markdown("---")
     st.markdown("### 3. IRR Sensitivity Matrix")
     st.caption("시나리오 분석을 확장하여 Exit 배수 × 보유기간의 모든 조합에 대한 IRR을 한눈에 확인합니다.")
-    st.caption("Exit 타이밍(년) × Exit 배수 조합별 예상 IRR — 엑셀로는 수작업이 필요한 분석")
+    st.caption("Exit 배수 × 보유기간 조합별 예상 IRR")
 
     if "df" not in st.session_state:
         st.info("대시보드에서 데이터를 먼저 로드하세요.")
     else:
+        st.caption("개별 포트폴리오사 기준으로 Exit 배수와 보유기간에 따른 IRR을 분석합니다.")
         mat_company = st.selectbox(
-            "분석 기업 선택", st.session_state["result_df"]["회사명"].tolist(), key="mat_co"
+            "분석 대상 기업", st.session_state["result_df"]["회사명"].tolist(), key="mat_co"
         )
         mat_raw = st.session_state["df"]
         mat_raw = mat_raw[mat_raw["회사명"] == mat_company].iloc[0]
@@ -1272,6 +1119,8 @@ with tab3:
 
         mat_df = pd.DataFrame(matrix, index=[f"{m}x" for m in multiples],
                               columns=[f"{y}년" for y in years_list])
+        st.session_state["sensitivity_matrix_df"] = mat_df
+        st.session_state["sensitivity_company"] = mat_company
 
         fig_mat = go.Figure(data=go.Heatmap(
             z=matrix,
@@ -1454,101 +1303,39 @@ GP는 Hurdle을 넘어야 Carry를 받을 수 있어 LP 이익 보호 장치로 
 <span style="font-size:11px;color:#999;">Hurdle {wf_hurdle}% · 캐치업 {wf_catchup}% · Carry {wf_carry}% · {wf_years}년</span>
 """, unsafe_allow_html=True)
 
-# ── TAB 4: Tools ─────────────────────────────────
+# ── TAB 4: Benchmark ─────────────────────────────
 with tab4:
-    st.caption("ECOS 거시지표  |  KVIC 벤치마크  |  기준금리·환율 스프레드")
-    st.markdown("### 거시지표 — 기준금리 & 환율 (ECOS)")
+    st.markdown("""
+<div style="background:#ffffff;border:1px solid #e5e5e5;border-radius:10px;padding:16px 20px;margin-bottom:20px;">
+  <div style="font-size:13px;color:#1a1a1a;font-weight:600;margin-bottom:8px;">시장 환경 분석</div>
+  <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:11px;">
+    <span style="background:#1b5e20;color:#fff;padding:3px 10px;border-radius:4px;">1. KVIC 벤치마크</span>
+    <span style="color:#ccc;">→</span>
+    <span style="background:#2e7d32;color:#fff;padding:3px 10px;border-radius:4px;">2. 내 포트폴리오 vs 시장</span>
+  </div>
+  <div style="font-size:10px;color:#999;margin-top:6px;">국내 VC 시장 전체 동향과 내 펀드 성과를 비교합니다. 거시지표(금리·환율)는 보고서에 자동 포함됩니다.</div>
+</div>
+""", unsafe_allow_html=True)
 
-    # ECOS 섹션
-    st.markdown("#### 한국은행 기준금리 & 원/달러 환율")
-    months = st.slider("조회 기간 (개월)", 6, 36, 24, key="ecos_months")
+    # 거시지표 데이터 백그라운드 로딩 (보고서용)
+    @st.cache_data(ttl=3600, show_spinner=False)
+    def _load_macro():
+        r = get_base_rate(3)
+        f = get_exchange_rate(3)
+        return r, f
 
-    if st.button("거시지표 불러오기"):
-        with st.spinner("기준금리 조회 중..."):
-            rate_df = get_base_rate(months)
-        with st.spinner("환율 조회 중..."):
-            fx_df = get_exchange_rate(months)
-        st.session_state["macro_rate_df"] = rate_df
-        st.session_state["macro_fx_df"] = fx_df
-
-    rate_df = st.session_state.get("macro_rate_df", None)
-    fx_df = st.session_state.get("macro_fx_df", None)
-
-    if rate_df is not None or fx_df is not None:
-        col1, col2 = st.columns(2)
-        spread = None
-
-        with col1:
-            if rate_df is not None and not rate_df.empty:
-                fig = px.line(rate_df, x="기간", y="기준금리(%)",
-                              title="한국은행 기준금리 (%)", markers=True,
-                              color_discrete_sequence=["#2e7d32"])
-                fig.update_traces(line=dict(color="#2e7d32"), marker=dict(color="#2e7d32"))
-                fig.update_layout(
-                    xaxis_title="월", yaxis_title="금리 (%)",
-                    plot_bgcolor="#ffffff", paper_bgcolor="#ffffff", font_color="#1a1a1a",
-                )
-                fig.update_xaxes(showgrid=True, gridcolor="#f0f0f0")
-                fig.update_yaxes(showgrid=True, gridcolor="#f0f0f0")
-                st.plotly_chart(fig, use_container_width=True)
-
-                latest_rate = rate_df["기준금리(%)"].iloc[-1]
-                st.metric("현재 기준금리", f"{latest_rate}%")
-
-                if "result_df" in st.session_state:
-                    avg_irr = st.session_state["result_df"]["IRR(%)"].mean()
-                    spread = round(avg_irr - latest_rate, 2)
-                    st.metric(
-                        "펀드 평균 IRR vs 기준금리 스프레드",
-                        f"{spread:+.1f}%p",
-                        delta=f"기준금리 {latest_rate}% 대비",
-                    )
-            else:
-                st.warning("기준금리 데이터를 불러올 수 없습니다.")
-
-        with col2:
-            if fx_df is not None and not fx_df.empty:
-                fig2 = px.line(fx_df, x="기간", y="원/달러(원)",
-                               title="원/달러 환율 월평균", markers=True,
-                               color_discrete_sequence=["#2e7d32"])
-                fig2.update_traces(line=dict(color="#2e7d32"), marker=dict(color="#2e7d32"))
-                fig2.update_layout(
-                    xaxis_title="월", yaxis_title="환율 (원)",
-                    plot_bgcolor="#ffffff", paper_bgcolor="#ffffff", font_color="#1a1a1a",
-                )
-                fig2.update_xaxes(showgrid=True, gridcolor="#f0f0f0")
-                fig2.update_yaxes(showgrid=True, gridcolor="#f0f0f0")
-                st.plotly_chart(fig2, use_container_width=True)
-                latest_fx = fx_df["원/달러(원)"].iloc[-1]
-                st.metric("현재 원/달러", f"{latest_fx:,.0f}원")
-            else:
-                st.warning("환율 데이터를 불러올 수 없습니다.")
-
-        st.divider()
-        if st.button("거시지표 보고서 생성", key="macro_pdf"):
-            with st.spinner("AI 해석 생성 중..."):
-                ai_text = interpret_macro(
-                    rate_df if rate_df is not None else pd.DataFrame(),
-                    fx_df if fx_df is not None else pd.DataFrame(),
-                    spread,
-                )
-                pdf_bytes = generate_macro_pdf(
-                    rate_df if rate_df is not None else pd.DataFrame(),
-                    fx_df if fx_df is not None else pd.DataFrame(),
-                    ai_text, spread, quarter,
-                )
-            st.text_area("AI 해석 미리보기", ai_text, height=200)
-            st.download_button(
-                "PDF 다운로드", pdf_bytes,
-                file_name=f"macro_{quarter or 'report'}.pdf",
-                mime="application/pdf",
-            )
-
-    st.divider()
+    rate_df, fx_df = _load_macro()
+    st.session_state["macro_rate_df"] = rate_df
+    st.session_state["macro_fx_df"] = fx_df
+    if rate_df is not None and not rate_df.empty and "result_df" in st.session_state:
+        latest_rate = rate_df["기준금리(%)"].iloc[-1]
+        avg_irr = st.session_state["result_df"]["IRR(%)"].mean()
+        st.session_state["macro_spread"] = round(avg_irr - latest_rate, 2)
 
     # ── KVIC 한국벤처투자 섹션
     st.markdown("---")
     st.markdown("### 한국벤처투자(KVIC) 모태펀드 벤치마크")
+    st.caption("국내 VC 시장 전체 동향과 내 펀드 성과를 비교하기 위한 공공 데이터입니다.")
 
     import os
     if not os.getenv("KVIC_API_KEY"):
@@ -1611,17 +1398,157 @@ with tab4:
                     )
                     st.plotly_chart(fig_t, use_container_width=True)
 
-                # 포트폴리오 섹터와 시장 비교
-                if "result_df" in st.session_state:
-                    st.markdown("**내 포트폴리오 섹터 vs 시장 분야 매핑**")
-                    my_sectors = st.session_state["result_df"]["섹터"].value_counts().reset_index()
-                    my_sectors.columns = ["섹터", "투자기업수"]
-                    st.dataframe(my_sectors, use_container_width=True)
-                    st.caption("↑ 내 포트폴리오 섹터 비중 (KVIC 분야와 비교)")
+                if not trend_df_kvic.empty and "result_df" in st.session_state:
+                    my_inv = st.session_state["df"]["투자금액_백만원"].sum() / 100
+                    fig_comp = go.Figure()
+                    fig_comp.add_trace(go.Bar(
+                        x=trend_df_kvic["결성연도"].tolist(), y=trend_df_kvic["총약정액(억원)"].tolist(),
+                        name="KVIC 시장 (억원)", marker_color="#c8e6c9", marker_line_width=0,
+                    ))
+                    fig_comp.add_hline(y=my_inv, line_dash="dot", line_color="#1b5e20", line_width=2,
+                                       annotation_text=f"내 펀드 {my_inv:,.0f}억", annotation_font_color="#1b5e20")
+                    fig_comp.update_layout(
+                        title=dict(text="시장 규모 대비 내 펀드 위치", font=dict(size=14)),
+                        height=300, margin=dict(t=40, b=20, l=20, r=20),
+                        plot_bgcolor="#ffffff", paper_bgcolor="#ffffff", font_color="#1a1a1a",
+                        showlegend=True, legend=dict(orientation="h", y=-0.15),
+                        yaxis_title="억원", bargap=0.3,
+                    )
+                    st.plotly_chart(fig_comp, use_container_width=True)
 
             st.divider()
             with st.expander("전체 분야별 데이터 보기"):
                 st.dataframe(sector_df, use_container_width=True)
+
+    # ── 내 포트폴리오 vs KVIC 시장 비교 ──
+    st.markdown("---")
+    st.markdown("### 2. 내 포트폴리오 vs KVIC 시장")
+    st.caption("KVIC 모태펀드 데이터 기반으로 국내 VC 시장에서 내 펀드가 어디에 위치하는지 분석합니다.")
+
+    if "kvic_sector" not in st.session_state or st.session_state["kvic_sector"].empty:
+        st.info("위에서 KVIC 데이터를 먼저 불러오세요.")
+    elif "result_df" not in st.session_state:
+        st.info("사이드바에서 포트폴리오 데이터를 먼저 로드하세요.")
+    else:
+        _my_df = st.session_state["result_df"]
+        _my_raw = st.session_state["df"]
+        _my_sum = st.session_state["summary"]
+        _kvic_sec = st.session_state["kvic_sector"]
+        _kvic_trend = st.session_state.get("kvic_trend", pd.DataFrame())
+
+        kvic_total_amt = _kvic_sec["총약정액(억원)"].sum()
+        kvic_total_funds = int(_kvic_sec["조합수"].sum())
+        my_inv_억 = _my_raw["투자금액_백만원"].sum() / 100
+        avg_per_fund = kvic_total_amt / kvic_total_funds if kvic_total_funds > 0 else 0
+        share_pct = my_inv_억 / kvic_total_amt * 100 if kvic_total_amt > 0 else 0
+        ratio = my_inv_억 / avg_per_fund if avg_per_fund > 0 else 0
+
+        # ── 규모 비교 카드 (HTML) ──
+        st.markdown(f"""
+<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:20px;">
+  <div style="background:#ffffff;border:1px solid #e5e5e5;border-radius:12px;padding:20px;text-align:center;">
+    <div style="font-size:10px;color:#999;letter-spacing:0.08em;font-weight:600;margin-bottom:6px;">내 펀드 규모</div>
+    <div style="font-size:28px;font-weight:800;color:#1b5e20;">{my_inv_억:,.0f}<span style="font-size:14px;font-weight:500;">억원</span></div>
+    <div style="font-size:11px;color:#666;margin-top:4px;">KVIC 전체의 {share_pct:.2f}%</div>
+  </div>
+  <div style="background:#ffffff;border:1px solid #e5e5e5;border-radius:12px;padding:20px;text-align:center;">
+    <div style="font-size:10px;color:#999;letter-spacing:0.08em;font-weight:600;margin-bottom:6px;">KVIC 시장 전체</div>
+    <div style="font-size:28px;font-weight:800;color:#1a1a1a;">{kvic_total_amt:,.0f}<span style="font-size:14px;font-weight:500;">억원</span></div>
+    <div style="font-size:11px;color:#666;margin-top:4px;">{kvic_total_funds:,}개 조합 운용 중</div>
+  </div>
+  <div style="background:#ffffff;border:1px solid #e5e5e5;border-radius:12px;padding:20px;text-align:center;">
+    <div style="font-size:10px;color:#999;letter-spacing:0.08em;font-weight:600;margin-bottom:6px;">조합 평균 대비</div>
+    <div style="font-size:28px;font-weight:800;color:{"#1b5e20" if ratio >= 1 else "#c62828"};">{ratio:.1f}<span style="font-size:14px;font-weight:500;">배</span></div>
+    <div style="font-size:11px;color:#666;margin-top:4px;">평균 {avg_per_fund:,.0f}억원/조합</div>
+  </div>
+</div>
+""", unsafe_allow_html=True)
+
+        # ── 섹터 비교 차트 ──
+        st.markdown("#### 섹터별 투자 비중 비교")
+        st.caption("내 포트폴리오 섹터별 투자 규모와 KVIC 모태펀드 동일 분야 약정액을 비교합니다.")
+
+        my_sectors = _my_df.groupby("섹터").agg(
+            기업수=("회사명", "count"), 투자액=("투자금액_백만원", "sum")
+        ).sort_values("투자액", ascending=False).reset_index()
+        my_sectors["투자액_억"] = my_sectors["투자액"] / 100
+
+        kvic_map = {}
+        for sec in my_sectors["섹터"].tolist():
+            for _, kr in _kvic_sec.iterrows():
+                field = str(kr.get("투자분야", ""))
+                if sec in field or field in sec:
+                    kvic_map[sec] = {"약정액": kr["총약정액(억원)"], "조합수": int(kr["조합수"])}
+                    break
+
+        secs = my_sectors["섹터"].tolist()
+        col_chart, col_detail = st.columns([3, 1])
+        with col_chart:
+            fig_compare = go.Figure()
+            fig_compare.add_trace(go.Bar(
+                x=secs, y=my_sectors["투자액_억"].tolist(),
+                name="내 펀드", marker_color="#1b5e20", marker_line_width=0,
+                text=[f"{v:,.0f}억" for v in my_sectors["투자액_억"]], textposition="outside",
+                textfont=dict(size=11, color="#1b5e20"),
+            ))
+            if kvic_map:
+                kvic_scaled = [kvic_map.get(s, {}).get("약정액", 0) / max(kvic_total_amt / my_inv_억, 1) for s in secs]
+                fig_compare.add_trace(go.Bar(
+                    x=secs, y=kvic_scaled,
+                    name="KVIC (스케일 조정)", marker_color="#c8e6c9", marker_line_width=0,
+                ))
+            fig_compare.update_layout(
+                barmode="group", height=320, margin=dict(t=10, b=20, l=20, r=20),
+                plot_bgcolor="#ffffff", paper_bgcolor="#ffffff",
+                font=dict(family="Pretendard, sans-serif", color="#1a1a1a", size=12),
+                legend=dict(orientation="h", y=-0.18, font_size=11),
+                bargap=0.3, yaxis=dict(showgrid=True, gridcolor="#f0f0f0", title="억원"),
+                xaxis=dict(showgrid=False),
+            )
+            st.plotly_chart(fig_compare, use_container_width=True)
+
+        with col_detail:
+            for sec in secs:
+                my_amt = my_sectors[my_sectors["섹터"]==sec]["투자액_억"].values[0]
+                kvic_info = kvic_map.get(sec)
+                if kvic_info:
+                    st.markdown(f"""
+<div style="background:#fafafa;border-radius:8px;padding:8px 12px;margin-bottom:6px;">
+  <div style="font-size:12px;font-weight:600;color:#1a1a1a;">{sec}</div>
+  <div style="font-size:10px;color:#666;">내 펀드 {my_amt:,.0f}억 · KVIC {kvic_info['약정액']:,.0f}억 ({kvic_info['조합수']}개)</div>
+</div>""", unsafe_allow_html=True)
+                else:
+                    st.markdown(f"""
+<div style="background:#fafafa;border-radius:8px;padding:8px 12px;margin-bottom:6px;">
+  <div style="font-size:12px;font-weight:600;color:#1a1a1a;">{sec}</div>
+  <div style="font-size:10px;color:#999;">KVIC 매칭 분야 없음</div>
+</div>""", unsafe_allow_html=True)
+
+        # ── 연도별 시장 대비 위치 ──
+        if not _kvic_trend.empty:
+            st.markdown("#### 연간 결성 규모 대비 내 펀드 위치")
+            st.caption("KVIC 모태펀드 연간 결성 규모와 내 펀드의 상대적 크기를 보여줍니다.")
+            fig_pos = go.Figure()
+            fig_pos.add_trace(go.Bar(
+                x=_kvic_trend["결성연도"].tolist(),
+                y=_kvic_trend["총약정액(억원)"].tolist(),
+                name="KVIC 연간 결성", marker_color="#e8f5e9", marker_line_width=0,
+                text=[f"{v:,.0f}" for v in _kvic_trend["총약정액(억원)"]], textposition="outside",
+                textfont=dict(size=10),
+            ))
+            fig_pos.add_hline(y=my_inv_억, line_dash="dot", line_color="#1b5e20", line_width=2,
+                              annotation_text=f"내 펀드 {my_inv_억:,.0f}억",
+                              annotation_font=dict(color="#1b5e20", size=12))
+            fig_pos.update_layout(
+                height=300, margin=dict(t=10, b=20, l=20, r=20),
+                plot_bgcolor="#ffffff", paper_bgcolor="#ffffff",
+                font=dict(color="#1a1a1a", size=12), showlegend=True,
+                legend=dict(orientation="h", y=-0.18), bargap=0.3,
+                yaxis=dict(showgrid=True, gridcolor="#f0f0f0", title="억원"),
+            )
+            st.plotly_chart(fig_pos, use_container_width=True)
+
+        st.caption("KVIC 데이터: 한국벤처투자 공공 API 기준, 모태펀드 출자 조합 현황 반영")
 
 # ── TAB 5: Report ────────────────────────────────
 with tab5:
@@ -1641,33 +1568,47 @@ span[data-baseweb="tag"] span { color:#1a1a1a !important; }
 span[data-baseweb="tag"] svg { fill:#999 !important; width:12px !important; }
 </style>""", unsafe_allow_html=True)
 
-        # 가이드 카드
+        # 가이드 카드 — 중요도 top-down
         st.markdown("""
 <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px;">
   <div style="background:#fafafa;border-radius:8px;padding:10px 14px;">
-    <div style="font-size:10px;color:#1b5e20;font-weight:700;letter-spacing:0.08em;margin-bottom:4px;">OVERVIEW</div>
-    <div style="font-size:10px;color:#999;line-height:1.5;">성과 요약 · 포트폴리오 상세<br>Top/Bottom · 섹터 · 집중도 · 리스크</div>
+    <div style="font-size:10px;color:#1b5e20;font-weight:700;letter-spacing:0.08em;margin-bottom:4px;">1. FUND PERFORMANCE</div>
+    <div style="font-size:10px;color:#999;line-height:1.5;">성과 요약 · 포트폴리오 상세<br>Top/Bottom · 섹터 · 리스크</div>
   </div>
   <div style="background:#fafafa;border-radius:8px;padding:10px 14px;">
-    <div style="font-size:10px;color:#1b5e20;font-weight:700;letter-spacing:0.08em;margin-bottom:4px;">PORTFOLIO · ANALYSIS</div>
-    <div style="font-size:10px;color:#999;line-height:1.5;">J-Curve · 분기 추이<br>DART 재무 · 시나리오 · Waterfall</div>
+    <div style="font-size:10px;color:#1b5e20;font-weight:700;letter-spacing:0.08em;margin-bottom:4px;">2. DEEP ANALYSIS</div>
+    <div style="font-size:10px;color:#999;line-height:1.5;">J-Curve · 분기 추이 · DART 재무<br>시나리오 · Sensitivity · Waterfall</div>
   </div>
   <div style="background:#fafafa;border-radius:8px;padding:10px 14px;">
-    <div style="font-size:10px;color:#1b5e20;font-weight:700;letter-spacing:0.08em;margin-bottom:4px;">BENCHMARK · AI</div>
-    <div style="font-size:10px;color:#999;line-height:1.5;">거시지표 (금리·환율)<br>AI 코멘터리 · 뉴스 모니터링</div>
+    <div style="font-size:10px;color:#1b5e20;font-weight:700;letter-spacing:0.08em;margin-bottom:4px;">3. MARKET · AI</div>
+    <div style="font-size:10px;color:#999;line-height:1.5;">거시지표 (금리·환율)<br>집중도·실현율 · AI 코멘터리</div>
   </div>
 </div>
 """, unsafe_allow_html=True)
 
         all_sections = [
-            "성과 요약 (MOIC·IRR·DPI·RVPI·TVPI)", "포트폴리오 상세",
-            "Top/Bottom 성과 분석", "섹터별 투자 비중",
-            "집중도·투자기간·실현율", "리스크 평가", "AI 코멘터리",
-            "J-Curve 현금흐름", "분기별 추이", "거시지표 (금리·환율)",
-            "Waterfall 분배", "시나리오 분석", "IRR Sensitivity", "뉴스 모니터링",
+            "성과 요약 (MOIC·IRR·DPI·RVPI·TVPI)",
+            "포트폴리오 상세",
+            "Top/Bottom 성과 분석",
+            "섹터별 투자 비중",
+            "리스크 평가",
+            "J-Curve 현금흐름",
+            "분기별 추이",
+            "DART 재무분석",
+            "시나리오 분석",
+            "IRR Sensitivity",
+            "Waterfall 분배",
+            "거시지표 (금리·환율)",
+            "집중도·투자기간·실현율",
+            "AI 코멘터리",
         ]
-        selected = st.multiselect("포함할 섹션", all_sections, default=all_sections[:7])
+        default_sections = all_sections[:5]
+        selected = st.multiselect("포함할 섹션", all_sections, default=default_sections)
         st.session_state["report_sections"] = selected
+        st.caption("데이터만 있으면 바로 생성되는 핵심 5개 항목이 기본 선택되어 있습니다. Analysis·Benchmark 탭에서 추가 분석을 실행하면 나머지 항목도 보고서에 포함할 수 있습니다.")
+
+        include_charts = st.checkbox("시각화 차트 포함", value=True, help="PDF/PPTX에 MOIC 바 차트, 섹터 파이, IRR 히트맵 등 Plotly 차트 이미지를 포함합니다.")
+        st.session_state["report_include_charts"] = include_charts
 
         st.markdown("---")
 
@@ -1691,6 +1632,10 @@ span[data-baseweb="tag"] svg { fill:#999 !important; width:12px !important; }
                     _sc_df = st.session_state.get("scenario_sim_df")
                     _sc_opt = st.session_state.get("scenario_opt")
                     _sc_co = st.session_state.get("scenario_company", "")
+                    _sens_df = st.session_state.get("sensitivity_matrix_df")
+                    _sens_co = st.session_state.get("sensitivity_company", "")
+                    _dart_df = st.session_state.get("dart_fin_df")
+                    _dart_co = st.session_state.get("dart_selected", "")
                     pdf_bytes = generate_full_pdf(
                         summary, result_df, df, _comm, quarter,
                         fund_name=fund_name, fund_strategy=fund_strategy, base_date=base_date,
@@ -1698,7 +1643,11 @@ span[data-baseweb="tag"] svg { fill:#999 !important; width:12px !important; }
                         spread=st.session_state.get("macro_spread"),
                         include_waterfall=_inc_wf, include_scenario=_inc_sc,
                         scenario_company=_sc_co, scenario_df=_sc_df, scenario_opt=_sc_opt,
-                        selected_sections=selected)
+                        selected_sections=selected,
+                        sensitivity_df=_sens_df, sensitivity_company=_sens_co,
+                        dart_fin_df=_dart_df, dart_company=_dart_co,
+                        include_charts=st.session_state.get("report_include_charts", True),
+                        )
                 st.download_button("PDF 다운로드", pdf_bytes, file_name=f"LP_Report_{quarter}.pdf",
                                    mime="application/pdf", use_container_width=True)
         with fmt2:
@@ -1708,7 +1657,9 @@ span[data-baseweb="tag"] svg { fill:#999 !important; width:12px !important; }
                     _comm = generate_commentary(summary,
                         result_df[["회사명","MOIC","IRR(%)","TVPI","투자금액_백만원"]].to_dict("records")) if "AI" in str(selected) else ""
                     pptx_bytes = generate_lp_pptx(summary, result_df, _comm, quarter,
-                        fund_name=fund_name, fund_strategy=fund_strategy, base_date=base_date)
+                        fund_name=fund_name, fund_strategy=fund_strategy, base_date=base_date,
+                        selected_sections=selected,
+                        include_charts=st.session_state.get("report_include_charts", True))
                 st.download_button("PPTX 다운로드", pptx_bytes, file_name=f"IC_Report_{quarter}.pptx",
                                    mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
                                    use_container_width=True)
@@ -1760,7 +1711,7 @@ span[data-baseweb="tag"] svg { fill:#999 !important; width:12px !important; }
         result_df = st.session_state["result_df"]
         summary   = st.session_state["summary"]
 
-        col1, col2 = st.columns(2)
+        col1, col2 = st.columns(2, gap="large")
         with col1:
             st.markdown("#### 분기 코멘터리")
             st.caption("Claude AI가 펀드 성과 데이터를 분석하여 LP 보고서용 코멘터리를 자동 작성합니다.")
@@ -1796,64 +1747,3 @@ span[data-baseweb="tag"] svg { fill:#999 !important; width:12px !important; }
 </div>
 """, unsafe_allow_html=True)
 
-    # ── 포트폴리오사 뉴스 모니터링 ────────────────────
-    st.markdown("---")
-    st.markdown("### 포트폴리오사 뉴스 모니터링")
-    st.caption("네이버 뉴스 API로 포트폴리오사 최신 기사를 실시간 검색 — 엑셀로는 불가능한 기능")
-
-    _naver_id     = os.getenv("NAVER_CLIENT_ID")
-    _naver_secret = os.getenv("NAVER_CLIENT_SECRET")
-
-    if not _naver_id:
-        st.info("NAVER_CLIENT_ID가 .env에 없습니다.")
-    elif "result_df" not in st.session_state:
-        st.info("먼저 대시보드에서 데이터를 로드하세요.")
-    else:
-        companies = st.session_state["result_df"]["회사명"].tolist()
-        news_company = st.selectbox("기업 선택", ["전체 포트폴리오"] + companies, key="news_co")
-        news_display = st.slider("기사 수", 3, 10, 5, key="news_n")
-
-        if st.button("뉴스 검색", key="news_btn"):
-            targets = companies if news_company == "전체 포트폴리오" else [news_company]
-            all_news = {}
-
-            headers = {
-                "X-Naver-Client-Id": _naver_id,
-                "X-Naver-Client-Secret": _naver_secret,
-            }
-
-            for corp in targets:
-                try:
-                    r = requests.get(
-                        "https://openapi.naver.com/v1/search/news.json",
-                        headers=headers,
-                        params={"query": corp, "display": news_display, "sort": "date"},
-                        timeout=8,
-                    )
-                    items = r.json().get("items", [])
-                    if items:
-                        all_news[corp] = items
-                except Exception:
-                    pass
-
-            st.session_state["news_results"] = all_news
-
-        if "news_results" in st.session_state and st.session_state["news_results"]:
-            def _clean(text):
-                return re.sub(r"<[^>]+>", "", text or "")
-
-            for corp, items in st.session_state["news_results"].items():
-                st.markdown(f"**{corp}** — {len(items)}건")
-                for item in items:
-                    title = _clean(item.get("title", ""))
-                    desc  = _clean(item.get("description", ""))
-                    date  = item.get("pubDate", "")[:16]
-                    link  = item.get("link", "#")
-                    st.markdown(f"""
-<div style="border:1px solid #eae8e4;border-radius:10px;padding:14px 18px;margin-bottom:8px;background:#ffffff;">
-  <a href="{link}" target="_blank" style="font-size:13px;font-weight:600;color:#1a1a1a;text-decoration:none;">{title}</a>
-  <div style="font-size:12px;color:#999;margin-top:6px;line-height:1.5;">{desc[:120]}{"..." if len(desc)>120 else ""}</div>
-  <div style="font-size:10px;color:#ccc;margin-top:6px;">{date}</div>
-</div>
-""", unsafe_allow_html=True)
-                st.markdown("")
