@@ -97,55 +97,137 @@ def _listed_result(corp_name: str, stock_code: str, stake_pct: float) -> dict:
     mktcap_억 = _naver_market_cap_억(stock_code)
     if mktcap_억 and stake_pct > 0:
         val_mil = round(mktcap_억 * 1_0000 * (stake_pct / 100) / 1_000_000, 0)
+        # 시총 단위 표시
+        if mktcap_억 >= 10000:
+            mktcap_str = f"{mktcap_억/10000:.1f}조"
+        else:
+            mktcap_str = f"{mktcap_억:,.0f}억"
         return {
             "source": "상장사_시총",
-            "근거": f"시총 {mktcap_억:,.0f}억 × 지분 {stake_pct}%",
+            "근거": f"시총 {mktcap_str} x 지분 {stake_pct}% = {val_mil:,.0f}백만원",
             "현재가치_백만원_추정": int(val_mil),
+            "method_detail": {
+                "시가총액_억": mktcap_억,
+                "지분율": stake_pct,
+                "산출_백만원": val_mil,
+            },
         }
     elif mktcap_억 and stake_pct == 0:
+        if mktcap_억 >= 10000:
+            mktcap_str = f"{mktcap_억/10000:.1f}조"
+        else:
+            mktcap_str = f"{mktcap_억:,.0f}억"
         return {
             "source": "상장사_시총(지분율미입력)",
-            "근거": f"시총 {mktcap_억:,.0f}억 — 지분율 입력 필요",
+            "근거": f"시총 {mktcap_str} — 지분율 입력 필요",
             "현재가치_백만원_추정": None,
+            "method_detail": {"시가총액_억": mktcap_억},
         }
     return {
         "source": "상장사_조회실패",
         "근거": "네이버 금융 시총 조회 실패",
         "현재가치_백만원_추정": None,
+        "method_detail": None,
     }
 
 
 def _sector_multiple_result(corp_code: str, sector: str, stake_pct: float) -> dict:
     ps = _SECTOR_PS.get(sector, _DEFAULT_PS)
 
-    fin = get_financials(corp_code, years=[2023, 2024])
+    fin = get_financials(corp_code, years=[2022, 2023, 2024])
     if fin.empty:
         return {
             "source": "섹터배수(재무없음)",
             "근거": f"P/S {ps}x — DART 재무제표 없음",
             "현재가치_백만원_추정": None,
+            "method_detail": None,
         }
 
     latest = fin.sort_values("연도").iloc[-1]
     revenue = latest.get("매출액")
+    op_income = latest.get("영업이익")
+    net_income = latest.get("당기순이익")
+    yr = int(latest["연도"])
+
+    # 매출 성장률 (2개년 이상일 때)
+    growth_rate = None
+    if len(fin) >= 2:
+        prev = fin.sort_values("연도").iloc[-2]
+        prev_rev = prev.get("매출액")
+        if prev_rev and prev_rev > 0 and revenue and revenue > 0:
+            growth_rate = round((revenue / prev_rev - 1) * 100, 1)
+
+    # 영업이익률
+    op_margin = None
+    if revenue and revenue > 0 and op_income:
+        op_margin = round(op_income / revenue * 100, 1)
+
     if not revenue or revenue <= 0:
         return {
             "source": "섹터배수(매출0)",
-            "근거": f"P/S {ps}x — 최근 매출 0 또는 미확인",
+            "근거": f"P/S {ps}x — {yr}년 매출 0 또는 미확인",
             "현재가치_백만원_추정": None,
+            "method_detail": None,
         }
 
-    # EV = 매출(원) × P/S 배수 → 전체 회사 기업가치 (백만원)
-    ev_mil = revenue * ps / 1_000_000
-    # 내 지분가치 (지분율 0이면 EV 전체를 참고값으로 반환)
-    val_mil = round(ev_mil * (stake_pct / 100), 0) if stake_pct > 0 else round(ev_mil, 0)
-    yr = int(latest["연도"])
     rev_억 = revenue / 1e8
 
+    # 멀티플 밸류에이션 (3가지 방법 시도)
+    valuations = {}
+
+    # 방법 1: P/S (매출 기준)
+    ev_ps = revenue * ps / 1_000_000
+    valuations["P/S"] = {"ev_mil": ev_ps, "근거": f"매출 {rev_억:.1f}억 x P/S {ps}x"}
+
+    # 방법 2: EV/EBITDA (영업이익 기준, 대용)
+    if op_income and op_income > 0:
+        ebitda_multiple = ps * 1.5  # P/S 대비 EV/EBITDA는 일반적으로 1.5배
+        ev_ebitda = op_income * ebitda_multiple / 1_000_000
+        op_억 = op_income / 1e8
+        valuations["EV/EBITDA"] = {"ev_mil": ev_ebitda, "근거": f"영업이익 {op_억:.1f}억 x {ebitda_multiple:.1f}x"}
+
+    # 방법 3: P/E (순이익 기준)
+    if net_income and net_income > 0:
+        pe_multiple = max(ps * 3, 10)  # P/E는 P/S 대비 높음
+        ev_pe = net_income * pe_multiple / 1_000_000
+        ni_억 = net_income / 1e8
+        valuations["P/E"] = {"ev_mil": ev_pe, "근거": f"순이익 {ni_억:.1f}억 x P/E {pe_multiple:.0f}x"}
+
+    # 가중 평균 (사용 가능한 방법들)
+    if len(valuations) > 1:
+        avg_ev = sum(v["ev_mil"] for v in valuations.values()) / len(valuations)
+        methods_str = " / ".join(f"{k}={v['ev_mil']/100:.0f}억" for k, v in valuations.items())
+        source = f"멀티플평균({len(valuations)}개)"
+    else:
+        avg_ev = list(valuations.values())[0]["ev_mil"]
+        methods_str = list(valuations.values())[0]["근거"]
+        source = "섹터배수"
+
+    val_mil = round(avg_ev * (stake_pct / 100), 0) if stake_pct > 0 else round(avg_ev, 0)
+
+    # 상세 근거 문자열 구성
+    detail_parts = [f"{yr}년 기준"]
+    detail_parts.append(f"매출 {rev_억:.1f}억")
+    if op_margin is not None:
+        detail_parts.append(f"영업이익률 {op_margin:.1f}%")
+    if growth_rate is not None:
+        detail_parts.append(f"매출성장률 {growth_rate:+.1f}%")
+    detail_parts.append(f"[{methods_str}]")
+    if stake_pct > 0:
+        detail_parts.append(f"x 지분 {stake_pct}%")
+
     return {
-        "source": "섹터배수",
-        "근거": f"{yr}년 매출 {rev_억:.1f}억 × P/S {ps}x" + (f" × 지분 {stake_pct}%" if stake_pct > 0 else " (지분율미입력→EV전체)"),
+        "source": source,
+        "근거": " | ".join(detail_parts),
         "현재가치_백만원_추정": int(val_mil),
+        "method_detail": {
+            "연도": yr,
+            "매출액_억": round(rev_억, 1),
+            "영업이익률": op_margin,
+            "매출성장률": growth_rate,
+            "적용배수": {k: round(v["ev_mil"]/100, 0) for k, v in valuations.items()},
+            "EV_평균_억": round(avg_ev / 100, 0),
+        },
     }
 
 
