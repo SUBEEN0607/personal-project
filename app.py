@@ -1763,21 +1763,38 @@ span[data-baseweb="tag"] svg { fill:#999 !important; width:12px !important; }
         col1, col2 = st.columns(2)
         with col1:
             st.markdown("#### 분기 코멘터리")
-            st.caption("포트폴리오 전체를 LP 보고서 형식으로 자동 작성합니다.")
+            st.caption("Claude AI가 펀드 성과 데이터를 분석하여 LP 보고서용 코멘터리를 자동 작성합니다.")
             if st.button("코멘터리 생성"):
                 with st.spinner("Claude가 작성 중..."):
-                    detail_rows = result_df[["회사명", "MOIC", "IRR(%)", "TVPI"]].to_dict("records")
+                    detail_rows = result_df[["회사명", "MOIC", "IRR(%)", "TVPI", "투자금액_백만원"]].to_dict("records")
                     commentary = generate_commentary(summary, detail_rows)
-                st.text_area("LP 보고서용 코멘터리", commentary, height=300)
+                st.session_state["ai_commentary"] = commentary
+
+            if "ai_commentary" in st.session_state:
+                st.markdown(f"""
+<div style="background:#ffffff;border:1px solid #c8e6c9;border-radius:10px;padding:18px 22px;margin-top:8px;">
+  <div style="font-size:10px;color:#1b5e20;font-weight:700;letter-spacing:0.08em;margin-bottom:10px;">AI COMMENTARY</div>
+  <div style="font-size:12px;color:#333;line-height:1.8;white-space:pre-wrap;">{st.session_state["ai_commentary"]}</div>
+</div>
+""", unsafe_allow_html=True)
 
         with col2:
             st.markdown("#### 자연어 질문")
-            st.caption("예: MOIC 2배 넘는 회사? / 바이오 섹터 현황? / IRR 가장 낮은 곳은?")
-            question = st.text_input("질문 입력")
+            st.caption("포트폴리오 데이터에 대해 자유롭게 질문하세요.")
+            question = st.text_input("질문 입력", placeholder="예: MOIC 2배 넘는 회사? / 바이오 섹터 현황?")
             if st.button("질문하기") and question:
                 with st.spinner("답변 생성 중..."):
                     answer = answer_question(result_df, question)
-                st.info(answer)
+                st.session_state["ai_answer"] = answer
+                st.session_state["ai_question"] = question
+
+            if "ai_answer" in st.session_state:
+                st.markdown(f"""
+<div style="background:#ffffff;border:1px solid #e5e5e5;border-radius:10px;padding:18px 22px;margin-top:8px;">
+  <div style="font-size:10px;color:#999;font-weight:600;margin-bottom:6px;">Q. {st.session_state.get("ai_question","")}</div>
+  <div style="font-size:12px;color:#333;line-height:1.8;white-space:pre-wrap;">{st.session_state["ai_answer"]}</div>
+</div>
+""", unsafe_allow_html=True)
 
     # ── 포트폴리오사 뉴스 모니터링 ────────────────────
     st.markdown("---")
