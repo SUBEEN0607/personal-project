@@ -234,8 +234,8 @@ def generate_lp_pptx(
                 fig = go.Figure(go.Pie(labels=sa["섹터"].tolist(), values=sa["총투자"].tolist(),
                     marker=dict(colors=["#1b5e20","#2e7d32","#43a047","#66bb6a","#81c784","#a5d6a7","#c8e6c9","#e8f5e9"], line=dict(color="#fff", width=2)),
                     textinfo="label+percent", hole=0.35))
-                fig.update_layout(height=250, width=350, margin=dict(t=5,b=5,l=5,r=5), paper_bgcolor="rgba(0,0,0,0)", showlegend=False)
-                _add_chart_to_slide(s, fig, 8.5, 4.5, 4.0, 2.5)
+                fig.update_layout(height=220, width=300, margin=dict(t=5,b=5,l=5,r=5), paper_bgcolor="rgba(0,0,0,0)", showlegend=False)
+                _add_chart_to_slide(s, fig, 9.0, 4.8, 3.5, 2.2)
         slides.append("섹터")
 
     # ═══ 5. Top/Bottom ═══
@@ -265,9 +265,9 @@ def generate_lp_pptx(
             cs = ["#1b5e20" if m >= 2 else "#43a047" if m >= 1 else "#ef5350" for m in tb["MOIC"]]
             fig = go.Figure(go.Bar(x=tb["MOIC"].tolist(), y=tb["회사명"].tolist(), orientation="h", marker_color=cs,
                 text=[f"{m}x" for m in tb["MOIC"]], textposition="outside"))
-            fig.update_layout(height=200, width=500, margin=dict(t=5,b=5,l=80,r=30), paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+            fig.update_layout(height=180, width=450, margin=dict(t=5,b=5,l=80,r=30), paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
                 xaxis=dict(showgrid=True, gridcolor="#eee"), yaxis=dict(showgrid=False), bargap=0.3)
-            _add_chart_to_slide(s, fig, 0.8, 4.5, 5.5, 2.5)
+            _add_chart_to_slide(s, fig, 0.8, 4.8, 5.0, 2.2)
         slides.append("Top/Bottom")
 
     # ═══ 6. 집중도 ═══
@@ -340,9 +340,9 @@ def generate_lp_pptx(
             fig = go.Figure()
             fig.add_trace(go.Bar(name="LP", x=labels, y=[s1, s2, 0, s4_lp], marker_color="#1b5e20", text=[f"{v:,.0f}" for v in [s1,s2,0,s4_lp]], textposition="inside", textfont=dict(color="#fff")))
             fig.add_trace(go.Bar(name="GP", x=labels, y=[0, 0, s3_gp, s4_gp], marker_color="#a5d6a7", text=[f"{v:,.0f}" if v > 0 else "" for v in [0,0,s3_gp,s4_gp]], textposition="inside"))
-            fig.update_layout(barmode="stack", height=350, width=700, margin=dict(t=10,b=30,l=40,r=10), paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-                legend=dict(orientation="h", y=-0.12), bargap=0.3, yaxis=dict(showgrid=True, gridcolor="#eee"))
-            _add_chart_to_slide(s, fig, 0.8, 1.5, 7.0, 3.5)
+            fig.update_layout(barmode="stack", height=280, width=600, margin=dict(t=10,b=30,l=40,r=10), paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                legend=dict(orientation="h", y=-0.15), bargap=0.3, yaxis=dict(showgrid=True, gridcolor="#eee"))
+            _add_chart_to_slide(s, fig, 0.8, 1.5, 6.5, 3.0)
         else:
             param_txt = f"투자금 {wf_inv:,.0f}M · 회수금 {wf_proc:,.0f}M · Hurdle {hurdle}% · Carry {carry}% · {years}년"
             _rounded(s, Inches(0.8), Inches(1.5), Inches(11.7), Inches(0.5), XP_GREEN, P_GREEN)

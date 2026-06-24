@@ -1615,7 +1615,7 @@ span[data-baseweb="tag"] svg { fill:#999 !important; width:12px !important; }
         # 출력 버튼
         fmt1, fmt2, fmt3 = st.columns(3)
         with fmt1:
-            if st.button("LP 보고서 (PDF)", use_container_width=True, type="primary"):
+            if st.button("LP 보고서 (PDF)", use_container_width=True):
                 with st.spinner("PDF 생성 중..."):
                     sel_str = str(selected)
                     detail_rows = result_df[["회사명","MOIC","IRR(%)","TVPI","투자금액_백만원"]].to_dict("records")

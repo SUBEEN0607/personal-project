@@ -16,6 +16,22 @@ _WHITE  = (255, 255, 255)
 _GREEN  = (27,  94,  32)
 
 
+_CHART_STYLE = dict(
+    plot_bgcolor="#ffffff", paper_bgcolor="#ffffff",
+    font=dict(family="sans-serif", size=11, color="#333"),
+    margin=dict(t=35, b=25, l=50, r=20),
+)
+
+def _style_chart(fig, title="", h=300):
+    fig.update_layout(**_CHART_STYLE, height=h, showlegend=True,
+                      legend=dict(orientation="h", y=-0.15, font_size=10, bgcolor="rgba(0,0,0,0)"))
+    if title:
+        fig.update_layout(title=dict(text=title, font=dict(size=13, color="#1a1a1a"), x=0.02, y=0.97))
+    fig.update_xaxes(showgrid=False, zeroline=False)
+    fig.update_yaxes(showgrid=True, gridcolor="#f0f0f0", gridwidth=0.5, zeroline=False)
+    return fig
+
+
 def _render_chart(fig, width=170, height=100) -> str | None:
     try:
         tmp = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
@@ -29,7 +45,7 @@ def _add_chart(pdf: FPDF, fig, w=170, h=90):
     path = _render_chart(fig, w, h)
     if path:
         pdf.image(path, x=20, w=w)
-        pdf.ln(4)
+        pdf.ln(3)
         try:
             os.unlink(path)
         except Exception:
@@ -401,16 +417,11 @@ def generate_full_pdf(
                 text=[f"{m}x" for m in sorted_r["MOIC"]], textposition="outside",
                 textfont=dict(size=11, color="#333"),
             ))
-            fig_moic.add_vline(x=2.0, line_dash="dot", line_color="#999", annotation_text="BM 2.0x",
+            fig_moic.add_vline(x=2.0, line_dash="dot", line_color="#bbb", annotation_text="BM 2.0x",
                                annotation_font_size=9, annotation_font_color="#999")
-            fig_moic.update_layout(
-                title=dict(text="Portfolio MOIC", font=dict(size=13, color="#1a1a1a"), x=0.02),
-                height=300, margin=dict(t=35, b=15, l=90, r=40),
-                plot_bgcolor="#fafaf8", paper_bgcolor="#fafaf8",
-                font=dict(family="sans-serif", size=11, color="#1a1a1a"),
-                xaxis=dict(showgrid=True, gridcolor="#e8e8e8", zeroline=False),
-                yaxis=dict(showgrid=False), bargap=0.35,
-            )
+            _style_chart(fig_moic, "Portfolio MOIC", h=300)
+            fig_moic.update_layout(margin=dict(t=35, b=15, l=90, r=40), bargap=0.35)
+            fig_moic.update_yaxes(showgrid=False)
             _add_chart(pdf, fig_moic, w=170, h=75)
         pdf.ln(2)
 
@@ -446,14 +457,10 @@ def generate_full_pdf(
                 text=[f"{m}x · IRR {irr}%" for m, irr in zip(tb["MOIC"], tb["IRR(%)"])],
                 textposition="outside", textfont=dict(size=10),
             ))
-            fig_tb.update_layout(
-                title=dict(text="Top & Bottom MOIC", font=dict(size=13, color="#1a1a1a"), x=0.02),
-                height=280, margin=dict(t=35, b=15, l=120, r=60),
-                plot_bgcolor="#fafaf8", paper_bgcolor="#fafaf8",
-                font=dict(size=11, color="#1a1a1a"),
-                xaxis=dict(showgrid=True, gridcolor="#e8e8e8", zeroline=False, title="MOIC"),
-                yaxis=dict(showgrid=False), bargap=0.3, showlegend=False,
-            )
+            _style_chart(fig_tb, "Top & Bottom MOIC", h=280)
+            fig_tb.update_layout(margin=dict(t=35, b=15, l=120, r=60), showlegend=False, bargap=0.3)
+            fig_tb.update_xaxes(showgrid=True, title="MOIC")
+            fig_tb.update_yaxes(showgrid=False)
             _add_chart(pdf, fig_tb, w=170, h=70)
         else:
             pdf.set_font(f, size=10)
@@ -500,12 +507,8 @@ def generate_full_pdf(
                 textinfo="label+percent", textfont=dict(size=11),
                 hole=0.35,
             ))
-            fig_pie.update_layout(
-                title=dict(text="Sector Allocation", font=dict(size=13, color="#1a1a1a"), x=0.02),
-                height=300, margin=dict(t=35, b=10, l=10, r=10),
-                plot_bgcolor="#fafaf8", paper_bgcolor="#fafaf8",
-                font=dict(size=11, color="#1a1a1a"), showlegend=False,
-            )
+            _style_chart(fig_pie, "Sector Allocation", h=300)
+            fig_pie.update_layout(margin=dict(t=35, b=10, l=10, r=10), showlegend=False)
             _add_chart(pdf, fig_pie, w=150, h=75)
         pdf.ln(2)
 
@@ -600,14 +603,9 @@ def generate_full_pdf(
                 fill="tozeroy", fillcolor="rgba(27,94,32,0.08)",
             ))
             fig_jc.add_hline(y=0, line_dash="dash", line_color="#999", line_width=1)
-            fig_jc.update_layout(
-                title=dict(text="J-Curve — Cumulative Cash Flow", font=dict(size=13, color="#1a1a1a"), x=0.02),
-                height=300, margin=dict(t=35, b=30, l=60, r=20),
-                plot_bgcolor="#fafaf8", paper_bgcolor="#fafaf8",
-                font=dict(size=11, color="#1a1a1a"), showlegend=False,
-                xaxis=dict(showgrid=False, title=""),
-                yaxis=dict(showgrid=True, gridcolor="#e8e8e8", zeroline=False, title="백만원"),
-            )
+            _style_chart(fig_jc, "J-Curve — Cumulative Cash Flow", h=300)
+            fig_jc.update_layout(showlegend=False, margin=dict(t=35, b=30, l=60, r=20))
+            fig_jc.update_yaxes(title="백만원")
             _add_chart(pdf, fig_jc, w=170, h=75)
             pdf.ln(2)
 
@@ -679,15 +677,9 @@ def generate_full_pdf(
                                     marker_color="#a5d6a7", marker_line_width=0,
                                     text=[f"{v:,.0f}" if v > 0 else "" for v in gp_vals], textposition="inside",
                                     textfont=dict(color="#1a1a1a", size=11)))
-            fig_wf.update_layout(
-                title=dict(text=f"Waterfall — LP {total_lp:,.0f}M (MOIC {lp_moic:.2f}x) / GP {total_gp:,.0f}M",
-                           font=dict(size=12, color="#1a1a1a"), x=0.02),
-                barmode="stack", height=300, margin=dict(t=40, b=30, l=40, r=20),
-                plot_bgcolor="#fafaf8", paper_bgcolor="#fafaf8",
-                font=dict(size=11, color="#1a1a1a"), bargap=0.3,
-                legend=dict(orientation="h", y=-0.12, font_size=10),
-                xaxis=dict(showgrid=False), yaxis=dict(showgrid=True, gridcolor="#e8e8e8", title="백만원"),
-            )
+            _style_chart(fig_wf, f"Waterfall — LP {total_lp:,.0f}M ({lp_moic:.2f}x) / GP {total_gp:,.0f}M", h=300)
+            fig_wf.update_layout(barmode="stack", bargap=0.3)
+            fig_wf.update_yaxes(title="백만원")
             _add_chart(pdf, fig_wf, w=170, h=75)
         else:
             pdf.set_font(f, size=9)
@@ -718,11 +710,8 @@ def generate_full_pdf(
                             color="IRR (%)", color_continuous_scale=["#e8f5e9","#66bb6a","#2e7d32","#1b5e20"],
                             text="IRR (%)")
             fig_sc.update_traces(texttemplate="%{text}%", textposition="outside", marker_line_width=0)
-            fig_sc.update_layout(
-                height=280, margin=dict(t=10, b=30, l=30, r=10),
-                plot_bgcolor="#fafaf8", paper_bgcolor="#fafaf8",
-                font=dict(size=11, color="#1a1a1a"), showlegend=False, bargap=0.3,
-            )
+            _style_chart(fig_sc, f"Exit Scenario — {scenario_company}", h=280)
+            fig_sc.update_layout(showlegend=False, bargap=0.3)
             _add_chart(pdf, fig_sc, w=170, h=70)
             pdf.ln(2)
 
@@ -753,12 +742,10 @@ def generate_full_pdf(
                 zmid=15, text=[[f"{v}%" for v in row] for row in matrix],
                 texttemplate="%{text}", textfont=dict(size=9, color="#ffffff"),
             ))
-            fig_heat.update_layout(
-                height=350, margin=dict(t=10, b=30, l=50, r=10),
-                plot_bgcolor="#fafaf8", paper_bgcolor="#fafaf8",
-                font=dict(size=10, color="#1a1a1a"),
-                xaxis_title="보유기간", yaxis_title="Exit 배수",
-            )
+            _style_chart(fig_heat, f"IRR Sensitivity — {sensitivity_company}", h=350)
+            fig_heat.update_layout(margin=dict(t=35, b=30, l=50, r=10))
+            fig_heat.update_xaxes(title="보유기간")
+            fig_heat.update_yaxes(title="Exit 배수", showgrid=False)
             _add_chart(pdf, fig_heat, w=170, h=85)
         else:
             idx_col = "Exit 배수"
