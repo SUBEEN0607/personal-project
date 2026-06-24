@@ -1,4 +1,5 @@
 import os
+import json
 import requests
 import pandas as pd
 from dotenv import load_dotenv
@@ -8,9 +9,30 @@ _API_KEY = os.getenv("DART_API_KEY")
 _DART_BASE = "https://opendart.fss.or.kr/api"
 
 _corp_list_cache = None
+_search_cache: dict[str, list] = {}
+_CACHE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".dart_search_cache.json")
+
+
+def _load_disk_cache():
+    global _search_cache
+    try:
+        if os.path.exists(_CACHE_FILE):
+            with open(_CACHE_FILE, "r", encoding="utf-8") as f:
+                _search_cache = json.load(f)
+    except Exception:
+        _search_cache = {}
+
+def _save_disk_cache():
+    try:
+        with open(_CACHE_FILE, "w", encoding="utf-8") as f:
+            json.dump(_search_cache, f, ensure_ascii=False)
+    except Exception:
+        pass
+
+_load_disk_cache()
+
 
 def _get_corp_list():
-    """corp_list를 최초 1회만 로드하고 메모리에 캐시."""
     global _corp_list_cache
     if _corp_list_cache is None:
         import dart_fss as dart
@@ -20,14 +42,17 @@ def _get_corp_list():
 
 
 def search_company(name: str) -> list[dict]:
-    """기업명으로 DART 등록 기업 검색 (상장사 우선, 최대 5건)"""
+    """기업명으로 DART 등록 기업 검색 (디스크 캐시 활용)"""
+    if name in _search_cache:
+        return _search_cache[name]
+
     try:
         corp_list = _get_corp_list()
         results = corp_list.find_by_corp_name(name, exactly=True)
         if not results:
             results = corp_list.find_by_corp_name(name, exactly=False)
         results = sorted(results, key=lambda c: (0 if getattr(c, "stock_code", "") else 1))
-        return [
+        found = [
             {
                 "corp_name": c.corp_name,
                 "corp_code": c.corp_code,
@@ -35,16 +60,25 @@ def search_company(name: str) -> list[dict]:
             }
             for c in results[:5]
         ]
+        _search_cache[name] = found
+        _save_disk_cache()
+        return found
     except Exception:
+        _search_cache[name] = []
+        _save_disk_cache()
         return []
 
 
+_fin_cache: dict[str, pd.DataFrame] = {}
+
 def get_financials(corp_code: str, years: list[int] = None) -> pd.DataFrame:
-    """DART OpenAPI 직접 호출로 연도별 손익계산서 조회 (빠르고 안정적)
-    reprt_code 11011=사업보고서(연간)
-    """
+    """DART OpenAPI 직접 호출로 연도별 손익계산서 조회 (캐시 적용)"""
     if years is None:
         years = [2022, 2023, 2024]
+
+    cache_key = f"{corp_code}_{'_'.join(map(str, years))}"
+    if cache_key in _fin_cache:
+        return _fin_cache[cache_key]
 
     rows = []
     for year in years:
@@ -55,9 +89,9 @@ def get_financials(corp_code: str, years: list[int] = None) -> pd.DataFrame:
                     "crtfc_key": _API_KEY,
                     "corp_code": corp_code,
                     "bsns_year": str(year),
-                    "reprt_code": "11011",  # 사업보고서
+                    "reprt_code": "11011",
                 },
-                timeout=10,
+                timeout=5,
             )
             data = r.json()
             if data.get("status") != "000":
@@ -88,4 +122,6 @@ def get_financials(corp_code: str, years: list[int] = None) -> pd.DataFrame:
         except Exception:
             continue
 
-    return pd.DataFrame(rows)
+    result = pd.DataFrame(rows)
+    _fin_cache[cache_key] = result
+    return result

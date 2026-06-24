@@ -59,7 +59,7 @@ def _naver_market_cap_억(stock_code: str) -> float | None:
     try:
         from bs4 import BeautifulSoup
         url = f"https://finance.naver.com/item/main.nhn?code={code}"
-        r = requests.get(url, headers=_HEADERS, timeout=8)
+        r = requests.get(url, headers=_HEADERS, timeout=5)
         if r.status_code != 200:
             _mktcap_cache[code] = None
             return None
