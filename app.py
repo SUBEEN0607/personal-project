@@ -568,16 +568,29 @@ elif use_sample:
     st.session_state["summary"] = portfolio_summary(raw)
     st.sidebar.success("샘플 데이터(8개사) 로드됨")
 
-# ── 자동 밸류에이션 조회 (데이터 로드 후 표시) ──────
+# ── 자동 밸류에이션 조회 ──────────────────────────
 if "df" in st.session_state:
-    with st.expander("자동 밸류에이션 조회 — DART·네이버 금융에서 현재가치 자동 추정"):
+    with st.expander("Automated Valuation — 포트폴리오 현재가치 자동 추정"):
         st.markdown("""
-<div style="font-size:13px; color:#6b6b6b; line-height:1.7; margin-bottom:16px;">
-  <b>상장사</b>: 네이버 금융 시가총액 × 지분율(%)로 자동 계산<br>
-  <b>비상장사</b>: DART 매출 × 섹터 P/S 배수로 추정<br>
-  지분율(%)을 입력한 후 <b>자동 조회</b>를 클릭하세요.
+<div style="background:#ffffff;border:1px solid #c8e6c9;border-radius:10px;padding:18px 22px;margin-bottom:16px;">
+  <div style="font-size:14px;font-weight:700;color:#1b5e20;margin-bottom:10px;">밸류에이션 방법론</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;font-size:12px;color:#555;line-height:1.7;">
+    <div>
+      <div style="font-weight:600;color:#1a1a1a;margin-bottom:4px;">상장사 (Market Cap)</div>
+      네이버 금융에서 실시간 시가총액을 크롤링한 후 입력된 지분율(%)을 곱하여 보유 지분 가치를 산출합니다.
+      <div style="color:#999;font-size:11px;margin-top:4px;">시총 × 지분율 = 현재가치</div>
+    </div>
+    <div>
+      <div style="font-weight:600;color:#1a1a1a;margin-bottom:4px;">비상장사 (Comparable Multiple)</div>
+      DART에서 최근 재무제표를 조회하고, P/S · EV/EBITDA · P/E 3가지 멀티플의 가중평균으로 기업가치를 추정합니다.
+      <div style="color:#999;font-size:11px;margin-top:4px;">매출×P/S + 영업이익×EV/EBITDA + 순이익×P/E → 평균 EV × 지분율</div>
+    </div>
+  </div>
 </div>
 """, unsafe_allow_html=True)
+
+        st.markdown('<p style="font-size:11px;letter-spacing:0.1em;color:#999;font-weight:700;margin-bottom:6px;">INPUT — 지분율 입력</p>', unsafe_allow_html=True)
+
         av_df = st.session_state["df"][["회사명", "섹터", "투자금액_백만원", "현재가치_백만원"]].copy()
         if "지분율_%" not in av_df.columns:
             av_df["지분율_%"] = 10.0
@@ -585,12 +598,19 @@ if "df" in st.session_state:
             av_df["지분율_%"] = st.session_state["df"]["지분율_%"]
 
         edited_av = st.data_editor(
-            av_df[["회사명", "섹터", "지분율_%"]],
-            column_config={"지분율_%": st.column_config.NumberColumn("지분율 (%)", min_value=0, max_value=100, step=0.1)},
+            av_df[["회사명", "섹터", "투자금액_백만원", "지분율_%"]],
+            column_config={
+                "회사명": st.column_config.TextColumn("회사명", disabled=True),
+                "섹터": st.column_config.TextColumn("섹터", disabled=True),
+                "투자금액_백만원": st.column_config.NumberColumn("투자금액 (M)", disabled=True, format="%d"),
+                "지분율_%": st.column_config.NumberColumn("지분율 (%)", min_value=0, max_value=100, step=0.1, help="취득 지분율. 시가총액 × 이 비율 = 현재가치"),
+            },
             use_container_width=True, hide_index=True, key="av_editor",
         )
 
-        if st.button("자동 조회 실행", key="auto_val_btn"):
+        st.caption("ThreadPoolExecutor(6)으로 최대 6개사를 동시 병렬 조회합니다. 조회 시간 약 5~15초.")
+
+        if st.button("자동 조회 실행", key="auto_val_btn", type="primary"):
             with st.spinner("DART · 네이버 금융 병렬 조회 중..."):
                 from valuation_fetcher import bulk_fetch_valuations
                 val_result = bulk_fetch_valuations(edited_av)
@@ -598,22 +618,116 @@ if "df" in st.session_state:
 
         if "val_result" in st.session_state:
             vr = st.session_state["val_result"]
-            display_cols = ["회사명", "source", "근거", "현재가치_백만원_추정"]
-            available = [c for c in display_cols if c in vr.columns]
-            st.dataframe(vr[available], use_container_width=True, hide_index=True)
 
-            if st.button("이 값으로 분석 실행", key="apply_val"):
+            st.markdown("---")
+            st.markdown('<p style="font-size:11px;letter-spacing:0.1em;color:#999;font-weight:700;margin-bottom:6px;">RESULT — 밸류에이션 결과</p>', unsafe_allow_html=True)
+
+            # 회사별 결과 카드
+            for _, row in vr.iterrows():
+                est = row.get("현재가치_백만원_추정")
+                source = row.get("source", "")
+                basis = row.get("근거", "")
+                detail = row.get("method_detail")
+                corp = row.get("회사명", "")
+                sector = row.get("섹터", "")
+                inv = row.get("투자금액_백만원", 0)
+
+                # 색상 결정
+                if est and est > 0:
+                    if inv > 0 and est > inv:
+                        border_color = "#c8e6c9"
+                        val_color = "#1b5e20"
+                        moic_est = round(est / inv, 2)
+                    else:
+                        border_color = "#ffcdd2"
+                        val_color = "#c62828"
+                        moic_est = round(est / inv, 2) if inv > 0 else 0
+                else:
+                    border_color = "#e5e5e5"
+                    val_color = "#999"
+                    moic_est = 0
+
+                # 상세 정보 라인
+                detail_lines = []
+                if detail and isinstance(detail, dict):
+                    if "매출액_억" in detail and detail["매출액_억"]:
+                        detail_lines.append(f"매출 {detail['매출액_억']}억")
+                    if "영업이익률" in detail and detail["영업이익률"] is not None:
+                        detail_lines.append(f"영업이익률 {detail['영업이익률']}%")
+                    if "매출성장률" in detail and detail["매출성장률"] is not None:
+                        g = detail["매출성장률"]
+                        g_color = "#1b5e20" if g > 0 else "#c62828"
+                        detail_lines.append(f"성장률 {g:+.1f}%")
+                    if "적용배수" in detail and detail["적용배수"]:
+                        multiples = " / ".join(f"{k}={v:.0f}억" for k, v in detail["적용배수"].items())
+                        detail_lines.append(multiples)
+                    if "시가총액_억" in detail:
+                        mc = detail["시가총액_억"]
+                        if mc >= 10000:
+                            detail_lines.append(f"시총 {mc/10000:.1f}조")
+                        else:
+                            detail_lines.append(f"시총 {mc:,.0f}억")
+
+                detail_str = " · ".join(detail_lines) if detail_lines else ""
+
+                est_display = f"{est:,.0f}M" if est and est > 0 else "조회 실패"
+                moic_display = f"MOIC {moic_est}x" if moic_est > 0 else ""
+
+                st.markdown(f"""
+<div style="background:#ffffff;border:1px solid {border_color};border-radius:10px;padding:16px 20px;margin-bottom:8px;">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;">
+    <div>
+      <span style="font-size:15px;font-weight:700;color:#1a1a1a;">{corp}</span>
+      <span style="font-size:11px;color:#999;margin-left:8px;">{sector}</span>
+      <span style="font-size:10px;color:#ccc;margin-left:8px;background:#f5f5f5;padding:2px 8px;border-radius:10px;">{source}</span>
+    </div>
+    <div style="text-align:right;">
+      <span style="font-size:22px;font-weight:800;color:{val_color};">{est_display}</span>
+      <span style="font-size:11px;color:{val_color};margin-left:6px;">{moic_display}</span>
+    </div>
+  </div>
+  <div style="font-size:11px;color:#888;margin-top:6px;line-height:1.6;">
+    {basis}
+  </div>
+  {"<div style='font-size:10px;color:#aaa;margin-top:4px;'>" + detail_str + "</div>" if detail_str else ""}
+</div>
+""", unsafe_allow_html=True)
+
+            # 요약
+            success = vr[vr["현재가치_백만원_추정"].notna() & (vr["현재가치_백만원_추정"] > 0)]
+            failed = len(vr) - len(success)
+            if len(success) > 0:
+                total_est = success["현재가치_백만원_추정"].sum()
+                st.markdown(f"""
+<div style="background:#e8f5e9;border-radius:10px;padding:14px 20px;margin-top:12px;">
+  <div style="display:flex;justify-content:space-between;align-items:center;">
+    <div>
+      <span style="font-size:12px;color:#1b5e20;font-weight:600;">조회 성공 {len(success)}개사</span>
+      {"<span style='font-size:11px;color:#c62828;margin-left:12px;'>실패 " + str(failed) + "개사</span>" if failed > 0 else ""}
+    </div>
+    <div>
+      <span style="font-size:11px;color:#666;">추정 총 가치</span>
+      <span style="font-size:18px;font-weight:800;color:#1b5e20;margin-left:8px;">{total_est:,.0f}M</span>
+    </div>
+  </div>
+</div>
+""", unsafe_allow_html=True)
+
+            st.markdown("")
+            if st.button("이 값으로 분석 실행", key="apply_val", type="primary"):
                 raw_updated = st.session_state["df"].copy()
+                applied = 0
                 for _, row in vr.iterrows():
                     est = row.get("현재가치_백만원_추정")
                     if est and est > 0:
                         mask = raw_updated["회사명"] == row["회사명"]
                         raw_updated.loc[mask, "현재가치_백만원"] = est
+                        applied += 1
                 result_df = run_all(raw_updated)
                 st.session_state["df"] = raw_updated
                 st.session_state["result_df"] = result_df
                 st.session_state["summary"] = portfolio_summary(raw_updated)
-                st.success("밸류에이션 업데이트 완료 — 대시보드가 갱신됩니다.")
+                st.success(f"{applied}개사 밸류에이션 업데이트 완료")
                 st.rerun()
 
 # ── 탭 ───────────────────────────────────────────
