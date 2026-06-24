@@ -1135,6 +1135,7 @@ with tab2:
 
     if cf_df is not None:
         trend = j_curve_data(cf_df)
+        st.session_state["jcurve_trend"] = trend
         fig = go.Figure()
         fig.add_trace(go.Scatter(
             x=trend["날짜"], y=trend["누적현금흐름"],
@@ -1308,6 +1309,9 @@ with tab3:
                 raw_r2["투자금액_백만원"], raw_r2["투자일"],
                 [0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 4.0, 5.0],
             )
+            st.session_state["scenario_sim_df"] = sim_df2
+            st.session_state["scenario_opt"] = opt2
+            st.session_state["scenario_company"] = company2
             fig_sim2 = px.bar(
                 sim_df2, x="Exit 배수", y="IRR (%)",
                 color="IRR (%)", color_continuous_scale=["#e8f5e9","#66bb6a","#2e7d32","#1b5e20"],
@@ -1772,20 +1776,29 @@ span[data-baseweb="tag"] svg { fill:#999 !important; width:12px !important; }
         with fmt1:
             if st.button("LP 보고서 (PDF)", use_container_width=True, type="primary"):
                 with st.spinner("PDF 생성 중..."):
+                    sel_str = str(selected)
                     detail_rows = result_df[["회사명","MOIC","IRR(%)","TVPI","투자금액_백만원"]].to_dict("records")
-                    _comm = generate_commentary(summary, detail_rows) if "AI" in str(selected) else ""
-                    _jc = st.session_state.get("jcurve_trend") if "J-Curve" in str(selected) else None
+                    _comm = generate_commentary(summary, detail_rows) if "AI" in sel_str else ""
+                    _jc = st.session_state.get("jcurve_trend") if "J-Curve" in sel_str else None
                     _tr = None
-                    if "분기별" in str(selected):
+                    if "분기별" in sel_str:
                         from db import load_quarters, load_trend
                         if load_quarters(): _tr = load_trend()
-                    _rate = st.session_state.get("macro_rate_df") if "거시" in str(selected) else None
-                    _fx = st.session_state.get("macro_fx_df") if "거시" in str(selected) else None
+                    _rate = st.session_state.get("macro_rate_df") if "거시" in sel_str else None
+                    _fx = st.session_state.get("macro_fx_df") if "거시" in sel_str else None
+                    _inc_wf = "Waterfall" in sel_str
+                    _inc_sc = "시나리오" in sel_str
+                    _sc_df = st.session_state.get("scenario_sim_df")
+                    _sc_opt = st.session_state.get("scenario_opt")
+                    _sc_co = st.session_state.get("scenario_company", "")
                     pdf_bytes = generate_full_pdf(
                         summary, result_df, df, _comm, quarter,
                         fund_name=fund_name, fund_strategy=fund_strategy, base_date=base_date,
                         jcurve_df=_jc, trend_df=_tr, rate_df=_rate, fx_df=_fx,
-                        spread=st.session_state.get("macro_spread"))
+                        spread=st.session_state.get("macro_spread"),
+                        include_waterfall=_inc_wf, include_scenario=_inc_sc,
+                        scenario_company=_sc_co, scenario_df=_sc_df, scenario_opt=_sc_opt,
+                        selected_sections=selected)
                 st.download_button("PDF 다운로드", pdf_bytes, file_name=f"LP_Report_{quarter}.pdf",
                                    mime="application/pdf", use_container_width=True)
         with fmt2:

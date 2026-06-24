@@ -319,6 +319,9 @@ def generate_full_pdf(
     jcurve_df=None, jcurve_comment="",
     trend_df=None, trend_comment="",
     rate_df=None, fx_df=None, macro_comment="", spread=None,
+    include_waterfall=False, include_scenario=False,
+    scenario_company="", scenario_df=None, scenario_opt=None,
+    selected_sections=None,
 ):
     pdf = _new_pdf()
     f = _font(pdf)
@@ -491,6 +494,58 @@ def generate_full_pdf(
         pdf.ln(3)
         if macro_comment:
             _commentary_block(pdf, f, macro_comment)
+
+    # ── Waterfall ──
+    if include_waterfall:
+        pdf.add_page()
+        pdf.set_fill_color(*_BG); pdf.rect(0, 0, 210, 297, "F")
+        _section_header(pdf, f, "Waterfall Distribution")
+        wf_inv = float(df_raw["투자금액_백만원"].sum())
+        wf_proc = float(df_raw["현재가치_백만원"].sum() + df_raw["회수금액_백만원"].sum())
+        hurdle, carry, years = 8, 20, 5
+        profit = max(0, wf_proc - wf_inv)
+        hurdle_amt = wf_inv * ((1 + hurdle/100)**years - 1)
+        rem = wf_proc
+        s1 = min(rem, wf_inv); rem -= s1
+        s2 = min(rem, hurdle_amt); rem -= s2
+        gp_target = profit * carry / 100
+        s3_gp = min(rem, gp_target); rem -= s3_gp
+        s4_gp = rem * carry / 100; s4_lp = rem - s4_gp
+        total_lp = s1 + s2 + s4_lp; total_gp = s3_gp + s4_gp
+
+        pdf.set_font(f, size=9)
+        pdf.cell(0, 6, f"  Params: Invested {wf_inv:,.0f}M | Proceeds {wf_proc:,.0f}M | Hurdle {hurdle}% | Carry {carry}% | {years}yr", ln=True)
+        pdf.ln(3)
+        steps = [
+            ("1. Return of Capital", f"LP <- {s1:,.0f}M"),
+            ("2. Preferred Return", f"LP <- {s2:,.0f}M (Hurdle {hurdle}% x {years}yr)"),
+            ("3. GP Catch-up", f"GP <- {s3_gp:,.0f}M"),
+            ("4. Carry Split", f"LP {s4_lp:,.0f}M / GP {s4_gp:,.0f}M"),
+        ]
+        _table_header(pdf, f, ["Step", "Distribution"], [60, 90])
+        for i, (step, dist) in enumerate(steps):
+            _table_row(pdf, f, [step, dist], [60, 90], shade=(i%2==0))
+        pdf.ln(4)
+        pdf.set_font(f, size=9)
+        lp_moic = total_lp / wf_inv if wf_inv > 0 else 0
+        eff_carry = total_gp / profit * 100 if profit > 0 else 0
+        pdf.cell(0, 6, f"  Result: LP {total_lp:,.0f}M (MOIC {lp_moic:.2f}x) | GP {total_gp:,.0f}M (Eff.Carry {eff_carry:.1f}%)", ln=True)
+
+    # ── 시나리오 ──
+    if include_scenario and scenario_df is not None:
+        pdf.add_page()
+        pdf.set_fill_color(*_BG); pdf.rect(0, 0, 210, 297, "F")
+        _section_header(pdf, f, f"Exit Scenario — {scenario_company}")
+        cols = list(scenario_df.columns)
+        cw = 166 // max(len(cols), 1)
+        _table_header(pdf, f, cols, [cw]*len(cols))
+        for i, row in scenario_df.iterrows():
+            _table_row(pdf, f, [str(row[c]) for c in cols], [cw]*len(cols), shade=(i%2==0))
+        pdf.ln(4)
+        if scenario_opt:
+            pdf.set_font(f, size=9)
+            for k, v in scenario_opt.items():
+                pdf.cell(0, 6, f"  {k}: {v}", ln=True)
 
     # ── 면책 조항 ──
     pdf.add_page()
