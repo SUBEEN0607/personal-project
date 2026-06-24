@@ -229,13 +229,6 @@ def generate_lp_pptx(
                 _text(s, Inches(10.1), y+Inches(0.03), Inches(1.2), Inches(0.22), f"MOIC {row['평균MOIC']:.1f}x", sz=9, c=D_GREY)
                 _text(s, Inches(11.3), y+Inches(0.03), Inches(1.2), Inches(0.22), f"IRR {row['평균IRR']:.0f}%", sz=9, c=D_GREY)
 
-            if include_charts:
-                import plotly.graph_objects as go
-                fig = go.Figure(go.Pie(labels=sa["섹터"].tolist(), values=sa["총투자"].tolist(),
-                    marker=dict(colors=["#1b5e20","#2e7d32","#43a047","#66bb6a","#81c784","#a5d6a7","#c8e6c9","#e8f5e9"], line=dict(color="#fff", width=2)),
-                    textinfo="label+percent", hole=0.35))
-                fig.update_layout(height=220, width=300, margin=dict(t=5,b=5,l=5,r=5), paper_bgcolor="rgba(0,0,0,0)", showlegend=False)
-                _add_chart_to_slide(s, fig, 9.0, 4.8, 3.5, 2.2)
         slides.append("섹터")
 
     # ═══ 5. Top/Bottom ═══
@@ -262,7 +255,7 @@ def generate_lp_pptx(
         if include_charts:
             import plotly.graph_objects as go
             tb = pd.concat([sd.head(3), sd.tail(3)]).sort_values("MOIC", ascending=True)
-            cs = ["#1b5e20" if m >= 2 else "#43a047" if m >= 1 else "#ef5350" for m in tb["MOIC"]]
+            cs = ["#1b5e20" if m >= 2 else "#43a047" if m >= 1 else "#e0a0a0" for m in tb["MOIC"]]
             fig = go.Figure(go.Bar(x=tb["MOIC"].tolist(), y=tb["회사명"].tolist(), orientation="h", marker_color=cs,
                 text=[f"{m}x" for m in tb["MOIC"]], textposition="outside"))
             fig.update_layout(height=180, width=450, margin=dict(t=5,b=5,l=80,r=30), paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
@@ -304,21 +297,44 @@ def generate_lp_pptx(
         hhi_r = round((weights_r ** 2).sum() * 10000)
         risks = []
         under = result_df[result_df["MOIC"] < 1.0]
-        if len(under) > 0: risks.append(("MOIC 1.0x 미만", f"{len(under)}개사: {', '.join(under['회사명'].tolist())}", "HIGH"))
-        if hhi_r > 2500: risks.append(("집중 리스크", f"HHI {hhi_r:,}", "HIGH"))
-        elif hhi_r > 1500: risks.append(("집중도 보통", f"HHI {hhi_r:,}", "MEDIUM"))
-        if summary["펀드 DPI"] < 0.5: risks.append(("회수 지연", f"DPI {summary['펀드 DPI']}x", "MEDIUM"))
-        if summary["펀드 MOIC"] >= 2.0: risks.append(("우수 성과", f"MOIC {summary['펀드 MOIC']}x", "POSITIVE"))
-        if avg_irr > 15: risks.append(("IRR 달성", f"IRR {avg_irr}%", "POSITIVE"))
-        for i, (title, desc, level) in enumerate(risks):
-            y = Inches(1.5) + Inches(i * 0.9)
-            if level == "HIGH": clr, bg_c = RED_SOFT, RGBColor(0xFD,0xED,0xED)
-            elif level == "MEDIUM": clr, bg_c = RGBColor(0xFF,0x98,0x00), RGBColor(0xFF,0xF3,0xE0)
-            else: clr, bg_c = D_GREEN, XP_GREEN
-            _rounded(s, Inches(0.8), y, Inches(11.7), Inches(0.7), bg_c, clr)
-            _text(s, Inches(1.0), y+Inches(0.08), Inches(0.8), Inches(0.22), level, sz=9, c=clr, bold=True)
-            _text(s, Inches(2.0), y+Inches(0.08), Inches(3.0), Inches(0.22), title, sz=12, c=BLACK, bold=True)
-            _text(s, Inches(5.2), y+Inches(0.08), Inches(7.0), Inches(0.22), desc, sz=10, c=D_GREY)
+        if len(under) > 0: risks.append(("MOIC 1.0x 미만", f"{len(under)}개사: {', '.join(under['회사명'].tolist())}", "HIGH", "!"))
+        if hhi_r > 2500: risks.append(("집중 리스크", f"HHI {hhi_r:,} — 특정 기업에 투자 편중", "HIGH", "!"))
+        elif hhi_r > 1500: risks.append(("집중도 보통", f"HHI {hhi_r:,} — 분산 확대 검토", "MEDIUM", "△"))
+        if summary["펀드 DPI"] < 0.5: risks.append(("회수 지연", f"DPI {summary['펀드 DPI']}x — 실현 수익 제한적", "MEDIUM", "△"))
+        if summary["펀드 MOIC"] >= 2.0: risks.append(("우수 성과", f"MOIC {summary['펀드 MOIC']}x — 벤치마크 달성", "POSITIVE", "✓"))
+        if avg_irr > 15: risks.append(("IRR 달성", f"IRR {avg_irr}% — 목표 15% 초과", "POSITIVE", "✓"))
+
+        # 좌측: 리스크 요약 게이지
+        high_cnt = sum(1 for r in risks if r[2] == "HIGH")
+        med_cnt = sum(1 for r in risks if r[2] == "MEDIUM")
+        pos_cnt = sum(1 for r in risks if r[2] == "POSITIVE")
+
+        _rounded(s, Inches(0.8), Inches(1.5), Inches(3.0), Inches(1.2), WHITE, BORDER)
+        _text(s, Inches(0.8), Inches(1.55), Inches(3.0), Inches(0.2), "RISK OVERVIEW", sz=9, c=GREY, bold=True, align=PP_ALIGN.CENTER)
+        gauge_items = []
+        if high_cnt > 0: gauge_items.append((f"HIGH  {high_cnt}", RED_SOFT))
+        if med_cnt > 0: gauge_items.append((f"MEDIUM  {med_cnt}", RGBColor(0xFF,0x98,0x00)))
+        if pos_cnt > 0: gauge_items.append((f"POSITIVE  {pos_cnt}", D_GREEN))
+        for j, (label, clr) in enumerate(gauge_items):
+            gx = Inches(0.95) + Inches(j * 1.0)
+            _circle(s, gx, Inches(2.0), Inches(0.35), clr)
+            _text(s, gx, Inches(2.0), Inches(0.35), Inches(0.35), str(high_cnt if "HIGH" in label else med_cnt if "MEDIUM" in label else pos_cnt),
+                  sz=12, c=WHITE, bold=True, align=PP_ALIGN.CENTER)
+            _text(s, gx - Inches(0.1), Inches(2.4), Inches(0.55), Inches(0.2),
+                  label.split()[0], sz=7, c=clr, bold=True, align=PP_ALIGN.CENTER)
+
+        # 우측: 상세 카드
+        for i, (title, desc, level, icon) in enumerate(risks):
+            y = Inches(1.5) + Inches(i * 0.75)
+            if level == "HIGH": clr, bg_c, border_c = RED_SOFT, RGBColor(0xFE,0xF5,0xF5), RGBColor(0xF0,0xD0,0xD0)
+            elif level == "MEDIUM": clr, bg_c, border_c = RGBColor(0xFF,0x98,0x00), RGBColor(0xFF,0xF8,0xEE), RGBColor(0xF0,0xE0,0xC0)
+            else: clr, bg_c, border_c = D_GREEN, RGBColor(0xF2,0xF9,0xF2), RGBColor(0xC8,0xE6,0xC9)
+
+            _rounded(s, Inches(4.2), y, Inches(8.3), Inches(0.6), bg_c, border_c)
+            _circle(s, Inches(4.35), y + Inches(0.1), Inches(0.4), clr)
+            _text(s, Inches(4.35), y + Inches(0.1), Inches(0.4), Inches(0.4), icon, sz=14, c=WHITE, bold=True, align=PP_ALIGN.CENTER)
+            _text(s, Inches(4.95), y + Inches(0.08), Inches(2.5), Inches(0.2), title, sz=12, c=BLACK, bold=True)
+            _text(s, Inches(4.95), y + Inches(0.32), Inches(7.3), Inches(0.2), desc, sz=9, c=D_GREY)
         slides.append("리스크")
 
     # ═══ 8. Waterfall ═══

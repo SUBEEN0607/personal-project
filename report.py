@@ -362,6 +362,8 @@ def generate_full_pdf(
     sensitivity_df=None, sensitivity_company="",
     dart_fin_df=None, dart_company="",
     include_charts=False,
+    kvic_sector_df=None, kvic_trend_df=None,
+    wf_params=None,
 ):
     pdf = _new_pdf()
     f = _font(pdf)
@@ -377,18 +379,21 @@ def generate_full_pdf(
                 fund_name, fund_strategy, quarter, base_date)
 
     avg_irr = round(result_df["IRR(%)"].mean(), 1)
-    need_page = [True]
+    _started = [False]
 
-    def _ensure_page():
-        if need_page[0]:
+    def _check_space(needed_mm=80):
+        remaining = 297 - pdf.get_y() - 20
+        if not _started[0] or remaining < needed_mm:
             pdf.add_page()
             pdf.set_fill_color(*_BG); pdf.rect(0, 0, 210, 297, "F")
-            need_page[0] = False
+            _started[0] = True
+        else:
+            pdf.ln(6)
 
     def _new_page():
         pdf.add_page()
         pdf.set_fill_color(*_BG); pdf.rect(0, 0, 210, 297, "F")
-        need_page[0] = False
+        _started[0] = True
 
     # ── 성과 요약 ──
     if any("성과 요약" in s for s in sel):
@@ -410,7 +415,7 @@ def generate_full_pdf(
         if include_charts:
             import plotly.graph_objects as go
             sorted_r = result_df.sort_values("MOIC", ascending=True)
-            colors = ["#1b5e20" if m >= 2 else "#43a047" if m >= 1.5 else "#66bb6a" if m >= 1 else "#ef5350" for m in sorted_r["MOIC"]]
+            colors = ["#1b5e20" if m >= 2 else "#43a047" if m >= 1.5 else "#66bb6a" if m >= 1 else "#e0a0a0" for m in sorted_r["MOIC"]]
             fig_moic = go.Figure(go.Bar(
                 x=sorted_r["MOIC"].tolist(), y=sorted_r["회사명"].tolist(),
                 orientation="h", marker_color=colors, marker_line_width=0,
@@ -427,7 +432,7 @@ def generate_full_pdf(
 
     # ── 포트폴리오 상세 ──
     if any("포트폴리오 상세" in s for s in sel):
-        _ensure_page() if sec_num[0] > 0 else _new_page()
+        _check_space(60)
         n = _next_sec()
         _section_header(pdf, f, f"{n}. Portfolio Detail")
         _table_header(pdf, f, ["Company","Sector","Stage","Inv(M)","MOIC","IRR","DPI","RVPI","TVPI"],
@@ -439,7 +444,7 @@ def generate_full_pdf(
 
     # ── Top / Bottom Performers ──
     if any("Top/Bottom" in s for s in sel):
-        _new_page()
+        _check_space(70)
         n = _next_sec()
         _section_header(pdf, f, f"{n}. Top / Bottom Performers")
         sorted_r = result_df.sort_values("MOIC", ascending=False)
@@ -449,7 +454,7 @@ def generate_full_pdf(
         if include_charts:
             import plotly.graph_objects as go
             tb = pd.concat([top3, bottom3]).sort_values("MOIC", ascending=True)
-            colors = ["#1b5e20" if m >= 2 else "#43a047" if m >= 1 else "#ef5350" for m in tb["MOIC"]]
+            colors = ["#1b5e20" if m >= 2 else "#43a047" if m >= 1 else "#e0a0a0" for m in tb["MOIC"]]
             fig_tb = go.Figure()
             fig_tb.add_trace(go.Bar(
                 x=tb["MOIC"].tolist(), y=[f"{r['회사명']} ({r['섹터']})" for _, r in tb.iterrows()],
@@ -484,7 +489,7 @@ def generate_full_pdf(
 
     # ── 섹터 분석 ──
     if any("섹터" in s for s in sel):
-        _new_page()
+        _check_space(60)
         sa = df_raw.groupby("섹터").agg(
             기업수=("회사명","count"), 총투자=("투자금액_백만원","sum")
         ).sort_values("총투자", ascending=False).reset_index()
@@ -514,7 +519,7 @@ def generate_full_pdf(
 
     # ── 집중도·투자기간·실현율 ──
     if any("집중도" in s for s in sel):
-        _new_page()
+        _check_space(50)
         n = _next_sec()
         _section_header(pdf, f, f"{n}. Portfolio Analytics")
         weights = df_raw["투자금액_백만원"] / df_raw["투자금액_백만원"].sum()
@@ -540,7 +545,7 @@ def generate_full_pdf(
 
     # ── 리스크 평가 ──
     if any("리스크" in s for s in sel):
-        _new_page()
+        _check_space(60)
         n = _next_sec()
         _section_header(pdf, f, f"{n}. Risk Assessment")
         pdf.set_font(f, size=9)
@@ -571,7 +576,7 @@ def generate_full_pdf(
 
     # ── AI Commentary ──
     if any("AI" in s for s in sel) and commentary:
-        _new_page()
+        _check_space(80)
         n = _next_sec()
         _section_header(pdf, f, f"{n}. AI Commentary")
         _commentary_block(pdf, f, commentary)
@@ -594,7 +599,7 @@ def generate_full_pdf(
             import plotly.graph_objects as go
             dates = jcurve_df["날짜"].astype(str).tolist()
             cf = jcurve_df["누적현금흐름"].tolist()
-            colors = ["#1b5e20" if v >= 0 else "#ef5350" for v in cf]
+            colors = ["#1b5e20" if v >= 0 else "#e0a0a0" for v in cf]
             fig_jc = go.Figure()
             fig_jc.add_trace(go.Scatter(
                 x=dates, y=cf, mode="lines+markers",
@@ -614,7 +619,7 @@ def generate_full_pdf(
 
     # ── 분기별 추이 ──
     if any("분기별" in s for s in sel) and trend_df is not None and not trend_df.empty:
-        _new_page()
+        _check_space(60)
         n = _next_sec()
         _section_header(pdf, f, f"{n}. Quarterly Trend")
         cols = list(trend_df.columns)
@@ -628,7 +633,7 @@ def generate_full_pdf(
 
     # ── 거시지표 ──
     if any("거시" in s for s in sel) and (rate_df is not None or fx_df is not None):
-        _new_page()
+        _check_space(40)
         n = _next_sec()
         _section_header(pdf, f, f"{n}. Macro Indicators")
         pdf.set_font(f, size=9)
@@ -649,7 +654,10 @@ def generate_full_pdf(
         _section_header(pdf, f, f"{n}. Waterfall Distribution")
         wf_inv = float(df_raw["투자금액_백만원"].sum())
         wf_proc = float(df_raw["현재가치_백만원"].sum() + df_raw["회수금액_백만원"].sum())
-        hurdle, carry, years = 8, 20, 5
+        _wp = wf_params or {}
+        hurdle = _wp.get("hurdle", 8)
+        carry = _wp.get("carry", 20)
+        years = _wp.get("years", 5)
         profit = max(0, wf_proc - wf_inv)
         hurdle_amt = wf_inv * ((1 + hurdle/100)**years - 1)
         rem = wf_proc
@@ -758,7 +766,7 @@ def generate_full_pdf(
 
     # ── DART 재무 ──
     if any("DART" in s for s in sel) and dart_fin_df is not None:
-        _new_page()
+        _check_space(60)
         n = _next_sec()
         _section_header(pdf, f, f"{n}. DART Financials — {dart_company}")
         cols = list(dart_fin_df.columns)
@@ -773,6 +781,44 @@ def generate_full_pdf(
                 else:
                     vals.append(str(v))
             _table_row(pdf, f, vals, [cw]*len(cols), shade=(i%2==0))
+
+    # ── KVIC 시장 비교 ──
+    if any("KVIC" in s for s in sel) and kvic_sector_df is not None and not kvic_sector_df.empty:
+        _check_space(70)
+        n = _next_sec()
+        _section_header(pdf, f, f"{n}. KVIC Market Comparison")
+        pdf.set_font(f, size=9)
+
+        kvic_total = kvic_sector_df["총약정액(억원)"].sum()
+        kvic_funds = int(kvic_sector_df["조합수"].sum())
+        my_inv = df_raw["투자금액_백만원"].sum() / 100
+
+        pdf.cell(0, 6, f"  내 펀드: {my_inv:,.0f}억원  |  KVIC 전체: {kvic_total:,.0f}억원 ({kvic_funds:,}개 조합)", ln=True)
+        if kvic_total > 0:
+            pdf.cell(0, 6, f"  시장 점유율: {my_inv/kvic_total*100:.3f}%  |  조합 평균: {kvic_total/kvic_funds:,.0f}억원", ln=True)
+        pdf.ln(4)
+
+        top_sectors = kvic_sector_df.head(10)
+        _table_header(pdf, f, ["투자분야", "조합수", "약정액(억원)"], [60, 30, 40])
+        for i, (_, r) in enumerate(top_sectors.iterrows()):
+            _table_row(pdf, f, [str(r.get("투자분야","")), str(int(r["조합수"])), f"{int(r['총약정액(억원)']):,}"],
+                       [60, 30, 40], shade=(i%2==0))
+        pdf.ln(4)
+
+        if include_charts:
+            import plotly.graph_objects as go
+            my_sectors = df_raw.groupby("섹터").agg(투자액=("투자금액_백만원","sum")).sort_values("투자액", ascending=False).reset_index()
+            my_sectors["투자액_억"] = my_sectors["투자액"] / 100
+            fig_kvic = go.Figure()
+            fig_kvic.add_trace(go.Bar(
+                x=my_sectors["섹터"].tolist(), y=my_sectors["투자액_억"].tolist(),
+                name="내 펀드 (억원)", marker_color="#1b5e20", marker_line_width=0,
+                text=[f"{v:,.0f}" for v in my_sectors["투자액_억"]], textposition="outside",
+            ))
+            _style_chart(fig_kvic, "내 펀드 섹터별 투자 규모", h=250)
+            fig_kvic.update_layout(showlegend=False, bargap=0.3)
+            fig_kvic.update_yaxes(title="억원")
+            _add_chart(pdf, fig_kvic, w=170, h=65)
 
     # ── 면책 조항 ──
     pdf.add_page()
