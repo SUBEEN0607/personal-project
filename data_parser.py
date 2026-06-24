@@ -135,3 +135,62 @@ def standardize(df: pd.DataFrame) -> tuple[pd.DataFrame, list[str]]:
     result = df_renamed[available].copy()
 
     return result, warnings
+
+
+def generate_guide_excel() -> bytes:
+    """표준 입력 가이드 Excel 생성 (3시트)"""
+    import io
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+
+    buf = io.BytesIO()
+    with pd.ExcelWriter(buf, engine="openpyxl") as w:
+        sample = pd.DataFrame({
+            "회사명": ["넥스틸바이오", "코리아로지텍", "그린솔라원", "미래모빌리티", "케어에이아이"],
+            "섹터": ["바이오", "SaaS/물류", "신재생에너지", "모빌리티", "의료AI"],
+            "투자단계": ["Series B", "Series A", "Pre-A", "Series C", "Series B"],
+            "투자일": ["2020-04-10", "2021-02-20", "2020-08-15", "2021-11-01", "2020-06-30"],
+            "기준일": ["2024-06-30"] * 5,
+            "투자금액_백만원": [1500, 600, 300, 4000, 1200],
+            "현재가치_백만원": [5100, 1560, 0, 3200, 3840],
+            "회수금액_백만원": [0, 0, 960, 0, 0],
+            "지분율_%": [8.5, 12.0, 15.0, 5.0, 10.0],
+        })
+        sample.to_excel(w, sheet_name="샘플데이터", index=False)
+
+        guide = pd.DataFrame({
+            "컬럼명": list(_COL_MAP.keys()),
+            "필수": ["필수"]*7 + ["선택"]*2,
+            "설명": [
+                "포트폴리오 회사명 (법인명 권장)", "투자 섹터", "투자 라운드 단계",
+                "최초 투자 실행일 (YYYY-MM-DD)", "평가 기준일 (YYYY-MM-DD)",
+                "투자 원금 (백만원)", "현재 평가가치 (0이면 자동 추정)",
+                "회수한 금액 (미회수 시 0)", "취득 지분율 (미입력 시 10%)",
+            ],
+            "자동 인식 가능한 다른 이름": [
+                ", ".join(v[1:]) for v in _COL_MAP.values()
+            ],
+        })
+        guide.to_excel(w, sheet_name="입력가이드", index=False)
+
+        sectors = pd.DataFrame({
+            "섹터명": ["바이오","의료AI","SaaS","SaaS/물류","모빌리티","자율주행","에듀테크",
+                      "신재생에너지","딥테크","AI","반도체","핀테크","커머스","콘텐츠","게임",
+                      "애그테크","푸드테크","물류","ESG","헬스케어"],
+            "P/S 배수": [8.0,7.0,5.0,4.5,3.0,5.0,3.5,2.5,5.0,7.0,6.0,4.5,2.0,3.0,4.0,3.0,2.5,2.0,2.0,4.0],
+        })
+        sectors.to_excel(w, sheet_name="섹터목록", index=False)
+
+        wb = w.book
+        gf = PatternFill(start_color="1B5E20", end_color="1B5E20", fill_type="solid")
+        wf = Font(name="맑은 고딕", bold=True, color="FFFFFF", size=11)
+        for sn in wb.sheetnames:
+            ws = wb[sn]
+            for cell in ws[1]:
+                cell.fill = gf; cell.font = wf
+                cell.alignment = Alignment(horizontal="center")
+            for col in ws.columns:
+                cl = col[0].column_letter
+                mx = max(sum(2 if ord(c) > 127 else 1 for c in str(cell.value or "")) for cell in col)
+                ws.column_dimensions[cl].width = min(mx + 4, 50)
+
+    return buf.getvalue()

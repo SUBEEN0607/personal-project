@@ -409,136 +409,18 @@ with st.sidebar:
 
     st.markdown("---")
     st.markdown('<p style="font-size:12px;letter-spacing:0.1em;text-transform:uppercase;color:#1b5e20;font-weight:700;margin-bottom:6px;">데이터</p>', unsafe_allow_html=True)
-    st.markdown('<p style="font-size:10px;color:#999;line-height:1.5;margin-bottom:8px;">처음 사용 시 아래 <b>입력 가이드</b>를 다운받아 표준 템플릿에 맞춰 데이터를 입력하세요.<br>컬럼명이 다르면 자동으로 매핑을 시도합니다.</p>', unsafe_allow_html=True)
+    st.markdown('<p style="font-size:10px;color:#999;line-height:1.5;margin-bottom:8px;">표준 양식을 사용하면 가장 정확합니다. 다른 양식도 자동 인식합니다.</p>', unsafe_allow_html=True)
     uploaded = st.file_uploader("CSV / Excel", type=["csv", "xlsx"])
-    use_sample = st.button("샘플 데이터 불러오기")
-
-    st.markdown("---")
-    st.markdown('<p style="font-size:12px;letter-spacing:0.1em;text-transform:uppercase;color:#1b5e20;font-weight:700;margin-bottom:6px;">템플릿</p>', unsafe_allow_html=True)
-    if st.button("Excel 입력 가이드 다운로드", use_container_width=True):
-        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
-
-        guide_buf = io.BytesIO()
-        with pd.ExcelWriter(guide_buf, engine="openpyxl") as w:
-            # ── 시트1: 샘플 데이터 (5개사) ──
-            sample = pd.DataFrame({
-                "회사명": ["넥스틸바이오", "코리아로지텍", "그린솔라원", "미래모빌리티", "케어에이아이"],
-                "섹터": ["바이오", "SaaS/물류", "신재생에너지", "모빌리티", "의료AI"],
-                "투자단계": ["Series B", "Series A", "Pre-A", "Series C", "Series B"],
-                "투자일": ["2020-04-10", "2021-02-20", "2020-08-15", "2021-11-01", "2020-06-30"],
-                "기준일": ["2024-06-30", "2024-06-30", "2024-06-30", "2024-06-30", "2024-06-30"],
-                "투자금액_백만원": [1500, 600, 300, 4000, 1200],
-                "현재가치_백만원": [5100, 1560, 0, 3200, 3840],
-                "회수금액_백만원": [0, 0, 960, 0, 0],
-                "지분율_%": [8.5, 12.0, 15.0, 5.0, 10.0],
-            })
-            sample.to_excel(w, sheet_name="샘플데이터", index=False)
-
-            # ── 시트2: 컬럼 가이드 ──
-            guide = pd.DataFrame({
-                "컬럼명": ["회사명","섹터","투자단계","투자일","기준일","투자금액_백만원","현재가치_백만원","회수금액_백만원","지분율_%"],
-                "필수": ["필수","필수","필수","필수","필수","필수","선택","필수","선택"],
-                "데이터 타입": ["텍스트","텍스트","텍스트","날짜","날짜","숫자","숫자","숫자","숫자"],
-                "설명": [
-                    "포트폴리오 회사명 (정확한 법인명 권장 — DART 검색에 사용)",
-                    "투자 섹터 (바이오, SaaS, 모빌리티, 에듀테크, 핀테크, AI, 딥테크, 애그테크 등)",
-                    "투자 라운드 단계 (Pre-A, Seed, Series A, Series B, Series C, Growth 등)",
-                    "최초 투자 실행일 (YYYY-MM-DD 형식, 예: 2022-01-15)",
-                    "현재가치 평가 기준일 (YYYY-MM-DD 형식, 보통 분기 말일)",
-                    "투자 원금 (백만원 단위, 예: 1500 = 15억원)",
-                    "현재 평가가치 (백만원). 0이면 자동 밸류에이션 조회 기능 사용 가능",
-                    "이미 회수한 금액 (백만원). 배당, 일부 매각 등. 미회수 시 0",
-                    "취득 지분율 (%). 자동 밸류에이션 시 시가총액 × 지분율로 계산. 미입력 시 10% 기본값",
-                ],
-                "예시값": ["넥스틸바이오","바이오","Series B","2020-04-10","2024-06-30","1500","5100","0","8.5"],
-            })
-            guide.to_excel(w, sheet_name="입력가이드", index=False)
-
-            # ── 시트3: 섹터 목록 ──
-            sectors = pd.DataFrame({
-                "섹터명": ["바이오","의료AI","SaaS","SaaS/물류","모빌리티","자율주행","에듀테크",
-                          "신재생에너지","딥테크","AI","반도체","핀테크","커머스","콘텐츠","게임",
-                          "애그테크","푸드테크","물류","ESG","헬스케어"],
-                "P/S 배수 (참고)": [8.0,7.0,5.0,4.5,3.0,5.0,3.5,2.5,5.0,7.0,6.0,4.5,2.0,3.0,4.0,3.0,2.5,2.0,2.0,4.0],
-                "설명": [
-                    "제약/바이오텍 (임상 단계에 따라 변동 큼)",
-                    "의료 AI/디지털 헬스케어",
-                    "B2B SaaS, 클라우드 서비스",
-                    "물류 SaaS, 물류 플랫폼",
-                    "전기차, 공유 모빌리티",
-                    "자율주행 기술, 라이다/센서",
-                    "에듀테크, 온라인 교육",
-                    "태양광, 풍력, ESS",
-                    "소재, 양자컴퓨팅 등 원천기술",
-                    "생성형 AI, MLOps",
-                    "팹리스, 시스템 반도체",
-                    "간편결제, 로보어드바이저",
-                    "이커머스, D2C",
-                    "미디어, 웹툰, IP",
-                    "모바일/PC 게임",
-                    "스마트팜, 농업기술",
-                    "대체식품, 배달",
-                    "풀필먼트, 라스트마일",
-                    "탄소배출, 그린테크",
-                    "디지털 치료제, 원격의료",
-                ],
-            })
-            sectors.to_excel(w, sheet_name="섹터목록", index=False)
-
-            # ── 스타일 적용 ──
-            wb = w.book
-            green_fill = PatternFill(start_color="1B5E20", end_color="1B5E20", fill_type="solid")
-            light_fill = PatternFill(start_color="E8F5E9", end_color="E8F5E9", fill_type="solid")
-            white_font = Font(name="맑은 고딕", bold=True, color="FFFFFF", size=11)
-            body_font  = Font(name="맑은 고딕", size=10)
-            thin_border = Border(
-                left=Side(style="thin", color="C8E6C9"),
-                right=Side(style="thin", color="C8E6C9"),
-                top=Side(style="thin", color="C8E6C9"),
-                bottom=Side(style="thin", color="C8E6C9"),
-            )
-            center = Alignment(horizontal="center", vertical="center", wrap_text=True)
-            left_wrap = Alignment(horizontal="left", vertical="center", wrap_text=True)
-
-            for sheet_name in wb.sheetnames:
-                ws = wb[sheet_name]
-                # 헤더 스타일
-                for cell in ws[1]:
-                    cell.fill = green_fill
-                    cell.font = white_font
-                    cell.alignment = center
-                    cell.border = thin_border
-                # 바디 스타일
-                for row in ws.iter_rows(min_row=2, max_row=ws.max_row):
-                    for i, cell in enumerate(row):
-                        cell.font = body_font
-                        cell.border = thin_border
-                        cell.alignment = left_wrap if isinstance(cell.value, str) and len(str(cell.value)) > 15 else center
-                    # 짝수 행 연한 초록
-                    if cell.row % 2 == 0:
-                        for c in row:
-                            c.fill = light_fill
-                # 컬럼 너비 자동
-                for col in ws.columns:
-                    max_len = 0
-                    col_letter = col[0].column_letter
-                    for cell in col:
-                        val = str(cell.value) if cell.value else ""
-                        # 한글은 2칸으로 계산
-                        char_len = sum(2 if ord(c) > 127 else 1 for c in val)
-                        max_len = max(max_len, char_len)
-                    ws.column_dimensions[col_letter].width = min(max_len + 4, 50)
-                # 행 높이
-                ws.row_dimensions[1].height = 28
-                for r in range(2, ws.max_row + 1):
-                    ws.row_dimensions[r].height = 24 if sheet_name != "입력가이드" else 40
-
-        st.download_button(
-            "다운로드", guide_buf.getvalue(),
-            file_name="PE_VC_입력_가이드.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            use_container_width=True,
-        )
+    col_s1, col_s2 = st.columns(2)
+    with col_s1:
+        use_sample = st.button("샘플 불러오기", use_container_width=True)
+    with col_s2:
+        if st.button("입력 가이드", use_container_width=True):
+            from data_parser import generate_guide_excel
+            guide_buf = generate_guide_excel()
+            st.download_button("다운로드", guide_buf, file_name="PE_VC_입력_가이드.xlsx",
+                               mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                               use_container_width=True)
 
     st.markdown("---")
     st.markdown('<p style="font-size:12px;letter-spacing:0.1em;text-transform:uppercase;color:#1b5e20;font-weight:700;margin-bottom:6px;">분기 저장</p>', unsafe_allow_html=True)
@@ -869,7 +751,7 @@ with tab1:
 
         # ── Performance Summary ──────────────────────
         st.markdown("---")
-        st.markdown("#### Performance Summary")
+        st.markdown("#### Performance")
         perf_data = {
             "지표": ["MOIC", "IRR", "DPI", "RVPI", "TVPI"],
             "값": [f"{moic}x", f"{avg_irr}%", f"{dpi}x", f"{rvpi}x", f"{tvpi}x"],
@@ -1214,12 +1096,27 @@ with tab2:
                 mime="application/pdf",
             )
 
-# ── TAB 3: Market ────────────────────────────────
+# ── TAB 3: Analysis ──────────────────────────────
 with tab3:
-    st.caption("DART 재무 조회  |  시나리오 시뮬레이터  |  IRR Sensitivity  |  Waterfall 분배")
+    st.markdown("""
+<div style="background:#ffffff;border:1px solid #e5e5e5;border-radius:10px;padding:16px 20px;margin-bottom:20px;">
+  <div style="font-size:13px;color:#1a1a1a;font-weight:600;margin-bottom:8px;">분석 흐름</div>
+  <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:11px;">
+    <span style="background:#1b5e20;color:#fff;padding:3px 10px;border-radius:4px;">1. 기업 재무</span>
+    <span style="color:#ccc;">→</span>
+    <span style="background:#2e7d32;color:#fff;padding:3px 10px;border-radius:4px;">2. Exit 시나리오</span>
+    <span style="color:#ccc;">→</span>
+    <span style="background:#43a047;color:#fff;padding:3px 10px;border-radius:4px;">3. IRR Sensitivity</span>
+    <span style="color:#ccc;">→</span>
+    <span style="background:#66bb6a;color:#fff;padding:3px 10px;border-radius:4px;">4. Waterfall 분배</span>
+  </div>
+  <div style="font-size:10px;color:#999;margin-top:6px;">DART 재무 데이터로 기업을 파악한 후, Exit 시나리오와 수익 분배까지 이어지는 분석 흐름입니다.</div>
+</div>
+""", unsafe_allow_html=True)
 
     # ── ① DART 재무 조회 ────────────────────────────
-    st.markdown("### DART 기업 재무 조회")
+    st.markdown("### 1. 기업 재무 조회")
+    st.caption("DART 공시 재무제표를 조회하여 포트폴리오사의 매출·영업이익·순이익을 확인합니다.")
     corp_name = st.text_input("기업명 입력 (예: 삼성전자, 카카오)")
 
     if st.button("검색", key="dart_search") and corp_name:
@@ -1280,7 +1177,8 @@ with tab3:
 
     # ── ② 시나리오 시뮬레이터 ───────────────────────
     st.markdown("---")
-    st.markdown("### 회수 시나리오 시뮬레이터")
+    st.markdown("### 2. 회수 시나리오 시뮬레이터")
+    st.caption("위 재무 데이터를 참고하여 포트폴리오사별 Exit 배수에 따른 IRR을 시뮬레이션합니다.")
     if "result_df" not in st.session_state:
         st.info("먼저 대시보드에서 데이터를 로드하세요.")
     else:
@@ -1347,7 +1245,8 @@ with tab3:
 
     # ── ③ IRR Sensitivity Matrix ────────────────────
     st.markdown("---")
-    st.markdown("### IRR Sensitivity Matrix")
+    st.markdown("### 3. IRR Sensitivity Matrix")
+    st.caption("시나리오 분석을 확장하여 Exit 배수 × 보유기간의 모든 조합에 대한 IRR을 한눈에 확인합니다.")
     st.caption("Exit 타이밍(년) × Exit 배수 조합별 예상 IRR — 엑셀로는 수작업이 필요한 분석")
 
     if "df" not in st.session_state:
@@ -1401,7 +1300,8 @@ with tab3:
 
     # ── ④ Waterfall 계산기 ──────────────────────────
     st.markdown("---")
-    st.markdown("### Waterfall 분배 계산기")
+    st.markdown("### 4. Waterfall 분배 계산기")
+    st.caption("위 시나리오에서 확인한 Exit 수익이 LP와 GP에게 어떻게 분배되는지 시뮬레이션합니다.")
     with st.expander("Waterfall이란?"):
         st.markdown("""
 PE 펀드 회수금을 **LP → GP 순서로 단계별 분배**하는 구조입니다.
