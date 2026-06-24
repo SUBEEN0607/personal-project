@@ -784,6 +784,110 @@ with tab1:
 
         st.markdown("---")
 
+        # ── Top / Bottom Performers ──────────────────
+        st.markdown("#### Top / Bottom Performers")
+        sorted_by_moic = result_df.sort_values("MOIC", ascending=False)
+        top3 = sorted_by_moic.head(3)
+        bottom3 = sorted_by_moic.tail(3)
+
+        t_col, b_col = st.columns(2)
+        with t_col:
+            st.markdown('<p style="font-size:11px;letter-spacing:0.1em;color:#1b5e20;font-weight:700;">TOP PERFORMERS</p>', unsafe_allow_html=True)
+            for _, r in top3.iterrows():
+                irr_val = r["IRR(%)"]
+                irr_color = "#1b5e20" if irr_val > 0 else "#c62828"
+                st.markdown(f"""
+<div style="background:#ffffff;border:1px solid #c8e6c9;border-radius:10px;padding:14px 18px;margin-bottom:8px;">
+  <div style="display:flex;justify-content:space-between;align-items:center;">
+    <div>
+      <span style="font-size:15px;font-weight:700;color:#1a1a1a;">{r["회사명"]}</span>
+      <span style="font-size:11px;color:#999;margin-left:8px;">{r["섹터"]}</span>
+    </div>
+    <div style="text-align:right;">
+      <span style="font-size:20px;font-weight:800;color:#1b5e20;">{r["MOIC"]}x</span>
+      <span style="font-size:12px;color:{irr_color};margin-left:8px;">IRR {irr_val}%</span>
+    </div>
+  </div>
+</div>
+""", unsafe_allow_html=True)
+
+        with b_col:
+            st.markdown('<p style="font-size:11px;letter-spacing:0.1em;color:#c62828;font-weight:700;">UNDERPERFORMERS</p>', unsafe_allow_html=True)
+            for _, r in bottom3.iterrows():
+                irr_val = r["IRR(%)"]
+                moic_color = "#c62828" if r["MOIC"] < 1.0 else "#999"
+                irr_color = "#c62828" if irr_val < 0 else "#999"
+                st.markdown(f"""
+<div style="background:#ffffff;border:1px solid #e5e5e5;border-radius:10px;padding:14px 18px;margin-bottom:8px;">
+  <div style="display:flex;justify-content:space-between;align-items:center;">
+    <div>
+      <span style="font-size:15px;font-weight:700;color:#1a1a1a;">{r["회사명"]}</span>
+      <span style="font-size:11px;color:#999;margin-left:8px;">{r["섹터"]}</span>
+    </div>
+    <div style="text-align:right;">
+      <span style="font-size:20px;font-weight:800;color:{moic_color};">{r["MOIC"]}x</span>
+      <span style="font-size:12px;color:{irr_color};margin-left:8px;">IRR {irr_val}%</span>
+    </div>
+  </div>
+</div>
+""", unsafe_allow_html=True)
+
+        st.markdown("---")
+
+        # ── 포트폴리오 집중도 (HHI) + 투자 경과 ────────
+        st.markdown("#### Portfolio Analytics")
+
+        an1, an2 = st.columns(2)
+        with an1:
+            st.markdown('<p style="font-size:11px;letter-spacing:0.1em;color:#999;font-weight:700;">CONCENTRATION (HHI)</p>', unsafe_allow_html=True)
+            weights = df["투자금액_백만원"] / df["투자금액_백만원"].sum()
+            hhi = round((weights ** 2).sum() * 10000)
+            hhi_label = "높음 (집중)" if hhi > 2500 else ("보통" if hhi > 1500 else "낮음 (분산)")
+            hhi_color = "#c62828" if hhi > 2500 else ("#ff9800" if hhi > 1500 else "#1b5e20")
+            st.markdown(f"""
+<div style="background:#ffffff;border:1px solid #e5e5e5;border-radius:10px;padding:20px 24px;">
+  <div style="font-size:36px;font-weight:800;color:{hhi_color};">{hhi:,}</div>
+  <div style="font-size:12px;color:#999;margin-top:4px;">HHI 지수 · {hhi_label}</div>
+  <div style="margin-top:12px;background:#f0f0f0;border-radius:6px;height:8px;overflow:hidden;">
+    <div style="width:{min(hhi/100, 100)}%;height:100%;background:{hhi_color};border-radius:6px;"></div>
+  </div>
+  <div style="display:flex;justify-content:space-between;margin-top:4px;">
+    <span style="font-size:9px;color:#ccc;">0 (완전분산)</span>
+    <span style="font-size:9px;color:#ccc;">10,000 (단일집중)</span>
+  </div>
+</div>
+""", unsafe_allow_html=True)
+
+        with an2:
+            st.markdown('<p style="font-size:11px;letter-spacing:0.1em;color:#999;font-weight:700;">INVESTMENT TIMELINE</p>', unsafe_allow_html=True)
+            avg_days = (pd.to_datetime(df["기준일"]) - pd.to_datetime(df["투자일"])).dt.days.mean()
+            avg_months = int(avg_days / 30)
+            avg_years = round(avg_days / 365.25, 1)
+            realized_pct = round(df["회수금액_백만원"].sum() / (df["현재가치_백만원"].sum() + df["회수금액_백만원"].sum()) * 100, 1) if (df["현재가치_백만원"].sum() + df["회수금액_백만원"].sum()) > 0 else 0
+            st.markdown(f"""
+<div style="background:#ffffff;border:1px solid #e5e5e5;border-radius:10px;padding:20px 24px;">
+  <div style="display:flex;gap:24px;">
+    <div>
+      <div style="font-size:36px;font-weight:800;color:#1a1a1a;">{avg_years}<span style="font-size:16px;color:#999;">년</span></div>
+      <div style="font-size:12px;color:#999;">평균 투자 기간</div>
+    </div>
+    <div>
+      <div style="font-size:36px;font-weight:800;color:#1b5e20;">{realized_pct}<span style="font-size:16px;color:#999;">%</span></div>
+      <div style="font-size:12px;color:#999;">실현 비율</div>
+    </div>
+  </div>
+  <div style="margin-top:12px;background:#f0f0f0;border-radius:6px;height:8px;overflow:hidden;">
+    <div style="width:{realized_pct}%;height:100%;background:#1b5e20;border-radius:6px;"></div>
+  </div>
+  <div style="display:flex;justify-content:space-between;margin-top:4px;">
+    <span style="font-size:9px;color:#ccc;">미실현</span>
+    <span style="font-size:9px;color:#ccc;">전액 실현</span>
+  </div>
+</div>
+""", unsafe_allow_html=True)
+
+        st.markdown("---")
+
         # ── Charts ────────────────────────────────────
         st.markdown("#### Charts")
 
@@ -876,7 +980,7 @@ with tab1:
 
         st.markdown("---")
         st.markdown("#### Export")
-        st.caption("전체 탭 내용을 포함한 통합 보고서를 생성합니다.")
+        st.caption("전체 분석 결과를 참고용 보고서로 생성합니다. 투자 결정의 근거로 단독 사용할 수 없습니다.")
         exp1, exp2, exp3 = st.columns(3)
         with exp1:
             if st.button("통합 PDF", use_container_width=True, type="primary"):

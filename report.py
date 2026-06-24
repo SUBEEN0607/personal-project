@@ -86,7 +86,7 @@ def _cover_page(pdf: FPDF, f: str, title: str, subtitle: str,
     pdf.set_xy(22, 274)
     pdf.set_font(f, size=7)
     pdf.set_text_color(*_GREY)
-    pdf.cell(0, 5, "본 보고서는 자동 생성되었습니다. 투자 결정의 근거로 단독 사용하지 마십시오.")
+    pdf.cell(0, 5, "본 보고서는 자동 생성된 참고 자료입니다. 투자 결정의 근거로 단독 사용할 수 없습니다.")
 
     # 하단 악센트 라인
     pdf.set_fill_color(*_GREEN)
@@ -322,64 +322,151 @@ def generate_full_pdf(
 ):
     pdf = _new_pdf()
     f = _font(pdf)
+    import numpy as np
 
-    _cover_page(pdf, f, "Full Report", f"통합 분기 보고서  ·  {quarter}",
+    _cover_page(pdf, f, "Quarterly Report", f"분기 보고서 (참고용)  ·  {quarter}",
                 fund_name, fund_strategy, quarter, base_date)
 
-    # 1. 성과 요약
+    avg_irr = round(result_df["IRR(%)"].mean(), 1)
+
+    # ── 1. 성과 요약 ──
     pdf.add_page()
     pdf.set_fill_color(*_BG); pdf.rect(0, 0, 210, 297, "F")
     _section_header(pdf, f, "1. Performance Summary")
     rows_ps = [
-        ("MOIC", f"{summary['펀드 MOIC']}x", "투자원금 대비 전체 가치", "≥ 2.0x"),
-        ("IRR", f"{round(result_df['IRR(%)'].mean(),1)}%", "연환산 수익률", "≥ 15%"),
-        ("DPI", f"{summary['펀드 DPI']}x", "현금 회수", "1.0x"),
-        ("RVPI", f"{summary['펀드 RVPI']}x", "잔존 가치", "—"),
-        ("TVPI", f"{summary['펀드 TVPI']}x", "DPI+RVPI", "≥ 2.0x"),
+        ("MOIC", f"{summary['펀드 MOIC']}x", "투자원금 대비 전체 가치", "2.0x"),
+        ("IRR", f"{avg_irr}%", "연환산 수익률", "15%"),
+        ("DPI", f"{summary['펀드 DPI']}x", "현금 회수 배수", "1.0x"),
+        ("RVPI", f"{summary['펀드 RVPI']}x", "잔존 미실현 가치", "-"),
+        ("TVPI", f"{summary['펀드 TVPI']}x", "DPI + RVPI", "2.0x"),
     ]
     _table_header(pdf, f, ["Metric", "Value", "Description", "BM"], [24, 20, 90, 32])
     for i, r in enumerate(rows_ps):
         _table_row(pdf, f, list(r), [24, 20, 90, 32], shade=(i % 2 == 0))
-    pdf.ln(6)
+    pdf.ln(8)
 
-    # 2. 포트폴리오 상세
+    # ── 2. 포트폴리오 상세 ──
     _section_header(pdf, f, "2. Portfolio Detail")
-    _table_header(pdf, f, ["회사명","섹터","단계","투자(M)","MOIC","IRR","DPI","RVPI","TVPI"],
+    _table_header(pdf, f, ["Company","Sector","Stage","Inv(M)","MOIC","IRR","DPI","RVPI","TVPI"],
                   [28,20,16,20,16,16,16,16,18])
     for i, r in result_df.iterrows():
         _table_row(pdf, f, [r["회사명"],r["섹터"],r["투자단계"],f"{int(r['투자금액_백만원']):,}",
                    f"{r['MOIC']}x",f"{r['IRR(%)']}%",f"{r['DPI']}x",f"{r['RVPI']}x",f"{r['TVPI']}x"],
                    [28,20,16,20,16,16,16,16,18], shade=(i%2==0))
+
+    # ── 3. Top / Bottom Performers ──
+    pdf.add_page()
+    pdf.set_fill_color(*_BG); pdf.rect(0, 0, 210, 297, "F")
+    _section_header(pdf, f, "3. Top / Bottom Performers")
+    sorted_r = result_df.sort_values("MOIC", ascending=False)
+    top3 = sorted_r.head(3)
+    bottom3 = sorted_r.tail(3)
+
+    pdf.set_font(f, size=10)
+    pdf.set_text_color(*_GREEN)
+    pdf.cell(0, 6, "  Top Performers", ln=True)
+    pdf.set_text_color(*_BLACK)
+    _table_header(pdf, f, ["Rank","Company","Sector","MOIC","IRR"], [16,40,30,30,30])
+    for i, (_, r) in enumerate(top3.iterrows()):
+        _table_row(pdf, f, [str(i+1),r["회사명"],r["섹터"],f"{r['MOIC']}x",f"{r['IRR(%)']}%"],
+                   [16,40,30,30,30], shade=(i%2==0))
     pdf.ln(6)
 
-    # 3. 섹터 분석
-    _section_header(pdf, f, "3. Sector Analysis")
-    sa = df_raw.groupby("섹터")["투자금액_백만원"].sum().sort_values(ascending=False).reset_index()
-    ti = sa["투자금액_백만원"].sum()
-    _table_header(pdf, f, ["섹터","투자(M)","비중(%)"], [50,50,50])
+    pdf.set_font(f, size=10)
+    pdf.set_text_color(198, 40, 40)
+    pdf.cell(0, 6, "  Underperformers", ln=True)
+    pdf.set_text_color(*_BLACK)
+    _table_header(pdf, f, ["Rank","Company","Sector","MOIC","IRR"], [16,40,30,30,30])
+    for i, (_, r) in enumerate(bottom3.iterrows()):
+        _table_row(pdf, f, [str(i+1),r["회사명"],r["섹터"],f"{r['MOIC']}x",f"{r['IRR(%)']}%"],
+                   [16,40,30,30,30], shade=(i%2==0))
+    pdf.ln(8)
+
+    # ── 4. 섹터 분석 ──
+    _section_header(pdf, f, "4. Sector Analysis")
+    sa = df_raw.groupby("섹터").agg(
+        기업수=("회사명","count"), 총투자=("투자금액_백만원","sum")
+    ).sort_values("총투자", ascending=False).reset_index()
+    ti = sa["총투자"].sum()
+    _table_header(pdf, f, ["Sector","Companies","Investment(M)","Weight"], [40,30,40,40])
     for i, (_, r) in enumerate(sa.iterrows()):
-        _table_row(pdf, f, [r["섹터"],f"{int(r['투자금액_백만원']):,}",f"{r['투자금액_백만원']/ti*100:.1f}%"],
-                   [50,50,50], shade=(i%2==0))
-    pdf.ln(6)
+        pct = r["총투자"]/ti*100 if ti > 0 else 0
+        _table_row(pdf, f, [r["섹터"],str(int(r["기업수"])),f"{int(r['총투자']):,}",f"{pct:.1f}%"],
+                   [40,30,40,40], shade=(i%2==0))
+    pdf.ln(8)
 
-    # 4. AI 코멘터리
-    _section_header(pdf, f, "4. AI Commentary")
+    # ── 5. Portfolio Analytics ──
+    _section_header(pdf, f, "5. Portfolio Analytics")
+    weights = df_raw["투자금액_백만원"] / df_raw["투자금액_백만원"].sum()
+    hhi = round((weights ** 2).sum() * 10000)
+    hhi_label = "High Risk" if hhi > 2500 else ("Medium" if hhi > 1500 else "Low (Diversified)")
+
+    avg_days = (pd.to_datetime(df_raw["기준일"]) - pd.to_datetime(df_raw["투자일"])).dt.days.mean()
+    avg_years = round(avg_days / 365.25, 1)
+    total_val = df_raw["현재가치_백만원"].sum() + df_raw["회수금액_백만원"].sum()
+    real_pct = round(df_raw["회수금액_백만원"].sum() / total_val * 100, 1) if total_val > 0 else 0
+
+    pdf.set_font(f, size=9)
+    for lab, val in [
+        ("HHI Index (Concentration)", f"{hhi:,} - {hhi_label}"),
+        ("Avg Holding Period", f"{avg_years} years"),
+        ("Realization Rate", f"{real_pct}%"),
+        ("Number of Sectors", f"{len(sa)}"),
+        ("Total Invested", f"{int(ti):,}M"),
+    ]:
+        pdf.cell(60, 6, f"  {lab}")
+        pdf.cell(0, 6, val, ln=True)
+    pdf.ln(8)
+
+    # ── 6. Risk Assessment ──
+    _section_header(pdf, f, "6. Risk Assessment")
+    pdf.set_font(f, size=9)
+    under = result_df[result_df["MOIC"] < 1.0]
+    if len(under) > 0:
+        names = ", ".join(under["회사명"].tolist())
+        pdf.set_text_color(198, 40, 40)
+        pdf.cell(0, 6, f"  [HIGH] MOIC 1.0x 미만: {len(under)}개사 ({names})", ln=True)
+    if hhi > 2500:
+        pdf.set_text_color(198, 40, 40)
+        pdf.cell(0, 6, f"  [HIGH] 포트폴리오 집중 리스크 (HHI {hhi:,})", ln=True)
+    elif hhi > 1500:
+        pdf.set_text_color(255, 152, 0)
+        pdf.cell(0, 6, f"  [MEDIUM] 집중도 보통 (HHI {hhi:,}) - 분산 검토 필요", ln=True)
+    if summary["펀드 DPI"] < 0.5:
+        pdf.set_text_color(255, 152, 0)
+        pdf.cell(0, 6, f"  [MEDIUM] 현금 회수 제한적 (DPI {summary['펀드 DPI']}x)", ln=True)
+    if summary["펀드 MOIC"] >= 2.0:
+        pdf.set_text_color(*_GREEN)
+        pdf.cell(0, 6, f"  [POSITIVE] 우수 성과 (MOIC {summary['펀드 MOIC']}x, BM 2.0x 달성)", ln=True)
+    if avg_irr > 15:
+        pdf.set_text_color(*_GREEN)
+        pdf.cell(0, 6, f"  [POSITIVE] 목표 IRR 달성 ({avg_irr}%, target 15%)", ln=True)
+    pdf.set_text_color(*_BLACK)
+    pdf.ln(8)
+
+    # ── 7. AI Commentary ──
+    _section_header(pdf, f, "7. AI Commentary")
     _commentary_block(pdf, f, commentary)
 
-    # 5. J-Curve
+    # ── 8. J-Curve (있으면) ──
     if jcurve_df is not None and not jcurve_df.empty:
         pdf.add_page()
         pdf.set_fill_color(*_BG); pdf.rect(0, 0, 210, 297, "F")
-        _section_header(pdf, f, "5. J-Curve")
+        _section_header(pdf, f, "8. J-Curve Analysis")
         pdf.set_font(f, size=9)
-        pdf.cell(0, 6, f"  최대 손실: {jcurve_df['누적현금흐름'].min():,.0f}M  |  현재: {jcurve_df['누적현금흐름'].iloc[-1]:,.0f}M", ln=True)
+        mn = jcurve_df["누적현금흐름"].min()
+        cr = jcurve_df["누적현금흐름"].iloc[-1]
+        be = jcurve_df[jcurve_df["누적현금흐름"] >= 0]
+        be_dt = str(be["날짜"].iloc[0]) if not be.empty else "Not reached"
+        for lb, vl in [("Max Drawdown", f"{mn:,.0f}M"),("Current CF", f"{cr:,.0f}M"),("Break-even", be_dt)]:
+            pdf.cell(50, 6, f"  {lb}"); pdf.cell(0, 6, vl, ln=True)
         pdf.ln(3)
         if jcurve_comment:
             _commentary_block(pdf, f, jcurve_comment)
 
-    # 6. 분기별 추이
+    # ── 9. 분기별 추이 (있으면) ──
     if trend_df is not None and not trend_df.empty:
-        _section_header(pdf, f, "6. Quarterly Trend")
+        _section_header(pdf, f, "9. Quarterly Trend")
         cols = list(trend_df.columns)
         cw = 166 // len(cols)
         _table_header(pdf, f, cols, [cw]*len(cols))
@@ -389,21 +476,38 @@ def generate_full_pdf(
         if trend_comment:
             _commentary_block(pdf, f, trend_comment)
 
-    # 7. 거시지표
+    # ── 10. 거시지표 (있으면) ──
     if rate_df is not None or fx_df is not None:
         pdf.add_page()
         pdf.set_fill_color(*_BG); pdf.rect(0, 0, 210, 297, "F")
-        _section_header(pdf, f, "7. Macro Indicators")
+        _section_header(pdf, f, "10. Macro Indicators")
         pdf.set_font(f, size=9)
         if rate_df is not None and not rate_df.empty:
-            pdf.cell(0, 6, f"  기준금리: {rate_df['기준금리(%)'].iloc[-1]}%", ln=True)
+            pdf.cell(0, 6, f"  Base Rate: {rate_df['기준금리(%)'].iloc[-1]}%", ln=True)
         if fx_df is not None and not fx_df.empty:
-            pdf.cell(0, 6, f"  원/달러: {fx_df['원/달러(원)'].iloc[-1]:,.0f}원", ln=True)
+            pdf.cell(0, 6, f"  KRW/USD: {fx_df['원/달러(원)'].iloc[-1]:,.0f}", ln=True)
         if spread is not None:
-            pdf.cell(0, 6, f"  IRR vs 기준금리 스프레드: {spread:+.1f}%p", ln=True)
+            pdf.cell(0, 6, f"  Fund IRR vs Base Rate Spread: {spread:+.1f}%p", ln=True)
         pdf.ln(3)
         if macro_comment:
             _commentary_block(pdf, f, macro_comment)
+
+    # ── 면책 조항 ──
+    pdf.add_page()
+    pdf.set_fill_color(*_BG); pdf.rect(0, 0, 210, 297, "F")
+    _section_header(pdf, f, "Disclaimer")
+    pdf.set_font(f, size=8)
+    pdf.set_text_color(*_GREY)
+    disclaimer = (
+        "본 보고서는 PE/VC 분기 보고 도우미 시스템에 의해 자동 생성된 참고 자료입니다. "
+        "본 자료는 투자 권유, 투자 자문, 또는 투자 결정의 근거로 사용될 수 없으며, "
+        "보고서에 포함된 수치와 분석은 입력된 데이터 및 외부 API 조회 결과에 기반한 추정치입니다. "
+        "실제 투자 의사결정 시에는 반드시 별도의 전문가 검증 및 실사(Due Diligence)를 수행하시기 바랍니다. "
+        "AI 코멘터리는 Claude API를 통해 자동 생성된 것으로, 정보의 정확성을 보장하지 않습니다. "
+        "DART, ECOS, KVIC 등 외부 API 데이터의 실시간성 및 정확성은 해당 기관의 제공 기준에 따릅니다."
+    )
+    pdf.multi_cell(0, 5, disclaimer)
+    pdf.set_text_color(*_BLACK)
 
     return bytes(pdf.output())
 

@@ -139,7 +139,7 @@ def generate_lp_pptx(
     prs = Presentation()
     prs.slide_width = W
     prs.slide_height = H
-    TOTAL = 7
+    TOTAL = 10
 
     moic = summary["펀드 MOIC"]
     dpi = summary["펀드 DPI"]
@@ -361,7 +361,140 @@ def generate_lp_pptx(
     _page(s, 4, TOTAL)
 
     # ═══════════════════════════════════════════════
-    # 5. Waterfall 분배 시뮬레이션 (기본값)
+    # 5. Top / Bottom Performers
+    # ═══════════════════════════════════════════════
+    s = prs.slides.add_slide(prs.slide_layouts[6])
+    _bg(s)
+    _header(s, "TOP / BOTTOM PERFORMERS", "성과 상위 · 하위 분석")
+
+    sorted_df = result_df.sort_values("MOIC", ascending=False)
+    top3 = sorted_df.head(3)
+    bottom3 = sorted_df.tail(3)
+
+    _text(s, Inches(0.8), Inches(1.5), Inches(5), Inches(0.3),
+          "TOP PERFORMERS", sz=11, c=D_GREEN, bold=True)
+    for i, (_, row) in enumerate(top3.iterrows()):
+        y = Inches(1.9) + Inches(i * 0.7)
+        _circle_num(s, Inches(0.8), y, str(i+1), bg=D_GREEN)
+        _text(s, Inches(1.4), y + Inches(0.03), Inches(2.5), Inches(0.25),
+              row["회사명"], sz=14, c=BLACK, bold=True)
+        _text(s, Inches(4.0), y + Inches(0.03), Inches(1.5), Inches(0.25),
+              f'MOIC {row["MOIC"]}x', sz=13, c=D_GREEN, bold=True)
+        _text(s, Inches(5.5), y + Inches(0.03), Inches(1.5), Inches(0.25),
+              f'IRR {row["IRR(%)"]}%', sz=11, c=D_GREY)
+
+    _text(s, Inches(7.0), Inches(1.5), Inches(5), Inches(0.3),
+          "UNDERPERFORMERS", sz=11, c=RGBColor(0xC6,0x28,0x28), bold=True)
+    for i, (_, row) in enumerate(bottom3.iterrows()):
+        y = Inches(1.9) + Inches(i * 0.7)
+        clr = RGBColor(0xC6,0x28,0x28) if row["MOIC"] < 1.0 else GREY
+        _circle_num(s, Inches(7.0), y, str(i+1), bg=clr)
+        _text(s, Inches(7.6), y + Inches(0.03), Inches(2.5), Inches(0.25),
+              row["회사명"], sz=14, c=BLACK, bold=True)
+        _text(s, Inches(10.2), y + Inches(0.03), Inches(1.5), Inches(0.25),
+              f'MOIC {row["MOIC"]}x', sz=13, c=clr, bold=True)
+        _text(s, Inches(11.7), y + Inches(0.03), Inches(1.5), Inches(0.25),
+              f'IRR {row["IRR(%)"]}%', sz=11, c=D_GREY)
+
+    _page(s, 5, TOTAL)
+
+    # ═══════════════════════════════════════════════
+    # 6. Portfolio Analytics (HHI + Timeline)
+    # ═══════════════════════════════════════════════
+    s = prs.slides.add_slide(prs.slide_layouts[6])
+    _bg(s)
+    _header(s, "PORTFOLIO ANALYTICS", "포트폴리오 집중도 · 투자 경과")
+
+    weights = result_df["투자금액_백만원"] / result_df["투자금액_백만원"].sum()
+    hhi = round((weights ** 2).sum() * 10000)
+    hhi_label = "High (Concentrated)" if hhi > 2500 else ("Medium" if hhi > 1500 else "Low (Diversified)")
+
+    _metric_card(s, Inches(0.8), Inches(1.5), Inches(3.5), Inches(1.5),
+                 "HHI INDEX", f"{hhi:,}", hhi_label,
+                 val_color=RGBColor(0xC6,0x28,0x28) if hhi > 2500 else D_GREEN)
+
+    import datetime
+    avg_days = (pd.to_datetime(result_df.iloc[0].get("기준일", datetime.date.today())) -
+                pd.to_datetime(result_df["투자일"].min())).days if "투자일" in result_df.columns else 0
+    avg_years = round(avg_days / 365.25, 1) if avg_days > 0 else 0
+
+    total_val = result_df["현재가치_백만원"].sum() + result_df["회수금액_백만원"].sum()
+    realized_pct = round(result_df["회수금액_백만원"].sum() / total_val * 100, 1) if total_val > 0 else 0
+
+    _metric_card(s, Inches(4.8), Inches(1.5), Inches(3.5), Inches(1.5),
+                 "AVG HOLDING", f"{avg_years}yr", "평균 투자 보유 기간")
+
+    _metric_card(s, Inches(8.8), Inches(1.5), Inches(3.5), Inches(1.5),
+                 "REALIZATION", f"{realized_pct}%", "현금 실현 비율",
+                 val_color=D_GREEN if realized_pct > 50 else BLACK)
+
+    # 투자 단계별 분포
+    if "투자단계" in result_df.columns:
+        _text(s, Inches(0.8), Inches(3.5), Inches(5), Inches(0.3),
+              "INVESTMENT STAGE MIX", sz=11, c=GREY, bold=True)
+        stage_counts = result_df["투자단계"].value_counts()
+        for i, (stage, cnt) in enumerate(stage_counts.items()):
+            x = Inches(0.8) + Inches(i * 2.5)
+            if x > Inches(11): break
+            pct = cnt / len(result_df)
+            _rounded(s, x, Inches(3.9), Inches(2.2), Inches(0.8), XP_GREEN, P_GREEN)
+            _text(s, x, Inches(3.95), Inches(2.2), Inches(0.25),
+                  stage, sz=11, c=D_GREEN, bold=True, align=PP_ALIGN.CENTER)
+            _text(s, x, Inches(4.25), Inches(2.2), Inches(0.25),
+                  f"{cnt}개사 ({pct*100:.0f}%)", sz=10, c=D_GREY, align=PP_ALIGN.CENTER)
+
+    _page(s, 6, TOTAL)
+
+    # ═══════════════════════════════════════════════
+    # 7. Risk Assessment
+    # ═══════════════════════════════════════════════
+    s = prs.slides.add_slide(prs.slide_layouts[6])
+    _bg(s)
+    _header(s, "RISK ASSESSMENT", "리스크 평가")
+
+    risks = []
+    # MOIC < 1.0 기업
+    underperformers = result_df[result_df["MOIC"] < 1.0]
+    if len(underperformers) > 0:
+        names = ", ".join(underperformers["회사명"].tolist())
+        risks.append(("MOIC 1.0x 미만 기업", f"{len(underperformers)}개사: {names}", "HIGH"))
+    # 집중도
+    if hhi > 2500:
+        risks.append(("포트폴리오 집중 리스크", f"HHI {hhi:,} — 특정 기업에 투자 편중", "HIGH"))
+    elif hhi > 1500:
+        risks.append(("포트폴리오 집중도 보통", f"HHI {hhi:,} — 분산 확대 검토 필요", "MEDIUM"))
+    # DPI
+    if summary["펀드 DPI"] < 0.5:
+        risks.append(("현금 회수 지연", f"DPI {summary['펀드 DPI']}x — 실현 수익 제한적", "MEDIUM"))
+    # 긍정 요소
+    if summary["펀드 MOIC"] >= 2.0:
+        risks.append(("우수한 전체 성과", f"MOIC {summary['펀드 MOIC']}x — 벤치마크 2.0x 달성", "POSITIVE"))
+    if avg_irr > 15:
+        risks.append(("목표 IRR 달성", f"IRR {avg_irr}% — 목표 15% 초과 달성", "POSITIVE"))
+
+    for i, (title, desc, level) in enumerate(risks):
+        y = Inches(1.5) + Inches(i * 0.9)
+        if level == "HIGH":
+            clr = RGBColor(0xC6,0x28,0x28)
+            bg = RGBColor(0xFD,0xED,0xED)
+        elif level == "MEDIUM":
+            clr = RGBColor(0xFF,0x98,0x00)
+            bg = RGBColor(0xFF,0xF3,0xE0)
+        else:
+            clr = D_GREEN
+            bg = XP_GREEN
+        _rounded(s, Inches(0.8), y, Inches(11.7), Inches(0.7), bg, clr)
+        _text(s, Inches(1.0), y + Inches(0.08), Inches(0.8), Inches(0.22),
+              level, sz=9, c=clr, bold=True)
+        _text(s, Inches(2.0), y + Inches(0.08), Inches(3.0), Inches(0.22),
+              title, sz=12, c=BLACK, bold=True)
+        _text(s, Inches(5.2), y + Inches(0.08), Inches(7.0), Inches(0.22),
+              desc, sz=10, c=D_GREY)
+
+    _page(s, 7, TOTAL)
+
+    # ═══════════════════════════════════════════════
+    # 8. Waterfall 분배 시뮬레이션 (기본값)
     # ═══════════════════════════════════════════════
     s = prs.slides.add_slide(prs.slide_layouts[6])
     _bg(s)
@@ -451,10 +584,10 @@ def generate_lp_pptx(
         _text(s, x + Inches(1.5), y_res + Inches(0.2), Inches(1.5), Inches(0.2),
               val, sz=11, c=D_GREEN, bold=True)
 
-    _page(s, 5, TOTAL)
+    _page(s, 8, TOTAL)
 
     # ═══════════════════════════════════════════════
-    # 6. AI 코멘터리
+    # 9. AI 코멘터리
     # ═══════════════════════════════════════════════
     s = prs.slides.add_slide(prs.slide_layouts[6])
     _bg(s)
@@ -473,10 +606,10 @@ def generate_lp_pptx(
     _multi(s, Inches(1.1), Inches(2.3), Inches(11.0), Inches(4.2),
            comment_lines, sz=11, c=D_GREY, spacing=5)
 
-    _page(s, 6, TOTAL)
+    _page(s, 9, TOTAL)
 
     # ═══════════════════════════════════════════════
-    # 7. Thank You
+    # 10. Thank You
     # ═══════════════════════════════════════════════
     s = prs.slides.add_slide(prs.slide_layouts[6])
     _bg(s, D_GREEN)
@@ -494,7 +627,7 @@ def generate_lp_pptx(
     _text(s, Inches(1.5), Inches(4.2), Inches(10), Inches(0.3),
           "PE/VC 분기 보고 도우미  ·  SDIC  ·  이수빈", sz=12, c=P_GREEN)
     _text(s, Inches(1.5), Inches(5.5), Inches(10), Inches(0.3),
-          "본 보고서는 자동 생성되었습니다. 투자 결정의 근거로 단독 사용하지 마십시오.",
+          "본 보고서는 자동 생성된 참고 자료입니다. 투자 결정의 근거로 단독 사용할 수 없습니다.",
           sz=9, c=L_GREEN)
 
     # ── 저장 ──
