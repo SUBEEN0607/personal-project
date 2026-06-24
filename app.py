@@ -357,8 +357,8 @@ if st.session_state["show_cover"]:
             <div class="cv-top">SDIC &middot; SKKU Digital IT Consulting</div>
             <div class="cv-title">PE/VC</div>
             <div class="cv-sub">분기 보고 도우미</div>
-            <div style="font-size:13px;color:rgba(255,255,255,0.5);margin-bottom:32px;line-height:1.6;max-width:520px;">
-                데이터 수집부터 성과 분석, LP 보고서와 IC 장표 작성까지<br>분기 보고에 필요한 모든 과정을 하나의 화면에서 완결합니다.
+            <div style="font-size:13px;color:rgba(255,255,255,0.5);margin-top:16px;margin-bottom:32px;line-height:1.6;max-width:520px;">
+                데이터 수집부터 성과 분석, LP 보고서와 IC 장표 작성까지<br>분기 보고에 필요한 모든 과정을 하나의 화면에서 완성합니다.
             </div>
             <div class="cv-tags">
                 <span class="cv-tag">DART</span>
@@ -736,7 +736,7 @@ if "df" in st.session_state:
 
 # ── 탭 ───────────────────────────────────────────
 tab1, tab2, tab3, tab4, tab5 = st.tabs([
-    "Performance", "Portfolio", "Market", "Tools", "Report",
+    "Overview", "Portfolio", "Analysis", "Benchmark", "Report",
 ])
 
 # ── TAB 1: Performance ────────────────────────────
@@ -1096,235 +1096,8 @@ with tab1:
             )
             st.plotly_chart(fig_tree, use_container_width=True)
 
-        st.markdown("---")
 
-        # ── Report Builder ────────────────────────────
-        st.markdown("#### Report Builder")
-        st.markdown("""
-<div style="background:#ffffff;border:1px solid #c8e6c9;border-radius:10px;padding:16px 20px;margin-bottom:16px;">
-  <div style="font-size:14px;font-weight:700;color:#1b5e20;margin-bottom:6px;">LP 보고서 · IC 장표 생성</div>
-  <div style="font-size:12px;color:#666;line-height:1.6;">
-    포함할 섹션을 선택하고 PDF(LP 보고서) 또는 PPTX(IC 장표)를 생성하세요.<br>
-    <span style="color:#999;font-size:11px;">본 보고서는 참고용 자료이며, 투자 결정의 근거로 단독 사용할 수 없습니다.</span>
-  </div>
-</div>
-""", unsafe_allow_html=True)
 
-        # multiselect 태그 스타일 — 베이지 + 작게
-        st.markdown("""
-<style>
-span[data-baseweb="tag"] {
-    background-color: #e8dcc8 !important;
-    color: #1a1a1a !important;
-    font-size: 11px !important;
-    height: 26px !important;
-    border-radius: 6px !important;
-    padding: 0 8px !important;
-}
-span[data-baseweb="tag"] span { color: #1a1a1a !important; }
-span[data-baseweb="tag"] svg { fill: #999 !important; width: 12px !important; }
-</style>
-""", unsafe_allow_html=True)
-
-        # 5탭 기준 섹션 구성
-        st.markdown("""
-<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px;">
-  <div style="background:#fafafa;border-radius:8px;padding:10px 14px;">
-    <div style="font-size:10px;color:#1b5e20;font-weight:700;letter-spacing:0.08em;margin-bottom:4px;">DASHBOARD</div>
-    <div style="font-size:10px;color:#999;line-height:1.5;">성과 요약 · 포트폴리오 상세<br>Top/Bottom · 섹터 · 집중도 · 리스크</div>
-  </div>
-  <div style="background:#fafafa;border-radius:8px;padding:10px 14px;">
-    <div style="font-size:10px;color:#1b5e20;font-weight:700;letter-spacing:0.08em;margin-bottom:4px;">FUND TREND · ANALYSIS</div>
-    <div style="font-size:10px;color:#999;line-height:1.5;">J-Curve · 분기 추이<br>시나리오 · IRR Sensitivity · Waterfall</div>
-  </div>
-  <div style="background:#fafafa;border-radius:8px;padding:10px 14px;">
-    <div style="font-size:10px;color:#1b5e20;font-weight:700;letter-spacing:0.08em;margin-bottom:4px;">BENCHMARK · AI</div>
-    <div style="font-size:10px;color:#999;line-height:1.5;">거시지표 (금리·환율)<br>AI 코멘터리 · 뉴스 모니터링</div>
-  </div>
-</div>
-""", unsafe_allow_html=True)
-
-        all_sections = [
-            "성과 요약 (MOIC·IRR·DPI·RVPI·TVPI)",
-            "포트폴리오 상세",
-            "Top/Bottom 성과 분석",
-            "섹터별 투자 비중",
-            "집중도·투자기간·실현율",
-            "리스크 평가",
-            "AI 코멘터리",
-            "J-Curve 현금흐름",
-            "분기별 추이",
-            "거시지표 (금리·환율)",
-            "Waterfall 분배",
-            "시나리오 분석",
-            "IRR Sensitivity",
-            "뉴스 모니터링",
-        ]
-        selected = st.multiselect(
-            "포함할 섹션",
-            all_sections,
-            default=all_sections[:7],
-        )
-        st.session_state["report_sections"] = selected
-
-        # 출력 형식 선택
-        st.markdown("")
-        fmt1, fmt2, fmt3 = st.columns(3)
-        with fmt1:
-            if st.button("LP 보고서 (PDF)", use_container_width=True, type="primary"):
-                with st.spinner("PDF 생성 중..."):
-                    detail_rows = result_df[["회사명","MOIC","IRR(%)","TVPI","투자금액_백만원"]].to_dict("records")
-                    _comm = generate_commentary(summary, detail_rows) if "AI Commentary" in str(selected) else ""
-                    _jc = st.session_state.get("jcurve_trend") if "J-Curve" in str(selected) else None
-                    _tr = None
-                    if "Quarterly Trend" in str(selected):
-                        from db import load_quarters, load_trend
-                        if load_quarters():
-                            _tr = load_trend()
-                    _rate = st.session_state.get("macro_rate_df") if "Macro" in str(selected) else None
-                    _fx = st.session_state.get("macro_fx_df") if "Macro" in str(selected) else None
-                    pdf_bytes = generate_full_pdf(
-                        summary, result_df, df, _comm, quarter,
-                        fund_name=fund_name, fund_strategy=fund_strategy, base_date=base_date,
-                        jcurve_df=_jc, trend_df=_tr,
-                        rate_df=_rate, fx_df=_fx,
-                        spread=st.session_state.get("macro_spread"),
-                    )
-                st.download_button("PDF 다운로드", pdf_bytes,
-                                   file_name=f"LP_Report_{quarter}.pdf",
-                                   mime="application/pdf", use_container_width=True)
-        with fmt2:
-            if st.button("IC 장표 (PPTX)", use_container_width=True):
-                with st.spinner("PPTX 생성 중..."):
-                    from report_pptx import generate_lp_pptx
-                    detail_rows = result_df[["회사명","MOIC","IRR(%)","TVPI","투자금액_백만원"]].to_dict("records")
-                    _comm = generate_commentary(summary, detail_rows) if "AI Commentary" in str(selected) else ""
-                    pptx_bytes = generate_lp_pptx(
-                        summary, result_df, _comm, quarter,
-                        fund_name=fund_name, fund_strategy=fund_strategy, base_date=base_date)
-                st.download_button("PPTX 다운로드", pptx_bytes,
-                                   file_name=f"IC_Report_{quarter}.pptx",
-                                   mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
-                                   use_container_width=True)
-        with fmt3:
-            if st.button("데이터 (Excel)", use_container_width=True):
-                from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
-                excel_buf = io.BytesIO()
-                sel = str(selected)
-                with pd.ExcelWriter(excel_buf, engine="openpyxl") as writer:
-
-                    # 항상 포함: Portfolio 상세
-                    if "Portfolio Detail" in sel or "Performance" in sel:
-                        result_df.to_excel(writer, sheet_name="Portfolio", index=False)
-
-                    # Performance Summary
-                    if "Performance" in sel:
-                        perf_df.to_excel(writer, sheet_name="Performance", index=False)
-
-                    # Top/Bottom
-                    if "Top" in sel:
-                        sorted_m = result_df.sort_values("MOIC", ascending=False)
-                        top_df = sorted_m.head(3)[["회사명","섹터","MOIC","IRR(%)","TVPI"]].copy()
-                        top_df.insert(0, "구분", ["Top 1","Top 2","Top 3"])
-                        bot_df = sorted_m.tail(3)[["회사명","섹터","MOIC","IRR(%)","TVPI"]].copy()
-                        bot_df.insert(0, "구분", ["Bottom 1","Bottom 2","Bottom 3"])
-                        pd.concat([top_df, bot_df]).to_excel(writer, sheet_name="Top_Bottom", index=False)
-
-                    # Sector
-                    if "Sector" in sel:
-                        sa = df.groupby("섹터").agg(
-                            기업수=("회사명","count"),
-                            총투자_백만원=("투자금액_백만원","sum"),
-                            평균MOIC=("투자금액_백만원", lambda x: 0),
-                        ).reset_index()
-                        sa_moic = result_df.groupby("섹터")["MOIC"].mean().reset_index()
-                        sa_irr = result_df.groupby("섹터")["IRR(%)"].mean().reset_index()
-                        sa_merged = sa[["섹터","기업수","총투자_백만원"]].merge(sa_moic, on="섹터").merge(sa_irr, on="섹터")
-                        sa_merged["비중(%)"] = (sa_merged["총투자_백만원"] / sa_merged["총투자_백만원"].sum() * 100).round(1)
-                        sa_merged["MOIC"] = sa_merged["MOIC"].round(2)
-                        sa_merged["IRR(%)"] = sa_merged["IRR(%)"].round(1)
-                        sa_merged.sort_values("총투자_백만원", ascending=False).to_excel(writer, sheet_name="Sector", index=False)
-
-                    # Analytics (HHI, 투자기간, 실현율)
-                    if "Analytics" in sel:
-                        weights = df["투자금액_백만원"] / df["투자금액_백만원"].sum()
-                        hhi = round((weights ** 2).sum() * 10000)
-                        avg_days = (pd.to_datetime(df["기준일"]) - pd.to_datetime(df["투자일"])).dt.days.mean()
-                        total_val = df["현재가치_백만원"].sum() + df["회수금액_백만원"].sum()
-                        real_pct = round(df["회수금액_백만원"].sum() / total_val * 100, 1) if total_val > 0 else 0
-                        analytics_df = pd.DataFrame({
-                            "지표": ["HHI 집중도", "HHI 판정", "평균 투자기간(년)", "실현비율(%)", "포트폴리오사 수", "총 투자금액(백만원)"],
-                            "값": [hhi, "High" if hhi>2500 else ("Medium" if hhi>1500 else "Low"),
-                                   round(avg_days/365.25, 1), real_pct, len(df), int(df["투자금액_백만원"].sum())],
-                        })
-                        analytics_df.to_excel(writer, sheet_name="Analytics", index=False)
-
-                    # Risk
-                    if "Risk" in sel:
-                        risks = []
-                        under = result_df[result_df["MOIC"] < 1.0]
-                        if len(under) > 0:
-                            for _, r in under.iterrows():
-                                risks.append({"Level": "HIGH", "Type": "MOIC 1.0x 미만", "Company": r["회사명"], "MOIC": r["MOIC"], "IRR": r["IRR(%)"]})
-                        weights = df["투자금액_백만원"] / df["투자금액_백만원"].sum()
-                        hhi = round((weights ** 2).sum() * 10000)
-                        if hhi > 2500:
-                            risks.append({"Level": "HIGH", "Type": "집중 리스크", "Company": f"HHI {hhi:,}", "MOIC": "", "IRR": ""})
-                        if summary["펀드 DPI"] < 0.5:
-                            risks.append({"Level": "MEDIUM", "Type": "회수 지연", "Company": f"DPI {summary['펀드 DPI']}x", "MOIC": "", "IRR": ""})
-                        if risks:
-                            pd.DataFrame(risks).to_excel(writer, sheet_name="Risk", index=False)
-
-                    # Waterfall
-                    if "Waterfall" in sel:
-                        wf_inv = float(df["투자금액_백만원"].sum())
-                        wf_proc = float(df["현재가치_백만원"].sum() + df["회수금액_백만원"].sum())
-                        wf_df = pd.DataFrame({
-                            "항목": ["총 투자금", "총 회수금", "Hurdle Rate", "Carry", "기간",
-                                     "① 원금반환(LP)", "② 우선수익(LP)", "③ GP캐치업", "④ 초과-LP", "④ 초과-GP"],
-                            "값": [f"{wf_inv:,.0f}M", f"{wf_proc:,.0f}M", "8%", "20%", "5년",
-                                   f"{min(wf_proc, wf_inv):,.0f}M",
-                                   f"{min(max(wf_proc-wf_inv,0), wf_inv*((1.08)**5-1)):,.0f}M",
-                                   "", "", ""],
-                        })
-                        wf_df.to_excel(writer, sheet_name="Waterfall", index=False)
-
-                    # Raw Data 항상 포함
-                    df.to_excel(writer, sheet_name="Raw Data", index=False)
-
-                    # 스타일 적용
-                    wb = writer.book
-                    gf = PatternFill(start_color="1B5E20", end_color="1B5E20", fill_type="solid")
-                    lf = PatternFill(start_color="E8F5E9", end_color="E8F5E9", fill_type="solid")
-                    wfont = Font(name="맑은 고딕", bold=True, color="FFFFFF", size=11)
-                    bfont = Font(name="맑은 고딕", size=10)
-                    thin = Border(
-                        bottom=Side(style="thin", color="C8E6C9"),
-                    )
-                    for sn in wb.sheetnames:
-                        ws = wb[sn]
-                        for cell in ws[1]:
-                            cell.fill = gf
-                            cell.font = wfont
-                            cell.alignment = Alignment(horizontal="center", vertical="center")
-                        for row in ws.iter_rows(min_row=2, max_row=ws.max_row):
-                            for cell in row:
-                                cell.font = bfont
-                                cell.border = thin
-                                cell.alignment = Alignment(horizontal="center", vertical="center")
-                            if row[0].row % 2 == 0:
-                                for cell in row:
-                                    cell.fill = lf
-                        for col in ws.columns:
-                            cl = col[0].column_letter
-                            mx = max(sum(2 if ord(c)>127 else 1 for c in str(cell.value or "")) for cell in col)
-                            ws.column_dimensions[cl].width = min(mx + 4, 45)
-                        ws.row_dimensions[1].height = 28
-
-                st.download_button("Excel 다운로드", excel_buf.getvalue(),
-                                   file_name=f"Data_{quarter}.xlsx",
-                                   mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                                   use_container_width=True)
 
 # ── TAB 2: Portfolio ──────────────────────────────
 with tab2:
@@ -1938,7 +1711,126 @@ with tab4:
 
 # ── TAB 5: Report ────────────────────────────────
 with tab5:
-    st.markdown("### AI 분석 · 보고서")
+    st.markdown("### Report Builder")
+    st.caption("포함할 섹션을 선택하고 LP 보고서(PDF) 또는 IC 장표(PPTX)를 생성하세요.")
+
+    if "result_df" in st.session_state:
+        result_df = st.session_state["result_df"]
+        df        = st.session_state["df"]
+        summary   = st.session_state["summary"]
+
+        # multiselect 스타일
+        st.markdown("""<style>
+span[data-baseweb="tag"] { background-color:#e8dcc8 !important; color:#1a1a1a !important;
+    font-size:11px !important; height:26px !important; border-radius:6px !important; padding:0 8px !important; }
+span[data-baseweb="tag"] span { color:#1a1a1a !important; }
+span[data-baseweb="tag"] svg { fill:#999 !important; width:12px !important; }
+</style>""", unsafe_allow_html=True)
+
+        # 가이드 카드
+        st.markdown("""
+<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px;">
+  <div style="background:#fafafa;border-radius:8px;padding:10px 14px;">
+    <div style="font-size:10px;color:#1b5e20;font-weight:700;letter-spacing:0.08em;margin-bottom:4px;">OVERVIEW</div>
+    <div style="font-size:10px;color:#999;line-height:1.5;">성과 요약 · 포트폴리오 상세<br>Top/Bottom · 섹터 · 집중도 · 리스크</div>
+  </div>
+  <div style="background:#fafafa;border-radius:8px;padding:10px 14px;">
+    <div style="font-size:10px;color:#1b5e20;font-weight:700;letter-spacing:0.08em;margin-bottom:4px;">PORTFOLIO · ANALYSIS</div>
+    <div style="font-size:10px;color:#999;line-height:1.5;">J-Curve · 분기 추이<br>DART 재무 · 시나리오 · Waterfall</div>
+  </div>
+  <div style="background:#fafafa;border-radius:8px;padding:10px 14px;">
+    <div style="font-size:10px;color:#1b5e20;font-weight:700;letter-spacing:0.08em;margin-bottom:4px;">BENCHMARK · AI</div>
+    <div style="font-size:10px;color:#999;line-height:1.5;">거시지표 (금리·환율)<br>AI 코멘터리 · 뉴스 모니터링</div>
+  </div>
+</div>
+""", unsafe_allow_html=True)
+
+        all_sections = [
+            "성과 요약 (MOIC·IRR·DPI·RVPI·TVPI)", "포트폴리오 상세",
+            "Top/Bottom 성과 분석", "섹터별 투자 비중",
+            "집중도·투자기간·실현율", "리스크 평가", "AI 코멘터리",
+            "J-Curve 현금흐름", "분기별 추이", "거시지표 (금리·환율)",
+            "Waterfall 분배", "시나리오 분석", "IRR Sensitivity", "뉴스 모니터링",
+        ]
+        selected = st.multiselect("포함할 섹션", all_sections, default=all_sections[:7])
+        st.session_state["report_sections"] = selected
+
+        st.markdown("---")
+
+        # 출력 버튼
+        fmt1, fmt2, fmt3 = st.columns(3)
+        with fmt1:
+            if st.button("LP 보고서 (PDF)", use_container_width=True, type="primary"):
+                with st.spinner("PDF 생성 중..."):
+                    detail_rows = result_df[["회사명","MOIC","IRR(%)","TVPI","투자금액_백만원"]].to_dict("records")
+                    _comm = generate_commentary(summary, detail_rows) if "AI" in str(selected) else ""
+                    _jc = st.session_state.get("jcurve_trend") if "J-Curve" in str(selected) else None
+                    _tr = None
+                    if "분기별" in str(selected):
+                        from db import load_quarters, load_trend
+                        if load_quarters(): _tr = load_trend()
+                    _rate = st.session_state.get("macro_rate_df") if "거시" in str(selected) else None
+                    _fx = st.session_state.get("macro_fx_df") if "거시" in str(selected) else None
+                    pdf_bytes = generate_full_pdf(
+                        summary, result_df, df, _comm, quarter,
+                        fund_name=fund_name, fund_strategy=fund_strategy, base_date=base_date,
+                        jcurve_df=_jc, trend_df=_tr, rate_df=_rate, fx_df=_fx,
+                        spread=st.session_state.get("macro_spread"))
+                st.download_button("PDF 다운로드", pdf_bytes, file_name=f"LP_Report_{quarter}.pdf",
+                                   mime="application/pdf", use_container_width=True)
+        with fmt2:
+            if st.button("IC 장표 (PPTX)", use_container_width=True):
+                with st.spinner("PPTX 생성 중..."):
+                    from report_pptx import generate_lp_pptx
+                    _comm = generate_commentary(summary,
+                        result_df[["회사명","MOIC","IRR(%)","TVPI","투자금액_백만원"]].to_dict("records")) if "AI" in str(selected) else ""
+                    pptx_bytes = generate_lp_pptx(summary, result_df, _comm, quarter,
+                        fund_name=fund_name, fund_strategy=fund_strategy, base_date=base_date)
+                st.download_button("PPTX 다운로드", pptx_bytes, file_name=f"IC_Report_{quarter}.pptx",
+                                   mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
+                                   use_container_width=True)
+        with fmt3:
+            if st.button("데이터 (Excel)", use_container_width=True):
+                from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+                excel_buf = io.BytesIO()
+                sel = str(selected)
+                with pd.ExcelWriter(excel_buf, engine="openpyxl") as writer:
+                    result_df.to_excel(writer, sheet_name="Portfolio", index=False)
+                    if "Top" in sel:
+                        sm = result_df.sort_values("MOIC", ascending=False)
+                        t = sm.head(3)[["회사명","섹터","MOIC","IRR(%)","TVPI"]].copy(); t.insert(0,"구분",["Top1","Top2","Top3"])
+                        b = sm.tail(3)[["회사명","섹터","MOIC","IRR(%)","TVPI"]].copy(); b.insert(0,"구분",["Bot1","Bot2","Bot3"])
+                        pd.concat([t,b]).to_excel(writer, sheet_name="Top_Bottom", index=False)
+                    if "섹터" in sel:
+                        sa = result_df.groupby("섹터").agg(기업수=("회사명","count"),평균MOIC=("MOIC","mean"),평균IRR=("IRR(%)","mean")).round(2).reset_index()
+                        sa.to_excel(writer, sheet_name="Sector", index=False)
+                    if "집중" in sel:
+                        w = df["투자금액_백만원"]/df["투자금액_백만원"].sum()
+                        hhi = round((w**2).sum()*10000)
+                        pd.DataFrame({"지표":["HHI","판정","평균투자기간(년)","실현율(%)"],
+                            "값":[hhi,"High" if hhi>2500 else "Low",round((pd.to_datetime(df["기준일"])-pd.to_datetime(df["투자일"])).dt.days.mean()/365.25,1),
+                                  round(df["회수금액_백만원"].sum()/(df["현재가치_백만원"].sum()+df["회수금액_백만원"].sum())*100,1)]
+                        }).to_excel(writer, sheet_name="Analytics", index=False)
+                    df.to_excel(writer, sheet_name="Raw Data", index=False)
+                    wb = writer.book
+                    gf = PatternFill(start_color="1B5E20",end_color="1B5E20",fill_type="solid")
+                    wf = Font(name="맑은 고딕",bold=True,color="FFFFFF",size=11)
+                    for sn in wb.sheetnames:
+                        ws = wb[sn]
+                        for cell in ws[1]: cell.fill=gf; cell.font=wf; cell.alignment=Alignment(horizontal="center")
+                        for col in ws.columns:
+                            cl=col[0].column_letter
+                            mx=max(sum(2 if ord(c)>127 else 1 for c in str(cell.value or "")) for cell in col)
+                            ws.column_dimensions[cl].width=min(mx+4,45)
+                st.download_button("Excel 다운로드", excel_buf.getvalue(), file_name=f"Data_{quarter}.xlsx",
+                                   mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                                   use_container_width=True)
+
+        st.markdown("---")
+        st.caption("본 보고서는 참고용 자료이며, 투자 결정의 근거로 단독 사용할 수 없습니다.")
+
+    st.markdown("---")
+    st.markdown("### AI 분석")
     if "result_df" not in st.session_state:
         st.info("먼저 대시보드에서 데이터를 로드하세요.")
     else:
