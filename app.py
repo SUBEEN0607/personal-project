@@ -1042,7 +1042,7 @@ with tab1:
             fig_bar.update_traces(marker_line_width=0, opacity=0.9)
             fig_bar.update_layout(**_CHART,
                                   legend=dict(font_size=10, orientation="h", y=-0.15, bgcolor="rgba(0,0,0,0)"),
-                                  bargap=0.3)
+                                  bargap=0.55)
             fig_bar.update_xaxes(**_NOGRID, tickfont_size=10)
             fig_bar.update_yaxes(**_GRID, tickfont_size=10)
             st.plotly_chart(fig_bar, use_container_width=True)
@@ -1181,25 +1181,119 @@ with tab1:
                                    use_container_width=True)
         with fmt3:
             if st.button("데이터 (Excel)", use_container_width=True):
-                from openpyxl.styles import Font, PatternFill, Alignment
+                from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
                 excel_buf = io.BytesIO()
+                sel = str(selected)
                 with pd.ExcelWriter(excel_buf, engine="openpyxl") as writer:
-                    result_df.to_excel(writer, sheet_name="Portfolio", index=False)
-                    perf_df.to_excel(writer, sheet_name="Performance", index=False)
-                    sector_df.to_excel(writer, sheet_name="Sector", index=False)
+
+                    # 항상 포함: Portfolio 상세
+                    if "Portfolio Detail" in sel or "Performance" in sel:
+                        result_df.to_excel(writer, sheet_name="Portfolio", index=False)
+
+                    # Performance Summary
+                    if "Performance" in sel:
+                        perf_df.to_excel(writer, sheet_name="Performance", index=False)
+
+                    # Top/Bottom
+                    if "Top" in sel:
+                        sorted_m = result_df.sort_values("MOIC", ascending=False)
+                        top_df = sorted_m.head(3)[["회사명","섹터","MOIC","IRR(%)","TVPI"]].copy()
+                        top_df.insert(0, "구분", ["Top 1","Top 2","Top 3"])
+                        bot_df = sorted_m.tail(3)[["회사명","섹터","MOIC","IRR(%)","TVPI"]].copy()
+                        bot_df.insert(0, "구분", ["Bottom 1","Bottom 2","Bottom 3"])
+                        pd.concat([top_df, bot_df]).to_excel(writer, sheet_name="Top_Bottom", index=False)
+
+                    # Sector
+                    if "Sector" in sel:
+                        sa = df.groupby("섹터").agg(
+                            기업수=("회사명","count"),
+                            총투자_백만원=("투자금액_백만원","sum"),
+                            평균MOIC=("투자금액_백만원", lambda x: 0),
+                        ).reset_index()
+                        sa_moic = result_df.groupby("섹터")["MOIC"].mean().reset_index()
+                        sa_irr = result_df.groupby("섹터")["IRR(%)"].mean().reset_index()
+                        sa_merged = sa[["섹터","기업수","총투자_백만원"]].merge(sa_moic, on="섹터").merge(sa_irr, on="섹터")
+                        sa_merged["비중(%)"] = (sa_merged["총투자_백만원"] / sa_merged["총투자_백만원"].sum() * 100).round(1)
+                        sa_merged["MOIC"] = sa_merged["MOIC"].round(2)
+                        sa_merged["IRR(%)"] = sa_merged["IRR(%)"].round(1)
+                        sa_merged.sort_values("총투자_백만원", ascending=False).to_excel(writer, sheet_name="Sector", index=False)
+
+                    # Analytics (HHI, 투자기간, 실현율)
+                    if "Analytics" in sel:
+                        weights = df["투자금액_백만원"] / df["투자금액_백만원"].sum()
+                        hhi = round((weights ** 2).sum() * 10000)
+                        avg_days = (pd.to_datetime(df["기준일"]) - pd.to_datetime(df["투자일"])).dt.days.mean()
+                        total_val = df["현재가치_백만원"].sum() + df["회수금액_백만원"].sum()
+                        real_pct = round(df["회수금액_백만원"].sum() / total_val * 100, 1) if total_val > 0 else 0
+                        analytics_df = pd.DataFrame({
+                            "지표": ["HHI 집중도", "HHI 판정", "평균 투자기간(년)", "실현비율(%)", "포트폴리오사 수", "총 투자금액(백만원)"],
+                            "값": [hhi, "High" if hhi>2500 else ("Medium" if hhi>1500 else "Low"),
+                                   round(avg_days/365.25, 1), real_pct, len(df), int(df["투자금액_백만원"].sum())],
+                        })
+                        analytics_df.to_excel(writer, sheet_name="Analytics", index=False)
+
+                    # Risk
+                    if "Risk" in sel:
+                        risks = []
+                        under = result_df[result_df["MOIC"] < 1.0]
+                        if len(under) > 0:
+                            for _, r in under.iterrows():
+                                risks.append({"Level": "HIGH", "Type": "MOIC 1.0x 미만", "Company": r["회사명"], "MOIC": r["MOIC"], "IRR": r["IRR(%)"]})
+                        weights = df["투자금액_백만원"] / df["투자금액_백만원"].sum()
+                        hhi = round((weights ** 2).sum() * 10000)
+                        if hhi > 2500:
+                            risks.append({"Level": "HIGH", "Type": "집중 리스크", "Company": f"HHI {hhi:,}", "MOIC": "", "IRR": ""})
+                        if summary["펀드 DPI"] < 0.5:
+                            risks.append({"Level": "MEDIUM", "Type": "회수 지연", "Company": f"DPI {summary['펀드 DPI']}x", "MOIC": "", "IRR": ""})
+                        if risks:
+                            pd.DataFrame(risks).to_excel(writer, sheet_name="Risk", index=False)
+
+                    # Waterfall
+                    if "Waterfall" in sel:
+                        wf_inv = float(df["투자금액_백만원"].sum())
+                        wf_proc = float(df["현재가치_백만원"].sum() + df["회수금액_백만원"].sum())
+                        wf_df = pd.DataFrame({
+                            "항목": ["총 투자금", "총 회수금", "Hurdle Rate", "Carry", "기간",
+                                     "① 원금반환(LP)", "② 우선수익(LP)", "③ GP캐치업", "④ 초과-LP", "④ 초과-GP"],
+                            "값": [f"{wf_inv:,.0f}M", f"{wf_proc:,.0f}M", "8%", "20%", "5년",
+                                   f"{min(wf_proc, wf_inv):,.0f}M",
+                                   f"{min(max(wf_proc-wf_inv,0), wf_inv*((1.08)**5-1)):,.0f}M",
+                                   "", "", ""],
+                        })
+                        wf_df.to_excel(writer, sheet_name="Waterfall", index=False)
+
+                    # Raw Data 항상 포함
                     df.to_excel(writer, sheet_name="Raw Data", index=False)
+
+                    # 스타일 적용
                     wb = writer.book
                     gf = PatternFill(start_color="1B5E20", end_color="1B5E20", fill_type="solid")
-                    wf = Font(name="맑은 고딕", bold=True, color="FFFFFF", size=11)
+                    lf = PatternFill(start_color="E8F5E9", end_color="E8F5E9", fill_type="solid")
+                    wfont = Font(name="맑은 고딕", bold=True, color="FFFFFF", size=11)
+                    bfont = Font(name="맑은 고딕", size=10)
+                    thin = Border(
+                        bottom=Side(style="thin", color="C8E6C9"),
+                    )
                     for sn in wb.sheetnames:
                         ws = wb[sn]
                         for cell in ws[1]:
-                            cell.fill = gf; cell.font = wf
-                            cell.alignment = Alignment(horizontal="center")
+                            cell.fill = gf
+                            cell.font = wfont
+                            cell.alignment = Alignment(horizontal="center", vertical="center")
+                        for row in ws.iter_rows(min_row=2, max_row=ws.max_row):
+                            for cell in row:
+                                cell.font = bfont
+                                cell.border = thin
+                                cell.alignment = Alignment(horizontal="center", vertical="center")
+                            if row[0].row % 2 == 0:
+                                for cell in row:
+                                    cell.fill = lf
                         for col in ws.columns:
                             cl = col[0].column_letter
                             mx = max(sum(2 if ord(c)>127 else 1 for c in str(cell.value or "")) for cell in col)
-                            ws.column_dimensions[cl].width = min(mx + 4, 40)
+                            ws.column_dimensions[cl].width = min(mx + 4, 45)
+                        ws.row_dimensions[1].height = 28
+
                 st.download_button("Excel 다운로드", excel_buf.getvalue(),
                                    file_name=f"Data_{quarter}.xlsx",
                                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -1355,7 +1449,7 @@ with tab3:
                 plot_bgcolor="#ffffff", paper_bgcolor="#ffffff",
                 font=dict(family="Pretendard, sans-serif", color="#1a1a1a", size=12),
                 legend=dict(orientation="h", y=-0.15, bgcolor="rgba(0,0,0,0)", font_size=10),
-                bargap=0.25,
+                bargap=0.5,
             )
             fig_dart.update_xaxes(showgrid=False, zeroline=False)
             fig_dart.update_yaxes(showgrid=True, gridcolor="#f0f0f0", zeroline=False)
