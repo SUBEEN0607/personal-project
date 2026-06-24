@@ -409,6 +409,7 @@ with st.sidebar:
 
     st.markdown("---")
     st.markdown('<p style="font-size:12px;letter-spacing:0.1em;text-transform:uppercase;color:#1b5e20;font-weight:700;margin-bottom:6px;">데이터</p>', unsafe_allow_html=True)
+    st.markdown('<p style="font-size:10px;color:#999;line-height:1.5;margin-bottom:8px;">처음 사용 시 아래 <b>입력 가이드</b>를 다운받아 표준 템플릿에 맞춰 데이터를 입력하세요.<br>컬럼명이 다르면 자동으로 매핑을 시도합니다.</p>', unsafe_allow_html=True)
     uploaded = st.file_uploader("CSV / Excel", type=["csv", "xlsx"])
     use_sample = st.button("샘플 데이터 불러오기")
 
@@ -550,19 +551,28 @@ with st.sidebar:
             st.warning("먼저 데이터를 로드하세요.")
 
 if uploaded:
+    from data_parser import standardize
     if uploaded.name.endswith(".xlsx"):
         xl = pd.ExcelFile(uploaded)
         sheet = st.sidebar.selectbox("시트 선택", xl.sheet_names)
-        raw = pd.read_excel(uploaded, sheet_name=sheet)
+        raw_input = pd.read_excel(uploaded, sheet_name=sheet)
     else:
-        raw = pd.read_csv(uploaded)
-    raw["투자일"] = pd.to_datetime(raw["투자일"])
-    raw["기준일"] = pd.to_datetime(raw["기준일"])
-    result_df = run_all(raw)
-    st.session_state["df"] = raw
-    st.session_state["result_df"] = result_df
-    st.session_state["summary"] = portfolio_summary(raw)
-    st.sidebar.success(f"{len(raw)}개사 로드 완료")
+        raw_input = pd.read_csv(uploaded)
+
+    raw, parse_warnings = standardize(raw_input)
+
+    if parse_warnings:
+        for w in parse_warnings:
+            st.sidebar.warning(w)
+
+    if "투자금액_백만원" in raw.columns and len(raw) > 0:
+        result_df = run_all(raw)
+        st.session_state["df"] = raw
+        st.session_state["result_df"] = result_df
+        st.session_state["summary"] = portfolio_summary(raw)
+        st.sidebar.success(f"{len(raw)}개사 로드 완료")
+    else:
+        st.sidebar.error("필수 컬럼이 누락되었습니다. 입력 가이드를 참고하세요.")
 
 elif use_sample:
     raw = load_portfolio("sample_portfolio.csv")
