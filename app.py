@@ -383,10 +383,22 @@ if st.session_state["show_cover"]:
 
 # ── 일반 헤더: 표지 통과 후 ──────────────────────
 st.markdown("""
-<div style="display:flex; align-items:baseline; gap:12px;
-            padding: 0 0 16px 0; border-bottom: 1px solid #eae8e4; margin-bottom: 24px;">
-  <span style="font-size:24px; font-weight:800; color:#1a1a1a; letter-spacing:-0.04em;">PE/VC</span>
-  <span style="font-size:13px; font-weight:400; color:#bbb; letter-spacing:0.02em;">분기 보고 도우미</span>
+<div style="padding: 0 0 20px 0; border-bottom: 1px solid #e5e5e5; margin-bottom: 24px;">
+  <div style="display:flex; align-items:baseline; gap:12px; margin-bottom:8px;">
+    <span style="font-size:24px; font-weight:800; color:#1a1a1a; letter-spacing:-0.04em;">PE/VC</span>
+    <span style="font-size:13px; font-weight:400; color:#bbb;">분기 보고 도우미</span>
+  </div>
+  <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+    <span style="font-size:10px; color:#fff; background:#1b5e20; padding:3px 10px; border-radius:4px; font-weight:600;">DATA</span>
+    <span style="font-size:11px; color:#ccc;">→</span>
+    <span style="font-size:10px; color:#fff; background:#2e7d32; padding:3px 10px; border-radius:4px; font-weight:600;">ANALYSIS</span>
+    <span style="font-size:11px; color:#ccc;">→</span>
+    <span style="font-size:10px; color:#fff; background:#43a047; padding:3px 10px; border-radius:4px; font-weight:600;">LP Report</span>
+    <span style="font-size:11px; color:#ccc;">·</span>
+    <span style="font-size:10px; color:#fff; background:#43a047; padding:3px 10px; border-radius:4px; font-weight:600;">IC Deck</span>
+    <span style="font-size:11px; color:#ccc;">·</span>
+    <span style="font-size:10px; color:#fff; background:#43a047; padding:3px 10px; border-radius:4px; font-weight:600;">Excel</span>
+  </div>
 </div>
 """, unsafe_allow_html=True)
 
@@ -1093,21 +1105,57 @@ with tab1:
             st.plotly_chart(fig_tree, use_container_width=True)
 
         st.markdown("---")
-        st.markdown("#### Export")
-        st.caption("전체 분석 결과를 참고용 보고서로 생성합니다. 투자 결정의 근거로 단독 사용할 수 없습니다.")
-        exp1, exp2, exp3 = st.columns(3)
-        with exp1:
-            if st.button("통합 PDF", use_container_width=True, type="primary"):
-                with st.spinner("통합 PDF 생성 중..."):
-                    detail_rows = result_df[["회사명","MOIC","IRR(%)","TVPI"]].to_dict("records")
-                    _comm = generate_commentary(summary, detail_rows)
-                    _jc = st.session_state.get("jcurve_trend")
+
+        # ── Report Builder ────────────────────────────
+        st.markdown("#### Report Builder")
+        st.markdown("""
+<div style="background:#ffffff;border:1px solid #c8e6c9;border-radius:10px;padding:16px 20px;margin-bottom:16px;">
+  <div style="font-size:14px;font-weight:700;color:#1b5e20;margin-bottom:6px;">LP 보고서 · IC 장표 생성</div>
+  <div style="font-size:12px;color:#666;line-height:1.6;">
+    포함할 섹션을 선택하고 PDF(LP 보고서) 또는 PPTX(IC 장표)를 생성하세요.<br>
+    <span style="color:#999;font-size:11px;">본 보고서는 참고용 자료이며, 투자 결정의 근거로 단독 사용할 수 없습니다.</span>
+  </div>
+</div>
+""", unsafe_allow_html=True)
+
+        # 섹션 선택
+        all_sections = [
+            "Performance Summary (MOIC·IRR·DPI·RVPI·TVPI)",
+            "Portfolio Detail (포트폴리오사별 상세)",
+            "Top/Bottom Performers (상위·하위 성과 분석)",
+            "Sector Analysis (섹터별 투자 비중)",
+            "Portfolio Analytics (HHI 집중도·투자기간·실현율)",
+            "Risk Assessment (리스크 평가)",
+            "AI Commentary (Claude AI 코멘터리)",
+            "J-Curve (누적 현금흐름)",
+            "Quarterly Trend (분기별 추이)",
+            "Macro Indicators (기준금리·환율·스프레드)",
+            "Waterfall Distribution (GP/LP 분배)",
+        ]
+        selected = st.multiselect(
+            "보고서에 포함할 섹션 선택",
+            all_sections,
+            default=all_sections[:7],
+            help="체크한 섹션만 PDF/PPTX에 포함됩니다.",
+        )
+        st.session_state["report_sections"] = selected
+
+        # 출력 형식 선택
+        st.markdown("")
+        fmt1, fmt2, fmt3 = st.columns(3)
+        with fmt1:
+            if st.button("LP 보고서 (PDF)", use_container_width=True, type="primary"):
+                with st.spinner("PDF 생성 중..."):
+                    detail_rows = result_df[["회사명","MOIC","IRR(%)","TVPI","투자금액_백만원"]].to_dict("records")
+                    _comm = generate_commentary(summary, detail_rows) if "AI Commentary" in str(selected) else ""
+                    _jc = st.session_state.get("jcurve_trend") if "J-Curve" in str(selected) else None
                     _tr = None
-                    from db import load_quarters, load_trend
-                    if load_quarters():
-                        _tr = load_trend()
-                    _rate = st.session_state.get("macro_rate_df")
-                    _fx = st.session_state.get("macro_fx_df")
+                    if "Quarterly Trend" in str(selected):
+                        from db import load_quarters, load_trend
+                        if load_quarters():
+                            _tr = load_trend()
+                    _rate = st.session_state.get("macro_rate_df") if "Macro" in str(selected) else None
+                    _fx = st.session_state.get("macro_fx_df") if "Macro" in str(selected) else None
                     pdf_bytes = generate_full_pdf(
                         summary, result_df, df, _comm, quarter,
                         fund_name=fund_name, fund_strategy=fund_strategy, base_date=base_date,
@@ -1116,24 +1164,24 @@ with tab1:
                         spread=st.session_state.get("macro_spread"),
                     )
                 st.download_button("PDF 다운로드", pdf_bytes,
-                                   file_name=f"Full_Report_{quarter}.pdf",
+                                   file_name=f"LP_Report_{quarter}.pdf",
                                    mime="application/pdf", use_container_width=True)
-        with exp2:
-            if st.button("통합 PPTX", use_container_width=True):
+        with fmt2:
+            if st.button("IC 장표 (PPTX)", use_container_width=True):
                 with st.spinner("PPTX 생성 중..."):
                     from report_pptx import generate_lp_pptx
-                    _comm = generate_commentary(summary,
-                        result_df[["회사명","MOIC","IRR(%)","TVPI"]].to_dict("records"))
+                    detail_rows = result_df[["회사명","MOIC","IRR(%)","TVPI","투자금액_백만원"]].to_dict("records")
+                    _comm = generate_commentary(summary, detail_rows) if "AI Commentary" in str(selected) else ""
                     pptx_bytes = generate_lp_pptx(
                         summary, result_df, _comm, quarter,
                         fund_name=fund_name, fund_strategy=fund_strategy, base_date=base_date)
                 st.download_button("PPTX 다운로드", pptx_bytes,
-                                   file_name=f"Full_Report_{quarter}.pptx",
+                                   file_name=f"IC_Report_{quarter}.pptx",
                                    mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
                                    use_container_width=True)
-        with exp3:
-            if st.button("Excel 데이터", use_container_width=True):
-                from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+        with fmt3:
+            if st.button("데이터 (Excel)", use_container_width=True):
+                from openpyxl.styles import Font, PatternFill, Alignment
                 excel_buf = io.BytesIO()
                 with pd.ExcelWriter(excel_buf, engine="openpyxl") as writer:
                     result_df.to_excel(writer, sheet_name="Portfolio", index=False)
@@ -1153,7 +1201,7 @@ with tab1:
                             mx = max(sum(2 if ord(c)>127 else 1 for c in str(cell.value or "")) for cell in col)
                             ws.column_dimensions[cl].width = min(mx + 4, 40)
                 st.download_button("Excel 다운로드", excel_buf.getvalue(),
-                                   file_name=f"Full_Data_{quarter}.xlsx",
+                                   file_name=f"Data_{quarter}.xlsx",
                                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                                    use_container_width=True)
 
