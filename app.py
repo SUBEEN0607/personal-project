@@ -533,11 +533,32 @@ with tab1:
 """, unsafe_allow_html=True)
 
         # ── 보조 Metrics — DPI · RVPI · TVPI ───────
-        m1, m2, m3, m4 = st.columns(4)
-        m1.metric("DPI", f"{dpi}x", help="현금 회수 배수")
-        m2.metric("RVPI", f"{rvpi}x", help="잔존 가치 배수")
-        m3.metric("TVPI", f"{tvpi}x", help="DPI + RVPI")
-        m4.metric("Companies", f"{n}개")
+        _dpi_status = "회수 진행" if dpi >= 0.5 else "초기 단계"
+        _tvpi_color = "#1b5e20" if tvpi >= 2.0 else "#333"
+        st.markdown(f"""
+<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px;margin-bottom:14px;">
+  <div style="background:#fff;border:1px solid #e5e5e5;border-radius:10px;padding:18px 20px;">
+    <div style="font-size:10px;color:#999;font-weight:600;">DPI</div>
+    <div style="font-size:28px;font-weight:800;color:#333;">{dpi}x</div>
+    <div style="font-size:10px;color:#999;">{_dpi_status}</div>
+  </div>
+  <div style="background:#fff;border:1px solid #e5e5e5;border-radius:10px;padding:18px 20px;">
+    <div style="font-size:10px;color:#999;font-weight:600;">RVPI</div>
+    <div style="font-size:28px;font-weight:800;color:#333;">{rvpi}x</div>
+    <div style="font-size:10px;color:#999;">잔존 가치</div>
+  </div>
+  <div style="background:#fff;border:1px solid {'#c8e6c9' if tvpi >= 2.0 else '#e5e5e5'};border-radius:10px;padding:18px 20px;">
+    <div style="font-size:10px;color:#1b5e20;font-weight:600;">TVPI</div>
+    <div style="font-size:28px;font-weight:800;color:{_tvpi_color};">{tvpi}x</div>
+    <div style="font-size:10px;color:#1b5e20;">{'BM 달성' if tvpi >= 2.0 else 'DPI + RVPI'}</div>
+  </div>
+  <div style="background:#fff;border:1px solid #e5e5e5;border-radius:10px;padding:18px 20px;">
+    <div style="font-size:10px;color:#999;font-weight:600;">COMPANIES</div>
+    <div style="font-size:28px;font-weight:800;color:#333;">{n}개</div>
+    <div style="font-size:10px;color:#999;">{int(total_inv):,}M 투자</div>
+  </div>
+</div>
+""", unsafe_allow_html=True)
 
         # ── PE / VC 전략별 KPI ───────────────────────
         st.markdown("---")
@@ -760,27 +781,25 @@ with tab1:
             yaxis=dict(showgrid=False), bargap=0.3)
         st.plotly_chart(fig_bar, use_container_width=True)
 
+        st.markdown("")
+
         col_a, col_b = st.columns(2)
         with col_a:
-            # MOIC vs IRR 버블
-            max_size = result_df["투자금액_백만원"].max()
-            fig_sc = px.scatter(
-                result_df, x="IRR(%)", y="MOIC", text="회사명",
-                size="투자금액_백만원", color="섹터",
-                color_discrete_sequence=_GP, size_max=45,
-            )
-            fig_sc.update_traces(
-                textposition="top center", textfont=dict(size=9, color="#666"),
-                marker=dict(opacity=0.7, line=dict(width=1.5, color="#fff")),
-            )
-            fig_sc.add_hline(y=1.0, line_dash="dot", line_color="#ddd")
-            fig_sc.add_vline(x=0, line_dash="dot", line_color="#ddd")
-            fig_sc.update_layout(**_CS, height=320, margin=dict(t=35, b=20, l=20, r=20),
-                title=dict(text="MOIC vs IRR (버블 = 투자금액)", font=dict(size=13), x=0.02),
-                legend=dict(font_size=9, orientation="h", y=-0.18, bgcolor="rgba(0,0,0,0)"),
-                xaxis=dict(showgrid=True, gridcolor="#f5f5f5", title="IRR (%)"),
-                yaxis=dict(showgrid=True, gridcolor="#f5f5f5", title="MOIC (x)"))
-            st.plotly_chart(fig_sc, use_container_width=True)
+            # IRR 분포 바 차트
+            sorted_irr = result_df.sort_values("IRR(%)", ascending=True)
+            colors_irr = ["#1b5e20" if v >= 20 else "#43a047" if v >= 0 else "#e0a0a0" for v in sorted_irr["IRR(%)"]]
+            fig_irr = go.Figure(go.Bar(
+                x=sorted_irr["IRR(%)"].tolist(), y=sorted_irr["회사명"].tolist(),
+                orientation="h", marker_color=colors_irr, marker_line_width=0,
+                text=[f"{v}%" for v in sorted_irr["IRR(%)"]],
+                textposition="outside", textfont=dict(size=10, color="#555"),
+            ))
+            fig_irr.add_vline(x=15, line_dash="dot", line_color="#bbb", annotation_text="목표 15%", annotation_font_size=9, annotation_font_color="#999")
+            fig_irr.update_layout(**_CS, height=320, margin=dict(t=35, b=15, l=90, r=50),
+                title=dict(text="IRR Distribution", font=dict(size=13), x=0.02),
+                xaxis=dict(showgrid=True, gridcolor="#f0f0f0", zeroline=False, title="IRR (%)"),
+                yaxis=dict(showgrid=False), bargap=0.3)
+            st.plotly_chart(fig_irr, use_container_width=True)
 
         with col_b:
             # 섹터 비중 도넛
@@ -1589,34 +1608,25 @@ span[data-baseweb="tag"] svg { fill:#999 !important; width:12px !important; }
 </div>
 """, unsafe_allow_html=True)
 
-        all_sections = [
-            ("성과 요약 (MOIC·IRR·DPI·RVPI·TVPI)", True),
-            ("포트폴리오 상세", True),
-            ("Top/Bottom 성과 분석", True),
-            ("섹터별 투자 비중", True),
-            ("리스크 평가", True),
-            ("AI 코멘터리", True),
-            ("시각화 차트", True),
-            ("J-Curve 현금흐름", True),
-            ("시나리오 분석", True),
-            ("Waterfall 분배", True),
-            ("KVIC 시장 비교", True),
-            ("분기별 추이", False),
-            ("DART 재무분석", False),
-            ("IRR Sensitivity", False),
-            ("거시지표 (금리·환율)", False),
-            ("집중도·투자기간·실현율", False),
+        _section_groups = [
+            ("펀드 성과 종합", True, ["성과 요약", "포트폴리오 상세", "Top/Bottom", "섹터", "리스크", "집중도", "시각화 차트"]),
+            ("J-Curve · 분기 추이", True, ["J-Curve", "분기별"]),
+            ("시나리오 · Sensitivity", True, ["시나리오", "IRR Sensitivity"]),
+            ("Waterfall 분배", True, ["Waterfall"]),
+            ("KVIC 시장 비교", True, ["KVIC"]),
+            ("거시지표 · DART", False, ["거시", "DART"]),
+            ("AI 코멘터리", True, ["AI"]),
         ]
         st.markdown("##### 포함할 섹션")
         _cols = st.columns(4)
         selected = []
-        for i, (name, default) in enumerate(all_sections):
+        for i, (label, default, keywords) in enumerate(_section_groups):
             with _cols[i % 4]:
-                if st.checkbox(name, value=default, key=f"sec_{i}"):
-                    selected.append(name)
+                if st.checkbox(label, value=default, key=f"sec_{i}"):
+                    selected.extend(keywords)
         st.session_state["report_sections"] = selected
-        st.session_state["report_include_charts"] = any("시각화" in s for s in selected)
-        st.caption(f"{len(selected)}개 섹션 선택됨. 아래 버튼을 누르면 보고서가 생성됩니다.")
+        st.session_state["report_include_charts"] = "시각화 차트" in selected
+        st.caption(f"{len(_section_groups)}개 중 {sum(1 for _,d,_ in _section_groups if d)}개 기본 선택. 아래 버튼을 누르면 생성됩니다.")
 
         st.markdown("---")
 
