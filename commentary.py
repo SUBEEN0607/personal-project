@@ -69,7 +69,7 @@ def generate_commentary(summary: dict, detail_rows: list[dict]) -> str:
 
     response = _get_client().messages.create(
         model="claude-haiku-4-5",
-        max_tokens=1024,
+        max_tokens=2048,
         messages=[{"role": "user", "content": prompt}],
     )
 

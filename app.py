@@ -760,13 +760,13 @@ with tab1:
         st.markdown("---")
 
         # ── Charts ────────────────────────────────────
-        _GP = ["#1b5e20","#2e7d32","#43a047","#66bb6a","#81c784","#a5d6a7","#c8e6c9","#e8f5e9"]
+        _GP = ["#2e7d32","#43a047","#66bb6a","#81c784","#a5d6a7","#c8e6c9","#e8f5e9","#f1f8e9"]
         _CS = dict(plot_bgcolor="#ffffff", paper_bgcolor="#ffffff",
                    font=dict(family="Pretendard, sans-serif", color="#1a1a1a", size=11))
 
         # MOIC 분포 (가로 풀와이드)
         sorted_moic = result_df.sort_values("MOIC", ascending=True)
-        colors_moic = ["#1b5e20" if m >= 2 else "#43a047" if m >= 1 else "#e0a0a0" for m in sorted_moic["MOIC"]]
+        colors_moic = ["rgba(27,94,32,0.6)" if m >= 2 else "rgba(67,160,71,0.5)" if m >= 1 else "rgba(224,160,160,0.6)" for m in sorted_moic["MOIC"]]
         fig_bar = go.Figure(go.Bar(
             x=sorted_moic["MOIC"].tolist(), y=sorted_moic["회사명"].tolist(),
             orientation="h", marker_color=colors_moic, marker_line_width=0,
@@ -781,13 +781,13 @@ with tab1:
             yaxis=dict(showgrid=False), bargap=0.3)
         st.plotly_chart(fig_bar, use_container_width=True)
 
-        st.markdown("")
+        st.markdown("<br>", unsafe_allow_html=True)
 
         col_a, col_b = st.columns(2)
         with col_a:
             # IRR 분포 바 차트
             sorted_irr = result_df.sort_values("IRR(%)", ascending=True)
-            colors_irr = ["#1b5e20" if v >= 20 else "#43a047" if v >= 0 else "#e0a0a0" for v in sorted_irr["IRR(%)"]]
+            colors_irr = ["rgba(27,94,32,0.6)" if v >= 20 else "rgba(67,160,71,0.5)" if v >= 0 else "rgba(224,160,160,0.6)" for v in sorted_irr["IRR(%)"]]
             fig_irr = go.Figure(go.Bar(
                 x=sorted_irr["IRR(%)"].tolist(), y=sorted_irr["회사명"].tolist(),
                 orientation="h", marker_color=colors_irr, marker_line_width=0,
@@ -946,7 +946,7 @@ with tab2:
         fig_q.update_xaxes(showgrid=False, zeroline=False, tickfont_size=10)
         fig_q.update_yaxes(showgrid=True, gridcolor="#f0f0f0", zeroline=False, tickfont_size=10)
         st.plotly_chart(fig_q, use_container_width=True)
-        st.dataframe(trend_df, use_container_width=True)
+        st.dataframe(trend_df, use_container_width=True, hide_index=True)
 
         st.caption("Report 탭에서 '분기별 추이'를 선택하면 보고서에 포함됩니다.")
 
@@ -1007,7 +1007,7 @@ with tab3:
                         lambda x: f"{x/1e6:,.0f}" if pd.notna(x) and x != 0 else "-"
                     )
             display_df = display_df.rename(columns={"매출액": "매출액 (백만원)", "영업이익": "영업이익 (백만원)", "당기순이익": "당기순이익 (백만원)"})
-            st.dataframe(display_df, use_container_width=True)
+            st.dataframe(display_df, use_container_width=True, hide_index=True)
 
             # 차트도 백만원 단위
             chart_df = fin_df.copy()
@@ -1090,7 +1090,7 @@ with tab3:
             fig_sim2.update_xaxes(showgrid=False, zeroline=False)
             fig_sim2.update_yaxes(showgrid=True, gridcolor="#f0f0f0", zeroline=False)
             st.plotly_chart(fig_sim2, use_container_width=True)
-            st.dataframe(sim_df2, use_container_width=True)
+            st.dataframe(sim_df2, use_container_width=True, hide_index=True)
 
 
     # ── ③ IRR Sensitivity Matrix ────────────────────
@@ -1438,7 +1438,7 @@ with tab4:
 
             st.divider()
             with st.expander("전체 분야별 데이터 보기"):
-                st.dataframe(sector_df, use_container_width=True)
+                st.dataframe(sector_df, use_container_width=True, hide_index=True)
 
     # ── 내 포트폴리오 vs KVIC 시장 비교 ──
     st.markdown("---")
