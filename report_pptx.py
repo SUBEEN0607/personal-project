@@ -116,6 +116,8 @@ def generate_lp_pptx(
     base_date: str = "",
     selected_sections: list = None,
     include_charts: bool = False,
+    jcurve_df=None,
+    scenario_df=None, scenario_company: str = "",
 ) -> bytes:
     prs = Presentation()
     prs.slide_width = W
@@ -336,6 +338,56 @@ def generate_lp_pptx(
             _text(s, Inches(4.95), y + Inches(0.08), Inches(2.5), Inches(0.2), title, sz=12, c=BLACK, bold=True)
             _text(s, Inches(4.95), y + Inches(0.32), Inches(7.3), Inches(0.2), desc, sz=9, c=D_GREY)
         slides.append("리스크")
+
+    # ═══ J-Curve ═══
+    if _sec("J-Curve") and jcurve_df is not None and not jcurve_df.empty:
+        s = prs.slides.add_slide(prs.slide_layouts[6]); _bg(s)
+        _header(s, "J-CURVE ANALYSIS", "J-Curve 현금흐름")
+        mn = jcurve_df["누적현금흐름"].min()
+        cr = jcurve_df["누적현금흐름"].iloc[-1]
+        be = jcurve_df[jcurve_df["누적현금흐름"] >= 0]
+        be_dt = str(be["날짜"].iloc[0])[:10] if not be.empty else "미도달"
+        _metric_card(s, Inches(0.8), Inches(1.5), Inches(3.5), Inches(1.3), "MAX DRAWDOWN", f"{mn:,.0f}M", "최대 누적 손실", val_color=RED_SOFT)
+        _metric_card(s, Inches(4.8), Inches(1.5), Inches(3.5), Inches(1.3), "CURRENT CF", f"{cr:,.0f}M", "현재 누적 현금흐름", val_color=D_GREEN if cr >= 0 else RED_SOFT)
+        _metric_card(s, Inches(8.8), Inches(1.5), Inches(3.5), Inches(1.3), "BREAK-EVEN", be_dt, "손익분기 시점")
+        if include_charts:
+            import plotly.graph_objects as go
+            dates = jcurve_df["날짜"].astype(str).tolist()
+            cf = jcurve_df["누적현금흐름"].tolist()
+            fig = go.Figure()
+            fig.add_trace(go.Scatter(x=dates, y=cf, mode="lines+markers",
+                line=dict(color="#1b5e20", width=2.5), fill="tozeroy", fillcolor="rgba(27,94,32,0.08)",
+                marker=dict(size=5, color=["#1b5e20" if v >= 0 else "#e0a0a0" for v in cf])))
+            fig.add_hline(y=0, line_dash="dash", line_color="#ccc")
+            fig.update_layout(height=280, width=700, margin=dict(t=5,b=25,l=50,r=10),
+                paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", showlegend=False,
+                xaxis=dict(showgrid=False), yaxis=dict(showgrid=True, gridcolor="#eee", title="백만원"))
+            _add_chart_to_slide(s, fig, 0.8, 3.2, 7.0, 3.5)
+        slides.append("J-Curve")
+
+    # ═══ 시나리오 ═══
+    if _sec("시나리오") and scenario_df is not None and not scenario_df.empty:
+        s = prs.slides.add_slide(prs.slide_layouts[6]); _bg(s)
+        _header(s, "EXIT SCENARIO", f"회수 시나리오 — {scenario_company}")
+        if include_charts and "Exit 배수" in scenario_df.columns and "IRR (%)" in scenario_df.columns:
+            import plotly.graph_objects as go
+            fig = go.Figure(go.Bar(
+                x=scenario_df["Exit 배수"].tolist(), y=scenario_df["IRR (%)"].tolist(),
+                marker_color=["#1b5e20" if v >= 20 else "#43a047" if v >= 0 else "#e0a0a0" for v in scenario_df["IRR (%)"]],
+                text=[f"{v}%" for v in scenario_df["IRR (%)"]], textposition="outside",
+                marker_line_width=0,
+            ))
+            fig.update_layout(height=320, width=700, margin=dict(t=10,b=30,l=40,r=10),
+                paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", showlegend=False, bargap=0.3,
+                xaxis=dict(showgrid=False, title="Exit 배수"), yaxis=dict(showgrid=True, gridcolor="#eee", title="IRR (%)"))
+            _add_chart_to_slide(s, fig, 0.8, 1.5, 7.0, 4.0)
+        else:
+            cols = list(scenario_df.columns)
+            for i, (_, row) in enumerate(scenario_df.iterrows()):
+                y = Inches(1.5) + Inches(i * 0.5)
+                _text(s, Inches(0.8), y, Inches(3), Inches(0.25), f'Exit {row.get("Exit 배수","")}x', sz=12, c=BLACK, bold=True)
+                _text(s, Inches(4.0), y, Inches(3), Inches(0.25), f'IRR {row.get("IRR (%)","")}%', sz=12, c=D_GREEN)
+        slides.append("시나리오")
 
     # ═══ 8. Waterfall ═══
     if _sec("Waterfall"):

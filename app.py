@@ -464,13 +464,13 @@ with tab1:
 <div style="background:#ffffff;border:1px solid #e5e5e5;border-radius:10px;padding:16px 20px;margin-bottom:20px;">
   <div style="font-size:13px;color:#1a1a1a;font-weight:600;margin-bottom:8px;">펀드 성과 한눈에 보기</div>
   <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:11px;">
-    <span style="background:#333;color:#fff;padding:3px 10px;border-radius:4px;">1. 핵심 지표</span>
+    <span style="background:#e8dcc8;color:#1a1a1a;padding:3px 10px;border-radius:4px;font-weight:500;">1. 핵심 지표</span>
     <span style="color:#ccc;">→</span>
-    <span style="background:#555;color:#fff;padding:3px 10px;border-radius:4px;">2. 포트폴리오 상세</span>
+    <span style="background:#e8dcc8;color:#1a1a1a;padding:3px 10px;border-radius:4px;font-weight:500;">2. 포트폴리오 상세</span>
     <span style="color:#ccc;">→</span>
-    <span style="background:#777;color:#fff;padding:3px 10px;border-radius:4px;">3. Top/Bottom</span>
+    <span style="background:#e8dcc8;color:#1a1a1a;padding:3px 10px;border-radius:4px;font-weight:500;">3. Top/Bottom</span>
     <span style="color:#ccc;">→</span>
-    <span style="background:#999;color:#fff;padding:3px 10px;border-radius:4px;">4. 섹터·리스크</span>
+    <span style="background:#e8dcc8;color:#1a1a1a;padding:3px 10px;border-radius:4px;font-weight:500;">4. 섹터·리스크</span>
   </div>
   <div style="font-size:10px;color:#999;margin-top:6px;">MOIC·IRR 등 핵심 성과부터 개별 기업, 섹터 집중도까지 펀드 전체를 파악합니다.</div>
 </div>
@@ -837,9 +837,9 @@ with tab2:
 <div style="background:#ffffff;border:1px solid #e5e5e5;border-radius:10px;padding:16px 20px;margin-bottom:20px;">
   <div style="font-size:13px;color:#1a1a1a;font-weight:600;margin-bottom:8px;">펀드 추이 분석</div>
   <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:11px;">
-    <span style="background:#333;color:#fff;padding:3px 10px;border-radius:4px;">1. J-Curve</span>
+    <span style="background:#e8dcc8;color:#1a1a1a;padding:3px 10px;border-radius:4px;font-weight:500;">1. J-Curve</span>
     <span style="color:#ccc;">→</span>
-    <span style="background:#555;color:#fff;padding:3px 10px;border-radius:4px;">2. 분기별 추이</span>
+    <span style="background:#e8dcc8;color:#1a1a1a;padding:3px 10px;border-radius:4px;font-weight:500;">2. 분기별 추이</span>
   </div>
   <div style="font-size:10px;color:#999;margin-top:6px;">펀드 설정 이후 현금흐름 곡선과 분기별 성과 변화를 추적합니다.</div>
 </div>
@@ -944,13 +944,13 @@ with tab3:
 <div style="background:#ffffff;border:1px solid #e5e5e5;border-radius:10px;padding:16px 20px;margin-bottom:20px;">
   <div style="font-size:13px;color:#1a1a1a;font-weight:600;margin-bottom:8px;">분석 흐름</div>
   <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:11px;">
-    <span style="background:#333;color:#fff;padding:3px 10px;border-radius:4px;">1. 기업 재무</span>
+    <span style="background:#e8dcc8;color:#1a1a1a;padding:3px 10px;border-radius:4px;font-weight:500;">1. 기업 재무</span>
     <span style="color:#ccc;">→</span>
-    <span style="background:#555;color:#fff;padding:3px 10px;border-radius:4px;">2. Exit 시나리오</span>
+    <span style="background:#e8dcc8;color:#1a1a1a;padding:3px 10px;border-radius:4px;font-weight:500;">2. Exit 시나리오</span>
     <span style="color:#ccc;">→</span>
-    <span style="background:#777;color:#fff;padding:3px 10px;border-radius:4px;">3. IRR Sensitivity</span>
+    <span style="background:#e8dcc8;color:#1a1a1a;padding:3px 10px;border-radius:4px;font-weight:500;">3. IRR Sensitivity</span>
     <span style="color:#ccc;">→</span>
-    <span style="background:#999;color:#fff;padding:3px 10px;border-radius:4px;">4. Waterfall 분배</span>
+    <span style="background:#e8dcc8;color:#1a1a1a;padding:3px 10px;border-radius:4px;font-weight:500;">4. Waterfall 분배</span>
   </div>
   <div style="font-size:10px;color:#999;margin-top:6px;">DART 재무 데이터로 기업을 파악한 후, Exit 시나리오와 수익 분배까지 이어지는 분석 흐름입니다.</div>
 </div>
@@ -1298,9 +1298,9 @@ with tab4:
 <div style="background:#ffffff;border:1px solid #e5e5e5;border-radius:10px;padding:16px 20px;margin-bottom:20px;">
   <div style="font-size:13px;color:#1a1a1a;font-weight:600;margin-bottom:8px;">시장 환경 분석</div>
   <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:11px;">
-    <span style="background:#333;color:#fff;padding:3px 10px;border-radius:4px;">1. KVIC 벤치마크</span>
+    <span style="background:#e8dcc8;color:#1a1a1a;padding:3px 10px;border-radius:4px;font-weight:500;">1. KVIC 벤치마크</span>
     <span style="color:#ccc;">→</span>
-    <span style="background:#555;color:#fff;padding:3px 10px;border-radius:4px;">2. 내 포트폴리오 vs 시장</span>
+    <span style="background:#e8dcc8;color:#1a1a1a;padding:3px 10px;border-radius:4px;font-weight:500;">2. 내 포트폴리오 vs 시장</span>
   </div>
   <div style="font-size:10px;color:#999;margin-top:6px;">국내 VC 시장 전체 동향과 내 펀드 성과를 비교합니다. 거시지표(금리·환율)는 보고서에 자동 포함됩니다.</div>
 </div>
@@ -1350,42 +1350,67 @@ with tab4:
             sector_df = st.session_state["kvic_sector"]
             trend_df_kvic = st.session_state.get("kvic_trend", pd.DataFrame())
 
-            col1, col2 = st.columns(2)
-            with col1:
-                st.markdown(f"**{kvic_year}년 분야별 조합 현황 (상위 15)**")
-                top15 = sector_df.head(15)
-                fig_s = px.bar(
-                    top15, x="총약정액(억원)", y="투자분야",
-                    orientation="h", color="조합수",
-                    color_continuous_scale="Greens",
-                    title=f"{kvic_year}년 모태펀드 분야별 약정액",
-                    labels={"총약정액(억원)": "약정액 (억원)", "투자분야": ""},
-                )
-                fig_s.update_layout(
-                    yaxis=dict(autorange="reversed"), height=420,
-                    plot_bgcolor="#ffffff", paper_bgcolor="#ffffff", font_color="#1a1a1a",
-                )
-                st.plotly_chart(fig_s, use_container_width=True)
+            total_funds = int(sector_df["조합수"].sum())
+            total_amt = sector_df["총약정액(억원)"].sum()
 
-                total_funds = sector_df["조합수"].sum()
-                total_amt = sector_df["총약정액(억원)"].sum()
+            c1, c2 = st.columns(2)
+            with c1:
                 st.metric("전체 조합 수", f"{total_funds:,}개")
-                st.metric("총 약정액", f"{total_amt:,}억원")
+            with c2:
+                st.metric("총 약정액", f"{total_amt:,.0f}억원")
 
-            with col2:
-                if not trend_df_kvic.empty:
-                    st.markdown("**연도별 결성 추이 (2019~)**")
-                    fig_t = px.bar(
-                        trend_df_kvic, x="결성연도", y="총약정액(억원)",
-                        color="결성조합수", color_continuous_scale="Greens",
-                        title="연도별 모태펀드 결성 규모",
-                        text="결성조합수",
-                    )
-                    fig_t.update_traces(texttemplate="%{text}개", textposition="outside")
-                    fig_t.update_layout(
-                        plot_bgcolor="#ffffff", paper_bgcolor="#ffffff", font_color="#1a1a1a",
-                    )
-                    st.plotly_chart(fig_t, use_container_width=True)
+            # 분야별 약정액 (상위 10)
+            top10 = sector_df.head(10)
+            fig_s = go.Figure(go.Bar(
+                x=top10["총약정액(억원)"].tolist(),
+                y=top10["투자분야"].tolist(),
+                orientation="h", marker_color="rgba(27,94,32,0.6)", marker_line_width=0,
+                text=[f"{v:,.0f}억 ({c}개)" for v, c in zip(top10["총약정액(억원)"], top10["조합수"])],
+                textposition="outside", textfont=dict(size=10, color="#555"),
+            ))
+            fig_s.update_layout(
+                title=dict(text=f"{kvic_year}년 모태펀드 분야별 약정액 (상위 10)", font=dict(size=14, color="#1a1a1a"), x=0.02),
+                height=380, margin=dict(t=40, b=15, l=140, r=60),
+                plot_bgcolor="#ffffff", paper_bgcolor="#ffffff",
+                font=dict(family="Pretendard, sans-serif", color="#1a1a1a", size=11),
+                yaxis=dict(autorange="reversed", showgrid=False),
+                xaxis=dict(showgrid=True, gridcolor="#f0f0f0", title="약정액 (억원)"),
+                bargap=0.25,
+            )
+            st.plotly_chart(fig_s, use_container_width=True)
+
+            # 연도별 결성 추이
+            if not trend_df_kvic.empty:
+                fig_t = go.Figure()
+                fig_t.add_trace(go.Bar(
+                    x=trend_df_kvic["결성연도"].tolist(),
+                    y=trend_df_kvic["총약정액(억원)"].tolist(),
+                    name="약정액", marker_color="rgba(27,94,32,0.5)", marker_line_width=0,
+                    text=[f"{v:,.0f}억" for v in trend_df_kvic["총약정액(억원)"]],
+                    textposition="outside", textfont=dict(size=9),
+                ))
+                fig_t.add_trace(go.Scatter(
+                    x=trend_df_kvic["결성연도"].tolist(),
+                    y=trend_df_kvic["결성조합수"].tolist(),
+                    name="조합수", mode="lines+markers+text",
+                    line=dict(color="#1b5e20", width=2),
+                    marker=dict(size=6, color="#1b5e20"),
+                    text=[f"{int(v)}개" for v in trend_df_kvic["결성조합수"]],
+                    textposition="top center", textfont=dict(size=9, color="#1b5e20"),
+                    yaxis="y2",
+                ))
+                fig_t.update_layout(
+                    title=dict(text="연도별 모태펀드 결성 추이", font=dict(size=14, color="#1a1a1a"), x=0.02),
+                    height=350, margin=dict(t=40, b=15, l=40, r=50),
+                    plot_bgcolor="#ffffff", paper_bgcolor="#ffffff",
+                    font=dict(family="Pretendard, sans-serif", color="#1a1a1a", size=11),
+                    legend=dict(orientation="h", y=-0.12, font_size=10),
+                    xaxis=dict(showgrid=False),
+                    yaxis=dict(showgrid=True, gridcolor="#f0f0f0", title="약정액 (억원)"),
+                    yaxis2=dict(title="조합수", overlaying="y", side="right", showgrid=False),
+                    bargap=0.3,
+                )
+                st.plotly_chart(fig_t, use_container_width=True)
 
                 if not trend_df_kvic.empty and "result_df" in st.session_state:
                     my_inv = st.session_state["df"]["투자금액_백만원"].sum() / 100
@@ -1602,91 +1627,67 @@ span[data-baseweb="tag"] svg { fill:#999 !important; width:12px !important; }
         st.markdown("---")
 
         # 출력 버튼
-        fmt1, fmt2 = st.columns(2)
-        with fmt1:
-            if st.button("보고서 (PPTX)", use_container_width=True, type="primary"):
-                with st.spinner("PPTX 생성 중..."):
-                    from report_pptx import generate_lp_pptx
-                    _comm = generate_commentary(summary,
-                        result_df[["회사명","MOIC","IRR(%)","TVPI","투자금액_백만원"]].to_dict("records")) if "AI" in str(selected) else ""
-                    pptx_bytes = generate_lp_pptx(summary, result_df, _comm, quarter,
-                        fund_name=fund_name, fund_strategy=fund_strategy, base_date=base_date,
-                        selected_sections=selected,
-                        include_charts=st.session_state.get("report_include_charts", True))
-                st.download_button("PPTX 다운로드", pptx_bytes, file_name=f"Report_{quarter}.pptx",
-                                   mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
-                                   use_container_width=True)
-        with fmt3:
-            if st.button("데이터 (Excel)", use_container_width=True):
-                from openpyxl.styles import Font, PatternFill, Alignment
-                excel_buf = io.BytesIO()
-                sel = str(selected)
-                with pd.ExcelWriter(excel_buf, engine="openpyxl") as writer:
-                    result_df.to_excel(writer, sheet_name="Portfolio", index=False)
-                    if "Top" in sel:
-                        sm = result_df.sort_values("MOIC", ascending=False)
-                        t = sm.head(3)[["회사명","섹터","MOIC","IRR(%)","TVPI"]].copy(); t.insert(0,"구분",["Top1","Top2","Top3"])
-                        b = sm.tail(3)[["회사명","섹터","MOIC","IRR(%)","TVPI"]].copy(); b.insert(0,"구분",["Bot1","Bot2","Bot3"])
-                        pd.concat([t,b]).to_excel(writer, sheet_name="Top_Bottom", index=False)
-                    if "섹터" in sel:
-                        sa = result_df.groupby("섹터").agg(기업수=("회사명","count"),평균MOIC=("MOIC","mean"),평균IRR=("IRR(%)","mean")).round(2).reset_index()
-                        sa.to_excel(writer, sheet_name="Sector", index=False)
-                    if "집중" in sel:
-                        w = df["투자금액_백만원"]/df["투자금액_백만원"].sum()
-                        hhi = round((w**2).sum()*10000)
-                        pd.DataFrame({"지표":["HHI","판정","평균투자기간(년)","실현율(%)"],
-                            "값":[hhi,"High" if hhi>2500 else "Low",round((pd.to_datetime(df["기준일"])-pd.to_datetime(df["투자일"])).dt.days.mean()/365.25,1),
-                                  round(df["회수금액_백만원"].sum()/(df["현재가치_백만원"].sum()+df["회수금액_백만원"].sum())*100,1)]
-                        }).to_excel(writer, sheet_name="Analytics", index=False)
-                    _jc_ex = st.session_state.get("jcurve_trend")
-                    if _jc_ex is not None and "J-Curve" in sel:
-                        _jc_ex.to_excel(writer, sheet_name="J-Curve", index=False)
-                    _sc_ex = st.session_state.get("scenario_sim_df")
-                    if _sc_ex is not None and "시나리오" in sel:
-                        _sc_ex.to_excel(writer, sheet_name="Scenario", index=False)
-                    _sens_ex = st.session_state.get("sensitivity_matrix_df")
-                    if _sens_ex is not None and "Sensitivity" in sel:
-                        _sens_ex.to_excel(writer, sheet_name="IRR_Sensitivity")
-                    if "Waterfall" in sel:
-                        _wf_data = pd.DataFrame({
-                            "항목": ["총 투자금액", "총 회수금액", "LP 최종 수취", "GP Carry"],
-                            "금액(백만원)": [df["투자금액_백만원"].sum(), df["현재가치_백만원"].sum()+df["회수금액_백만원"].sum(), 0, 0]
-                        })
-                        _wf_data.to_excel(writer, sheet_name="Waterfall", index=False)
-                    df.to_excel(writer, sheet_name="Raw_Data", index=False)
-                    wb = writer.book
-                    gf = PatternFill(start_color="1B5E20",end_color="1B5E20",fill_type="solid")
-                    wf = Font(name="맑은 고딕",bold=True,color="FFFFFF",size=11)
-                    for sn in wb.sheetnames:
-                        ws = wb[sn]
-                        for cell in ws[1]: cell.fill=gf; cell.font=wf; cell.alignment=Alignment(horizontal="center")
-                        for col in ws.columns:
-                            cl=col[0].column_letter
-                            mx=max(sum(2 if ord(c)>127 else 1 for c in str(cell.value or "")) for cell in col)
-                            ws.column_dimensions[cl].width=min(mx+4,45)
-                st.download_button("Excel 다운로드", excel_buf.getvalue(), file_name=f"Data_{quarter}.xlsx",
-                                   mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                                   use_container_width=True)
+        if st.button("보고서 생성 (PPTX)", use_container_width=True, type="primary"):
+            with st.spinner("PPTX 생성 중..."):
+                from report_pptx import generate_lp_pptx
+                _comm = generate_commentary(summary,
+                    result_df[["회사명","MOIC","IRR(%)","TVPI","투자금액_백만원"]].to_dict("records")) if "AI" in str(selected) else ""
+                _jc_pptx = st.session_state.get("jcurve_trend")
+                if _jc_pptx is None and "J-Curve" in str(selected):
+                    _jc_rows = []
+                    for _, _r in df.iterrows():
+                        _jc_rows.append({"날짜": _r["투자일"], "현금흐름_백만원": -float(_r["투자금액_백만원"])})
+                        if float(_r.get("회수금액_백만원", 0)) > 0:
+                            _jc_rows.append({"날짜": _r["기준일"], "현금흐름_백만원": float(_r["회수금액_백만원"])})
+                        _jc_rows.append({"날짜": _r["기준일"], "현금흐름_백만원": float(_r["현재가치_백만원"])})
+                    if _jc_rows:
+                        from irr import j_curve_data
+                        _jc_pptx = j_curve_data(pd.DataFrame(_jc_rows))
+                _sc_pptx = st.session_state.get("scenario_sim_df")
+                _sc_co_pptx = st.session_state.get("scenario_company", "펀드 전체")
+                if _sc_pptx is None and "시나리오" in str(selected):
+                    from simulator import simulate_exit
+                    _sc_pptx = simulate_exit(float(df["투자금액_백만원"].sum()), df["투자일"].min(), [0.5,1.0,1.5,2.0,2.5,3.0,4.0,5.0])
+                pptx_bytes = generate_lp_pptx(summary, result_df, _comm, quarter,
+                    fund_name=fund_name, fund_strategy=fund_strategy, base_date=base_date,
+                    selected_sections=selected,
+                    include_charts=st.session_state.get("report_include_charts", True),
+                    jcurve_df=_jc_pptx, scenario_df=_sc_pptx, scenario_company=_sc_co_pptx)
+            st.download_button("PPTX 다운로드", pptx_bytes, file_name=f"Report_{quarter}.pptx",
+                               mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
+                               use_container_width=True)
 
-        # CSV 내보내기
-        with st.expander("CSV 개별 다운로드"):
-            st.caption("각 분석 결과를 CSV로 내보내 다른 도구에서 재사용할 수 있습니다.")
-            _csv_cols = st.columns(3)
-            with _csv_cols[0]:
-                st.download_button("포트폴리오 CSV", result_df.to_csv(index=False).encode("utf-8-sig"),
-                                   file_name="portfolio.csv", mime="text/csv", use_container_width=True)
-            with _csv_cols[1]:
-                _sec_csv = result_df.groupby("섹터").agg(기업수=("회사명","count"),총투자=("투자금액_백만원","sum"),평균MOIC=("MOIC","mean"),평균IRR=("IRR(%)","mean")).round(2).reset_index()
-                st.download_button("섹터 분석 CSV", _sec_csv.to_csv(index=False).encode("utf-8-sig"),
-                                   file_name="sector_analysis.csv", mime="text/csv", use_container_width=True)
-            with _csv_cols[2]:
-                st.download_button("원본 데이터 CSV", df.to_csv(index=False).encode("utf-8-sig"),
-                                   file_name="raw_data.csv", mime="text/csv", use_container_width=True)
+        # CSV 데이터 내보내기
+        with st.expander("데이터 내보내기 (CSV)"):
+            st.caption("분석 결과를 CSV로 내보내 Excel 등에서 재가공할 수 있습니다.")
+            # 포트폴리오 풍부하게
+            _full = result_df.copy()
+            _full["투자기간(년)"] = ((pd.to_datetime(_full["기준일"]) - pd.to_datetime(_full["투자일"])).dt.days / 365.25).round(1)
+            _full["투자비중(%)"] = (_full["투자금액_백만원"] / _full["투자금액_백만원"].sum() * 100).round(1)
+            _full["수익금액(백만)"] = (_full["현재가치_백만원"] + _full["회수금액_백만원"] - _full["투자금액_백만원"]).round(0)
+            _full["투자금액(백만)"] = _full["투자금액_백만원"].apply(lambda x: round(x))
+            _full["현재가치(백만)"] = _full["현재가치_백만원"].apply(lambda x: round(x))
+            _full["회수금액(백만)"] = _full["회수금액_백만원"].apply(lambda x: round(x))
+            _export = _full[["회사명","섹터","투자단계","투자금액(백만)","현재가치(백만)","회수금액(백만)",
+                             "MOIC","IRR(%)","DPI","RVPI","TVPI","투자기간(년)","투자비중(%)","수익금액(백만)"]].copy()
+            c1, c2 = st.columns(2)
+            with c1:
+                st.download_button("포트폴리오 전체", _export.to_csv(index=False).encode("utf-8-sig"),
+                                   file_name="portfolio_full.csv", mime="text/csv", use_container_width=True)
+            with c2:
+                _sec_csv = result_df.groupby("섹터").agg(
+                    기업수=("회사명","count"), 총투자백만=("투자금액_백만원","sum"), 총현재가치백만=("현재가치_백만원","sum"),
+                    총회수백만=("회수금액_백만원","sum"), 평균MOIC=("MOIC","mean"), 평균IRR=("IRR(%)","mean"),
+                    최고MOIC=("MOIC","max"), 최저MOIC=("MOIC","min"),
+                ).round(2).reset_index()
+                _sec_csv["섹터비중(%)"] = (_sec_csv["총투자백만"] / _sec_csv["총투자백만"].sum() * 100).round(1)
+                st.download_button("섹터 상세 분석", _sec_csv.to_csv(index=False).encode("utf-8-sig"),
+                                   file_name="sector_detail.csv", mime="text/csv", use_container_width=True)
             if st.session_state.get("jcurve_trend") is not None:
-                st.download_button("J-Curve CSV", st.session_state["jcurve_trend"].to_csv(index=False).encode("utf-8-sig"),
+                st.download_button("J-Curve 데이터", st.session_state["jcurve_trend"].to_csv(index=False).encode("utf-8-sig"),
                                    file_name="jcurve.csv", mime="text/csv", use_container_width=True)
             if st.session_state.get("sensitivity_matrix_df") is not None:
-                st.download_button("IRR Sensitivity CSV", st.session_state["sensitivity_matrix_df"].to_csv().encode("utf-8-sig"),
+                st.download_button("IRR Sensitivity", st.session_state["sensitivity_matrix_df"].to_csv().encode("utf-8-sig"),
                                    file_name="irr_sensitivity.csv", mime="text/csv", use_container_width=True)
 
         st.markdown("---")
