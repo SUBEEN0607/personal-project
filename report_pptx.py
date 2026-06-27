@@ -255,10 +255,10 @@ def generate_lp_pptx(
         _table_x = Inches(0.6)
 
         # 헤더
-        for j, (col_name, w) in enumerate(_col_w):
-            _x = _table_x + sum(cw for cw in _col_w[:j])
+        for j, (col_name, w) in enumerate(zip(_table_cols, _col_w)):
+            _x = _table_x + sum(_col_w[k] for k in range(j))
             _rounded(s, _x, Inches(1.4), w - Inches(0.05), Inches(0.3), D_GREEN, D_GREEN)
-            _text(s, _x, Inches(1.42), w - Inches(0.05), Inches(0.25), _table_cols[j], sz=8, c=WHITE, bold=True, align=PP_ALIGN.CENTER)
+            _text(s, _x, Inches(1.42), w - Inches(0.05), Inches(0.25), col_name, sz=8, c=WHITE, bold=True, align=PP_ALIGN.CENTER)
 
         # 데이터 행
         for i, (_, row) in enumerate(sorted_df.iterrows()):
@@ -266,7 +266,7 @@ def generate_lp_pptx(
             bg_row = XP_GREEN if i % 2 == 0 else WHITE
             vals = [row["회사명"], row["섹터"], f'{int(row["투자금액_백만원"]):,}', f'{row["MOIC"]}x', f'{row["IRR(%)"]}%', f'{row["TVPI"]}x']
             for j, (val, w) in enumerate(zip(vals, _col_w)):
-                _x = _table_x + sum(cw for cw in _col_w[:j])
+                _x = _table_x + sum(_col_w[k] for k in range(j))
                 _rounded(s, _x, y, w - Inches(0.05), Inches(0.45), bg_row, BORDER)
                 clr = D_GREEN if j == 3 and float(row["MOIC"]) >= 2.0 else RED_SOFT if j == 3 and float(row["MOIC"]) < 1.0 else BLACK
                 _text(s, _x, y + Inches(0.08), w - Inches(0.05), Inches(0.25), str(val), sz=9, c=clr, align=PP_ALIGN.CENTER)
