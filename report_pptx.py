@@ -75,12 +75,11 @@ def _circle_num(s, l, t, txt, bg=D_GREEN, fg=WHITE):
 
 def _header(s, label, title, message=""):
     _rect(s, Inches(0), Inches(0), W, Inches(0.06), D_GREEN)
-    _rect(s, Inches(0.5), Inches(0.15), Inches(8), Inches(0.5), WHITE)
-    _text(s, Inches(0.6), Inches(0.18), Inches(8), Inches(0.45), title, sz=22, c=BLACK, bold=True)
+    _text(s, Inches(0.6), Inches(0.2), Inches(8), Inches(0.4), title, sz=22, c=BLACK, bold=True)
     _text(s, Inches(10.5), Inches(0.2), Inches(2.5), Inches(0.2), label, sz=9, c=GREY, align=PP_ALIGN.RIGHT)
-    _rect(s, Inches(0.5), Inches(0.7), Inches(12.3), Pt(2), BLACK)
+    _rect(s, Inches(0.5), Inches(0.65), Inches(12.3), Pt(1.5), BLACK)
     if message:
-        _text(s, Inches(0.6), Inches(0.85), Inches(12), Inches(0.35), message, sz=13, c=BLACK, bold=True)
+        _text(s, Inches(0.6), Inches(0.8), Inches(12), Inches(0.35), message, sz=12, c=BLACK, bold=True)
 
 def _page(s, n, total):
     _text(s, Inches(12.0), Inches(7.05), Inches(1.2), Inches(0.3),

@@ -948,7 +948,16 @@ with tab2:
         st.plotly_chart(fig_q, use_container_width=True)
         st.dataframe(trend_df, use_container_width=True, hide_index=True)
 
-        st.caption("Report 탭에서 '분기별 추이'를 선택하면 보고서에 포함됩니다.")
+        # QoQ 변화 카드
+        if len(trend_df) >= 2:
+            _prev = trend_df.iloc[-2]
+            _curr = trend_df.iloc[-1]
+            st.markdown(f"##### QoQ 변화 ({_prev['quarter']} → {_curr['quarter']})")
+            _qc1, _qc2, _qc3, _qc4 = st.columns(4)
+            for _col, _metric in [(_qc1, "MOIC"), (_qc2, "TVPI"), (_qc3, "DPI"), (_qc4, "RVPI")]:
+                if _metric in _curr and _metric in _prev:
+                    _delta = round(_curr[_metric] - _prev[_metric], 2)
+                    _col.metric(_metric, f"{_curr[_metric]}x", delta=f"{_delta:+.2f}x QoQ")
 
 # ── TAB 3: Analysis ──────────────────────────────
 with tab3:
@@ -986,9 +995,13 @@ with tab3:
         options = {r["corp_name"]: r["corp_code"] for r in st.session_state["dart_results"]}
         selected = st.selectbox("기업 선택", list(options.keys()))
 
+        @st.cache_data(ttl=3600, show_spinner=False)
+        def _cached_financials(corp_code):
+            return get_financials(corp_code)
+
         if st.button("재무제표 조회", key="dart_fin"):
             with st.spinner("재무제표 불러오는 중..."):
-                fin_df = get_financials(options[selected])
+                fin_df = _cached_financials(options[selected])
             if not fin_df.empty:
                 st.session_state["dart_fin_df"] = fin_df
                 st.session_state["dart_selected"] = selected
