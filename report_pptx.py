@@ -118,6 +118,11 @@ def generate_lp_pptx(
     include_charts: bool = False,
     jcurve_df=None,
     scenario_df=None, scenario_company: str = "",
+    sensitivity_df=None, sensitivity_company: str = "",
+    dart_fin_df=None, dart_company: str = "",
+    kvic_sector_df=None,
+    rate_df=None, fx_df=None, spread=None,
+    df_raw=None,
 ) -> bytes:
     prs = Presentation()
     prs.slide_width = W
@@ -429,6 +434,102 @@ def generate_lp_pptx(
             _text(s, x, Inches(5.8), Inches(1.5), Inches(0.2), lab, sz=9, c=GREY)
             _text(s, x+Inches(1.5), Inches(5.8), Inches(1.5), Inches(0.2), val, sz=11, c=D_GREEN, bold=True)
         slides.append("Waterfall")
+
+    # ═══ IRR Sensitivity ═══
+    if _sec("Sensitivity") and sensitivity_df is not None:
+        s = prs.slides.add_slide(prs.slide_layouts[6]); _bg(s)
+        _header(s, "IRR SENSITIVITY MATRIX", f"IRR Sensitivity — {sensitivity_company}")
+        if include_charts:
+            import plotly.graph_objects as go
+            matrix = sensitivity_df.values.tolist()
+            fig = go.Figure(data=go.Heatmap(
+                z=matrix, x=list(sensitivity_df.columns), y=list(sensitivity_df.index),
+                colorscale=[[0,"#d32f2f"],[0.15,"#e53935"],[0.3,"#ff9800"],[0.45,"#ffc107"],
+                            [0.55,"#cddc39"],[0.7,"#66bb6a"],[0.85,"#43a047"],[1.0,"#1b5e20"]],
+                zmid=15, text=[[f"{v}%" for v in row] for row in matrix],
+                texttemplate="%{text}", textfont=dict(size=8, color="#fff"),
+            ))
+            fig.update_layout(height=350, width=700, margin=dict(t=5,b=25,l=50,r=10),
+                paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                xaxis_title="보유기간", yaxis_title="Exit 배수")
+            _add_chart_to_slide(s, fig, 0.8, 1.5, 7.0, 4.5)
+        else:
+            _text(s, Inches(0.8), Inches(1.5), Inches(11), Inches(0.3),
+                  "Exit 배수 × 보유기간 조합별 예상 IRR (%)", sz=12, c=D_GREY)
+            cols = list(sensitivity_df.columns)
+            for j, (idx, row) in enumerate(sensitivity_df.iterrows()):
+                y_pos = Inches(2.0) + Inches(j * 0.45)
+                _text(s, Inches(0.8), y_pos, Inches(1.0), Inches(0.2), str(idx), sz=10, c=BLACK, bold=True)
+                for k, c in enumerate(cols[:8]):
+                    _text(s, Inches(2.0)+Inches(k*1.2), y_pos, Inches(1.0), Inches(0.2), f"{row[c]}%", sz=9, c=D_GREY)
+        slides.append("Sensitivity")
+
+    # ═══ DART 재무 ═══
+    if _sec("DART") and dart_fin_df is not None and not dart_fin_df.empty:
+        s = prs.slides.add_slide(prs.slide_layouts[6]); _bg(s)
+        _header(s, "DART FINANCIALS", f"DART 재무분석 — {dart_company}")
+        if include_charts:
+            import plotly.graph_objects as go
+            chart_df = dart_fin_df.copy()
+            for col in ["매출액", "영업이익", "당기순이익"]:
+                if col in chart_df.columns:
+                    chart_df[col] = chart_df[col].apply(lambda x: round(x / 1e6) if pd.notna(x) else 0)
+            fig = go.Figure()
+            for col, clr in [("매출액","#1b5e20"),("영업이익","#43a047"),("당기순이익","#a5d6a7")]:
+                if col in chart_df.columns:
+                    fig.add_trace(go.Bar(name=col, x=chart_df["연도"].tolist(), y=chart_df[col].tolist(), marker_color=clr, marker_line_width=0))
+            fig.update_layout(barmode="group", height=300, width=600, margin=dict(t=5,b=25,l=40,r=10),
+                paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", bargap=0.3,
+                legend=dict(orientation="h", y=-0.12), yaxis=dict(showgrid=True, gridcolor="#eee", title="백만원"))
+            _add_chart_to_slide(s, fig, 0.8, 1.5, 6.5, 3.5)
+        for i, (_, r) in enumerate(dart_fin_df.iterrows()):
+            y_pos = Inches(5.5) + Inches(i * 0.4)
+            yr = str(int(r["연도"])) if pd.notna(r.get("연도")) else ""
+            rev = f"{r['매출액']/1e6:,.0f}백만" if pd.notna(r.get("매출액")) and r["매출액"] != 0 else "-"
+            _text(s, Inches(0.8), y_pos, Inches(1.5), Inches(0.2), yr, sz=10, c=BLACK, bold=True)
+            _text(s, Inches(2.5), y_pos, Inches(3.0), Inches(0.2), f"매출 {rev}", sz=10, c=D_GREY)
+        slides.append("DART")
+
+    # ═══ KVIC 시장 비교 ═══
+    if _sec("KVIC") and kvic_sector_df is not None and not kvic_sector_df.empty:
+        s = prs.slides.add_slide(prs.slide_layouts[6]); _bg(s)
+        _header(s, "KVIC MARKET COMPARISON", "KVIC 시장 비교")
+        kvic_total = kvic_sector_df["총약정액(억원)"].sum()
+        kvic_funds = int(kvic_sector_df["조합수"].sum())
+        my_inv = result_df["투자금액_백만원"].sum() / 100 if df_raw is not None else total_inv / 100
+        _metric_card(s, Inches(0.8), Inches(1.5), Inches(3.5), Inches(1.3), "내 펀드", f"{my_inv:,.0f}억", f"KVIC의 {my_inv/kvic_total*100:.2f}%" if kvic_total > 0 else "")
+        _metric_card(s, Inches(4.8), Inches(1.5), Inches(3.5), Inches(1.3), "KVIC 전체", f"{kvic_total:,.0f}억", f"{kvic_funds:,}개 조합")
+        avg_f = kvic_total / kvic_funds if kvic_funds > 0 else 0
+        _metric_card(s, Inches(8.8), Inches(1.5), Inches(3.5), Inches(1.3), "조합 평균 대비", f"{my_inv/avg_f:.1f}배" if avg_f > 0 else "-", f"평균 {avg_f:,.0f}억/조합")
+        if include_charts:
+            import plotly.graph_objects as go
+            top8 = kvic_sector_df.head(8)
+            fig = go.Figure(go.Bar(
+                x=top8["총약정액(억원)"].tolist(), y=top8["투자분야"].tolist(), orientation="h",
+                marker_color="rgba(27,94,32,0.6)", marker_line_width=0,
+                text=[f"{v:,.0f}억" for v in top8["총약정액(억원)"]], textposition="outside", textfont=dict(size=9),
+            ))
+            fig.update_layout(height=250, width=550, margin=dict(t=5,b=10,l=120,r=40),
+                paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                yaxis=dict(autorange="reversed", showgrid=False), xaxis=dict(showgrid=True, gridcolor="#eee"), bargap=0.25)
+            _add_chart_to_slide(s, fig, 0.8, 3.3, 6.0, 3.2)
+        slides.append("KVIC")
+
+    # ═══ 거시지표 ═══
+    if _sec("거시") and (rate_df is not None or fx_df is not None):
+        s = prs.slides.add_slide(prs.slide_layouts[6]); _bg(s)
+        _header(s, "MACRO INDICATORS", "거시지표 — 금리 · 환율")
+        y_pos = Inches(1.5)
+        if rate_df is not None and not rate_df.empty:
+            latest_rate = rate_df["기준금리(%)"].iloc[-1]
+            _metric_card(s, Inches(0.8), y_pos, Inches(3.5), Inches(1.3), "기준금리", f"{latest_rate}%", "한국은행")
+        if fx_df is not None and not fx_df.empty:
+            latest_fx = fx_df["원/달러(원)"].iloc[-1]
+            _metric_card(s, Inches(4.8), y_pos, Inches(3.5), Inches(1.3), "원/달러", f"{latest_fx:,.0f}원", "월평균")
+        if spread is not None:
+            _metric_card(s, Inches(8.8), y_pos, Inches(3.5), Inches(1.3), "IRR vs 금리", f"{spread:+.1f}%p", "펀드 스프레드",
+                         val_color=D_GREEN if spread > 0 else RED_SOFT)
+        slides.append("거시지표")
 
     # ═══ 9. AI 코멘터리 ═══
     if _sec("AI") and commentary:

@@ -900,9 +900,36 @@ with tab2:
         fig.update_xaxes(showgrid=False, zeroline=False, tickfont_size=10)
         fig.update_yaxes(showgrid=True, gridcolor="#f0f0f0", zeroline=False, tickfont_size=10)
         st.plotly_chart(fig, use_container_width=True)
-        st.caption("컬럼: 회사명, 날짜(YYYY-MM-DD), 현금흐름_백만원 — 투자=음수, 배당·회수=양수")
 
-        st.caption("Report 탭에서 J-Curve를 선택하면 통합 보고서에 포함됩니다.")
+        # J-Curve 결과 요약
+        _mn = trend["누적현금흐름"].min()
+        _cr = trend["누적현금흐름"].iloc[-1]
+        _be = trend[trend["누적현금흐름"] >= 0]
+        _be_dt = str(_be["날짜"].iloc[0])[:10] if not _be.empty else "미도달"
+        _mn_dt = str(trend.loc[trend["누적현금흐름"].idxmin(), "날짜"])[:10]
+
+        _jc1, _jc2, _jc3 = st.columns(3)
+        with _jc1:
+            st.metric("최대 투자 시점", _mn_dt, delta=f"{_mn:,.0f}백만원")
+        with _jc2:
+            st.metric("현재 누적 현금흐름", f"{_cr:,.0f}백만원",
+                      delta="회수 진행 중" if _cr > _mn else "투자 집중 구간")
+        with _jc3:
+            st.metric("손익분기 시점", _be_dt,
+                      delta="도달" if not _be.empty else "미도달")
+
+        if _cr < 0:
+            _recovery = round((_cr - _mn) / abs(_mn) * 100, 1) if _mn != 0 else 0
+            st.markdown(f"""
+<div style="background:#fafafa;border-radius:8px;padding:12px 16px;margin-top:8px;font-size:12px;color:#555;line-height:1.7;">
+  최저점({_mn_dt}) 대비 <b>{_recovery}%</b> 회복했으며, 현재 <b>{abs(_cr):,.0f}백만원</b> 미회수 상태입니다.
+  펀드가 J-Curve 상승 구간에 있으며, 추가 회수가 이뤄지면 손익분기에 도달할 수 있습니다.
+</div>""", unsafe_allow_html=True)
+        else:
+            st.markdown(f"""
+<div style="background:#e8f5e9;border-radius:8px;padding:12px 16px;margin-top:8px;font-size:12px;color:#1b5e20;line-height:1.7;">
+  펀드가 손익분기를 통과했습니다. 현재 누적 순현금흐름 <b>{_cr:,.0f}백만원</b>으로 수익 실현 단계에 진입했습니다.
+</div>""", unsafe_allow_html=True)
     else:
         st.info("현금흐름 CSV를 업로드하거나 샘플을 불러오세요.")
 
@@ -1237,60 +1264,43 @@ GP는 Hurdle을 넘어야 Carry를 받을 수 있어 LP 이익 보호 장치로 
         step_df["GP"] = step_df["GP"].apply(lambda x: f"{x:,.0f}")
         st.dataframe(step_df, use_container_width=True, hide_index=True)
 
-        # Waterfall 흐름 차트
-        wf_labels = ["투자금", "① 원금 반환", "② 우선수익", "③ GP 캐치업", "④ 초과수익 (LP)", "④ 초과수익 (GP)", "LP 최종", "GP 최종"]
-        wf_vals = [-wf_invested, lp1, lp2, -gp3, lp4, -gp4, total_lp, total_gp]
-        wf_measures = ["absolute", "relative", "relative", "relative", "relative", "relative", "total", "total"]
-        fig_wf = go.Figure(go.Waterfall(
-            x=wf_labels, y=wf_vals, measure=wf_measures,
-            connector=dict(line=dict(color="#e0e0e0", width=1)),
-            increasing=dict(marker_color="#1b5e20"),
-            decreasing=dict(marker_color="#e0a0a0"),
-            totals=dict(marker_color="#2e7d32"),
-            textposition="outside",
-            text=[f"{abs(v):,.0f}" for v in wf_vals],
-            textfont=dict(size=11),
-        ))
+        # Waterfall 시각화 — LP vs GP 수평 바
+        fig_wf = go.Figure()
+        _wf_steps = ["① 원금 반환", "② 우선수익", "③ GP 캐치업", "④ 초과수익"]
+        _wf_lp = [lp1, lp2, 0, lp4]
+        _wf_gp = [0, 0, gp3, gp4]
+        fig_wf.add_trace(go.Bar(name="LP", y=_wf_steps, x=_wf_lp, orientation="h",
+            marker_color="rgba(27,94,32,0.7)", marker_line_width=0,
+            text=[f"{v:,.0f}" if v > 0 else "" for v in _wf_lp], textposition="inside",
+            textfont=dict(color="#fff", size=11)))
+        fig_wf.add_trace(go.Bar(name="GP", y=_wf_steps, x=_wf_gp, orientation="h",
+            marker_color="rgba(27,94,32,0.3)", marker_line_width=0,
+            text=[f"{v:,.0f}" if v > 0 else "" for v in _wf_gp], textposition="inside",
+            textfont=dict(color="#333", size=11)))
         fig_wf.update_layout(
-            height=380,
+            barmode="stack", height=280,
             plot_bgcolor="#ffffff", paper_bgcolor="#ffffff",
             font=dict(family="Pretendard, sans-serif", color="#1a1a1a", size=11),
-            margin=dict(t=20, b=10, l=20, r=20),
-            yaxis=dict(showgrid=True, gridcolor="#f0f0f0", zeroline=True, zerolinecolor="#ccc", title="백만원"),
-            xaxis=dict(showgrid=False, tickangle=-20),
-            showlegend=False,
+            margin=dict(t=10, b=10, l=100, r=20),
+            xaxis=dict(showgrid=True, gridcolor="#f0f0f0", title="백만원"),
+            yaxis=dict(showgrid=False, autorange="reversed"),
+            legend=dict(orientation="h", y=-0.15, font_size=11),
+            bargap=0.3,
         )
         st.plotly_chart(fig_wf, use_container_width=True)
 
-        # LP vs GP 최종 파이
-        col_pie, col_txt = st.columns([1, 1])
-        with col_pie:
-            fig_pie = px.pie(
-                values=[total_lp, total_gp],
-                names=["LP", "GP"],
-                color_discrete_sequence=["#1b5e20", "#c8e6c9"],
-                hole=0.5,
-            )
-            fig_pie.update_traces(
-                textinfo="label+percent+value",
-                texttemplate="%{label}<br>%{percent}<br>%{value:,.0f}M",
-                marker_line_width=2, marker_line_color="#ffffff",
-            )
-            fig_pie.update_layout(
-                showlegend=False, margin=dict(t=20, b=0),
-                paper_bgcolor="#ffffff",
-                font=dict(family="Pretendard, sans-serif", color="#1a1a1a", size=12),
-            )
-            st.plotly_chart(fig_pie, use_container_width=True)
-        with col_txt:
-            st.metric("총 수익", f"{total_profit:,.0f}M")
+        # LP vs GP 결과 요약
+        _lp_moic = total_lp / wf_invested if wf_invested > 0 else 0
+        _r1, _r2, _r3, _r4 = st.columns(4)
+        with _r1:
+            st.metric("LP 수취", f"{total_lp:,.0f}M", delta=f"MOIC {_lp_moic:.2f}x")
+        with _r2:
+            st.metric("GP Carry", f"{total_gp:,.0f}M", delta=f"실효 {eff_carry:.1f}%")
+        with _r3:
             st.metric("LP 순수익", f"{total_lp-wf_invested:,.0f}M")
-            st.metric("GP Carry", f"{total_gp:,.0f}M", delta=f"수익의 {eff_carry:.1f}%")
-            st.markdown(f"""
-**LP MOIC** {total_lp/wf_invested:.2f}x · **GP 실효 Carry** {eff_carry:.1f}%
-
-<span style="font-size:11px;color:#999;">Hurdle {wf_hurdle}% · 캐치업 {wf_catchup}% · Carry {wf_carry}% · {wf_years}년</span>
-""", unsafe_allow_html=True)
+        with _r4:
+            st.metric("총 수익", f"{total_profit:,.0f}M")
+        st.caption(f"Hurdle {wf_hurdle}% · 캐치업 {wf_catchup}% · Carry {wf_carry}% · {wf_years}년")
 
 # ── TAB 4: Benchmark ─────────────────────────────
 with tab4:
@@ -1622,7 +1632,7 @@ span[data-baseweb="tag"] svg { fill:#999 !important; width:12px !important; }
         selected = st.multiselect("포함할 섹션", all_sections, default=default_sections)
         st.session_state["report_sections"] = selected
         st.session_state["report_include_charts"] = any("시각화" in s for s in selected)
-        st.caption("위 항목이 보고서에 포함됩니다. 불필요한 항목은 x로 제거하고, 드롭다운에서 추가 항목을 선택할 수 있습니다.")
+        st.caption("위 항목이 보고서에 포함됩니다. 섹션을 변경한 후 아래 '보고서 생성' 버튼을 다시 눌러주세요.")
 
         st.markdown("---")
 
@@ -1648,11 +1658,27 @@ span[data-baseweb="tag"] svg { fill:#999 !important; width:12px !important; }
                 if _sc_pptx is None and "시나리오" in str(selected):
                     from simulator import simulate_exit
                     _sc_pptx = simulate_exit(float(df["투자금액_백만원"].sum()), df["투자일"].min(), [0.5,1.0,1.5,2.0,2.5,3.0,4.0,5.0])
+                # Sensitivity 자동 생성
+                _sens_pptx = st.session_state.get("sensitivity_matrix_df")
+                _sens_co_pptx = st.session_state.get("sensitivity_company", "펀드 전체")
+                if _sens_pptx is None and "Sensitivity" in str(selected):
+                    _mults = [0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 4.0, 5.0]
+                    _yrs = list(range(1, 11))
+                    _mat = [[round((m ** (1/y) - 1) * 100, 1) for y in _yrs] for m in _mults]
+                    _sens_pptx = pd.DataFrame(_mat, index=[f"{m}x" for m in _mults], columns=[f"{y}년" for y in _yrs])
                 pptx_bytes = generate_lp_pptx(summary, result_df, _comm, quarter,
                     fund_name=fund_name, fund_strategy=fund_strategy, base_date=base_date,
                     selected_sections=selected,
                     include_charts=st.session_state.get("report_include_charts", True),
-                    jcurve_df=_jc_pptx, scenario_df=_sc_pptx, scenario_company=_sc_co_pptx)
+                    jcurve_df=_jc_pptx, scenario_df=_sc_pptx, scenario_company=_sc_co_pptx,
+                    sensitivity_df=_sens_pptx, sensitivity_company=_sens_co_pptx,
+                    dart_fin_df=st.session_state.get("dart_fin_df"),
+                    dart_company=st.session_state.get("dart_selected", ""),
+                    kvic_sector_df=st.session_state.get("kvic_sector"),
+                    rate_df=st.session_state.get("macro_rate_df"),
+                    fx_df=st.session_state.get("macro_fx_df"),
+                    spread=st.session_state.get("macro_spread"),
+                    df_raw=df)
             st.download_button("PPTX 다운로드", pptx_bytes, file_name=f"Report_{quarter}.pptx",
                                mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
                                use_container_width=True)
