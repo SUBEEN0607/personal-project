@@ -140,17 +140,17 @@ h1,h2,h3,h4,h5,h6 { color: #1a1a1a !important; }
     color: #1a1a1a !important;
 }
 
-/* Download button — accent */
+/* Download button — soft green */
 .stDownloadButton > button {
-    background-color: #1b5e20 !important;
-    color: #ffffff !important;
-    border: none !important;
+    background-color: rgba(27,94,32,0.08) !important;
+    color: #1b5e20 !important;
+    border: 1px solid rgba(27,94,32,0.2) !important;
     border-radius: 8px !important;
     font-weight: 500 !important;
 }
 .stDownloadButton > button:hover {
-    background-color: #14471a !important;
-    color: #ffffff !important;
+    background-color: rgba(27,94,32,0.15) !important;
+    color: #1b5e20 !important;
 }
 
 /* DataFrames — green header */
@@ -1611,33 +1611,38 @@ span[data-baseweb="tag"] svg { fill:#999 !important; width:12px !important; }
 """, unsafe_allow_html=True)
 
         all_sections = [
-            "성과 요약 (MOIC·IRR·DPI·RVPI·TVPI)",
-            "포트폴리오 상세",
-            "Top/Bottom 성과 분석",
-            "섹터별 투자 비중",
-            "리스크 평가",
-            "AI 코멘터리",
-            "시각화 차트",
-            "J-Curve 현금흐름",
-            "시나리오 분석",
-            "Waterfall 분배",
-            "KVIC 시장 비교",
-            "분기별 추이",
-            "DART 재무분석",
-            "IRR Sensitivity",
-            "거시지표 (금리·환율)",
-            "집중도·투자기간·실현율",
+            ("성과 요약 (MOIC·IRR·DPI·RVPI·TVPI)", True),
+            ("포트폴리오 상세", True),
+            ("Top/Bottom 성과 분석", True),
+            ("섹터별 투자 비중", True),
+            ("리스크 평가", True),
+            ("AI 코멘터리", True),
+            ("시각화 차트", True),
+            ("J-Curve 현금흐름", True),
+            ("시나리오 분석", True),
+            ("Waterfall 분배", True),
+            ("KVIC 시장 비교", True),
+            ("분기별 추이", False),
+            ("DART 재무분석", False),
+            ("IRR Sensitivity", False),
+            ("거시지표 (금리·환율)", False),
+            ("집중도·투자기간·실현율", False),
         ]
-        default_sections = all_sections[:11]
-        selected = st.multiselect("포함할 섹션", all_sections, default=default_sections)
+        st.markdown("##### 포함할 섹션")
+        _cols = st.columns(4)
+        selected = []
+        for i, (name, default) in enumerate(all_sections):
+            with _cols[i % 4]:
+                if st.checkbox(name, value=default, key=f"sec_{i}"):
+                    selected.append(name)
         st.session_state["report_sections"] = selected
         st.session_state["report_include_charts"] = any("시각화" in s for s in selected)
-        st.caption("위 항목이 보고서에 포함됩니다. 섹션을 변경한 후 아래 '보고서 생성' 버튼을 다시 눌러주세요.")
+        st.caption(f"{len(selected)}개 섹션 선택됨. 아래 버튼을 누르면 보고서가 생성됩니다.")
 
         st.markdown("---")
 
         # 출력 버튼
-        if st.button("보고서 생성 (PPTX)", use_container_width=True, type="primary"):
+        if st.button("보고서 생성 (PPTX)", use_container_width=True):
             with st.spinner("PPTX 생성 중..."):
                 from report_pptx import generate_lp_pptx
                 _comm = generate_commentary(summary,

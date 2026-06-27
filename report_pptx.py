@@ -104,6 +104,14 @@ def _add_chart_to_slide(s, fig, left, top, width_in, height_in):
     except Exception:
         pass
 
+def _insight_box(s, l, t, w, h, title, bullets, bg=RGBColor(0xF5,0xF3,0xEF)):
+    _rounded(s, l, t, w, h, bg, BORDER)
+    _text(s, l+Inches(0.15), t+Inches(0.1), w-Inches(0.3), Inches(0.2),
+          title, sz=9, c=GREY, bold=True)
+    for i, b in enumerate(bullets[:5]):
+        _text(s, l+Inches(0.15), t+Inches(0.35)+Inches(i*0.25), w-Inches(0.3), Inches(0.22),
+              f"· {b}", sz=9, c=D_GREY)
+
 
 # ══════════════════════════════════════════════════
 def generate_lp_pptx(
@@ -182,16 +190,34 @@ def generate_lp_pptx(
     if _sec("성과 요약"):
         s = prs.slides.add_slide(prs.slide_layouts[6]); _bg(s)
         _header(s, "PERFORMANCE SUMMARY", "성과 요약")
-        _metric_card(s, Inches(0.8), Inches(1.5), Inches(5.7), Inches(1.5), "MOIC", f"{moic}x", "투자원금 대비 전체 가치 배수")
-        _metric_card(s, Inches(6.8), Inches(1.5), Inches(5.7), Inches(1.5), "IRR", f"{avg_irr}%", "시간가치 반영 연환산 수익률")
+
+        # 좌측: Hero 지표
+        _metric_card(s, Inches(0.8), Inches(1.5), Inches(3.8), Inches(1.5), "MOIC", f"{moic}x", "투자원금 대비 전체 가치")
+        _metric_card(s, Inches(4.9), Inches(1.5), Inches(3.8), Inches(1.5), "IRR", f"{avg_irr}%", "연환산 수익률")
+
+        # 우측: 인사이트
+        _insights = []
+        if moic >= 2.0: _insights.append(f"MOIC {moic}x로 벤치마크(2.0x) 달성")
+        else: _insights.append(f"MOIC {moic}x — 벤치마크(2.0x) 대비 {moic/2.0*100:.0f}% 수준")
+        if avg_irr >= 15: _insights.append(f"IRR {avg_irr}%로 목표(15%) 초과 달성")
+        else: _insights.append(f"IRR {avg_irr}% — 목표(15%) 미달")
+        _insights.append(f"DPI {dpi}x — {'현금 회수 진행 중' if dpi > 0.5 else '초기 단계, 회수 제한적'}")
+        _insights.append(f"{n}개 기업에 총 {total_inv:,}백만원 투자")
+        _insight_box(s, Inches(9.0), Inches(1.5), Inches(3.8), Inches(1.5), "KEY INSIGHT", _insights)
+
+        # 하단: 보조 지표 + 벤치마크 바
         for i, (lab, val, sub) in enumerate([("DPI", f"{dpi}x", "현금 회수"), ("RVPI", f"{rvpi}x", "잔존 가치"), ("TVPI", f"{tvpi}x", "DPI+RVPI"), ("투자기업", f"{n}개", f"총 {total_inv:,}M")]):
-            _metric_card(s, Inches(0.8)+Inches(i*3.05), Inches(3.4), Inches(2.8), Inches(1.3), lab, val, sub, bg=XP_GREEN, val_color=D_GREEN)
-        for i, (nm, act, tgt, desc) in enumerate([("MOIC", moic, 2.0, "≥ 2.0x"), ("IRR", avg_irr, 15.0, "≥ 15%"), ("TVPI", tvpi, 2.0, "≥ 2.0x")]):
-            y = Inches(5.3) + Inches(i * 0.55)
+            _metric_card(s, Inches(0.8)+Inches(i*3.05), Inches(3.4), Inches(2.8), Inches(1.2), lab, val, sub, bg=XP_GREEN, val_color=D_GREEN)
+
+        _text(s, Inches(0.8), Inches(4.9), Inches(4), Inches(0.2), "벤치마크 달성률", sz=10, c=GREY, bold=True)
+        for i, (nm, act, tgt) in enumerate([("MOIC", moic, 2.0), ("IRR", avg_irr, 15.0), ("TVPI", tvpi, 2.0)]):
+            y = Inches(5.2) + Inches(i * 0.5)
             _text(s, Inches(0.8), y, Inches(1.0), Inches(0.2), nm, sz=10, c=BLACK, bold=True)
-            _bar_visual(s, Inches(2.0), y+Inches(0.02), Inches(7.5), Inches(0.2), min(float(act)/float(tgt), 1.5)/1.5)
+            pct = min(float(act)/float(tgt), 1.5)/1.5
+            _bar_visual(s, Inches(2.0), y+Inches(0.02), Inches(7.0), Inches(0.18), pct)
             clr = D_GREEN if float(act) >= tgt else RED_SOFT
-            _text(s, Inches(9.8), y, Inches(1.5), Inches(0.2), f"{act}/{tgt}", sz=9, c=clr, bold=True)
+            _text(s, Inches(9.2), y, Inches(1.5), Inches(0.2), f"{act}", sz=10, c=clr, bold=True)
+            _text(s, Inches(10.5), y, Inches(1.5), Inches(0.2), f"/ {tgt}", sz=9, c=GREY)
         slides.append("성과")
 
     # ═══ 3. 포트폴리오 상세 ═══
@@ -236,6 +262,14 @@ def generate_lp_pptx(
                 _text(s, Inches(10.1), y+Inches(0.03), Inches(1.2), Inches(0.22), f"MOIC {row['평균MOIC']:.1f}x", sz=9, c=D_GREY)
                 _text(s, Inches(11.3), y+Inches(0.03), Inches(1.2), Inches(0.22), f"IRR {row['평균IRR']:.0f}%", sz=9, c=D_GREY)
 
+            # 섹터 인사이트
+            top_sec = sa.iloc[0]
+            _sec_insights = [
+                f"최대 투자 섹터: {top_sec['섹터']} ({top_sec['총투자']/total_all*100:.0f}%)",
+                f"전체 {len(sa)}개 섹터에 분산 투자",
+                f"최고 MOIC 섹터: {sa.sort_values('평균MOIC', ascending=False).iloc[0]['섹터']} ({sa['평균MOIC'].max():.1f}x)",
+            ]
+            _insight_box(s, Inches(0.8), Inches(6.0), Inches(11.7), Inches(1.2), "SECTOR INSIGHT", _sec_insights)
         slides.append("섹터")
 
     # ═══ 5. Top/Bottom ═══
@@ -267,7 +301,17 @@ def generate_lp_pptx(
                 text=[f"{m}x" for m in tb["MOIC"]], textposition="outside"))
             fig.update_layout(height=180, width=450, margin=dict(t=5,b=5,l=80,r=30), paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
                 xaxis=dict(showgrid=True, gridcolor="#eee"), yaxis=dict(showgrid=False), bargap=0.3)
-            _add_chart_to_slide(s, fig, 0.8, 4.8, 5.0, 2.2)
+            _add_chart_to_slide(s, fig, 0.8, 4.5, 5.0, 2.5)
+
+        # Top/Bottom 인사이트
+        _top1 = sd.iloc[0]; _bot1 = sd.iloc[-1]
+        _tb_insights = [
+            f"최고: {_top1['회사명']} (MOIC {_top1['MOIC']}x, IRR {_top1['IRR(%)']}%)",
+            f"최저: {_bot1['회사명']} (MOIC {_bot1['MOIC']}x)",
+            f"MOIC 1.0x 미만: {len(sd[sd['MOIC']<1.0])}개사",
+            f"상위 3개 평균 MOIC: {sd.head(3)['MOIC'].mean():.1f}x",
+        ]
+        _insight_box(s, Inches(6.5), Inches(4.5), Inches(6.0), Inches(2.5), "PERFORMANCE INSIGHT", _tb_insights)
         slides.append("Top/Bottom")
 
     # ═══ 6. 집중도 ═══
