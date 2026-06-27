@@ -10,15 +10,7 @@ from rag import answer_question
 from irr import j_curve_data
 from simulator import simulate_exit, optimal_exit_timing
 from db import save_snapshot, load_quarters, load_trend
-from report import (
-    generate_pdf,
-    generate_full_pdf,
-    generate_jcurve_pdf,
-    generate_scenario_pdf,
-    generate_quarterly_pdf,
-    generate_dart_pdf,
-    generate_macro_pdf,
-)
+from report import generate_full_pdf
 from dart_client import search_company, get_financials
 from benchmark import (
     get_base_rate, get_exchange_rate, get_vc_trend,
@@ -55,9 +47,12 @@ html, body, [class*="css"], .stApp {
 
 /* Sidebar */
 [data-testid="stSidebar"] {
-    background-color: #ffffff !important;
-    border-right: 1px solid #e5e5e5 !important;
+    background-color: #f8f8f6 !important;
+    border-right: 1px solid #eee !important;
     border-left: none !important;
+}
+[data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h3 {
+    font-size: 14px !important;
 }
 
 /* Typography — tight, bold headings */
@@ -941,17 +936,7 @@ with tab2:
         st.plotly_chart(fig_q, use_container_width=True)
         st.dataframe(trend_df, use_container_width=True)
 
-        st.divider()
-        if st.button("분기 추이 보고서 생성", key="trend_pdf"):
-            with st.spinner("AI 해석 생성 중..."):
-                ai_text = interpret_quarterly_trend(trend_df)
-                pdf_bytes = generate_quarterly_pdf(trend_df, ai_text, quarter)
-            st.text_area("AI 해석 미리보기", ai_text, height=200)
-            st.download_button(
-                "PDF 다운로드", pdf_bytes,
-                file_name=f"quarterly_trend_{quarter or 'report'}.pdf",
-                mime="application/pdf",
-            )
+        st.caption("Report 탭에서 '분기별 추이'를 선택하면 보고서에 포함됩니다.")
 
 # ── TAB 3: Analysis ──────────────────────────────
 with tab3:
@@ -1035,17 +1020,7 @@ with tab3:
             fig_dart.update_yaxes(showgrid=True, gridcolor="#f0f0f0", zeroline=False, tickformat=",")
             st.plotly_chart(fig_dart, use_container_width=True)
 
-            st.divider()
-            if st.button("DART 재무분석 보고서 생성", key="dart_pdf"):
-                with st.spinner("AI 해석 생성 중..."):
-                    ai_text = interpret_dart_financials(selected_name, fin_df)
-                    pdf_bytes = generate_dart_pdf(selected_name, fin_df, ai_text, quarter)
-                st.text_area("AI 해석 미리보기", ai_text, height=200)
-                st.download_button(
-                    "PDF 다운로드", pdf_bytes,
-                    file_name=f"dart_{selected_name}_{quarter or 'report'}.pdf",
-                    mime="application/pdf",
-                )
+            st.caption("Report 탭에서 'DART 재무분석'을 선택하면 보고서에 포함됩니다.")
 
     # ── ② 시나리오 시뮬레이터 ───────────────────────
     st.markdown("---")
@@ -1627,87 +1602,9 @@ span[data-baseweb="tag"] svg { fill:#999 !important; width:12px !important; }
         st.markdown("---")
 
         # 출력 버튼
-        fmt1, fmt2, fmt3 = st.columns(3)
+        fmt1, fmt2 = st.columns(2)
         with fmt1:
-            if st.button("LP 보고서 (PDF)", use_container_width=True):
-                with st.spinner("PDF 생성 중..."):
-                    sel_str = str(selected)
-                    detail_rows = result_df[["회사명","MOIC","IRR(%)","TVPI","투자금액_백만원"]].to_dict("records")
-                    _comm = generate_commentary(summary, detail_rows) if "AI" in sel_str else ""
-
-                    # J-Curve: session에 있으면 사용, 없으면 포트폴리오 데이터에서 자동 생성
-                    _jc = st.session_state.get("jcurve_trend")
-                    if _jc is None and "J-Curve" in sel_str:
-                        _rows = []
-                        for _, _r in df.iterrows():
-                            _rows.append({"날짜": _r["투자일"], "현금흐름_백만원": -float(_r["투자금액_백만원"])})
-                            if float(_r.get("회수금액_백만원", 0)) > 0:
-                                _rows.append({"날짜": _r["기준일"], "현금흐름_백만원": float(_r["회수금액_백만원"])})
-                            _rows.append({"날짜": _r["기준일"], "현금흐름_백만원": float(_r["현재가치_백만원"])})
-                        if _rows:
-                            from irr import j_curve_data
-                            _jc = j_curve_data(pd.DataFrame(_rows))
-
-                    # 시나리오: Analysis 탭에서 설정한 기업+데이터 우선, 없으면 포트폴리오 전체 기준
-                    _inc_sc = "시나리오" in sel_str
-                    _sc_df = st.session_state.get("scenario_sim_df")
-                    _sc_opt = st.session_state.get("scenario_opt")
-                    _sc_co = st.session_state.get("scenario_company", "")
-                    if _sc_df is None and _inc_sc:
-                        from simulator import simulate_exit, optimal_exit_timing
-                        _sc_co = "펀드 전체"
-                        _total_inv = float(df["투자금액_백만원"].sum())
-                        _total_val = float(df["현재가치_백만원"].sum() + df["회수금액_백만원"].sum())
-                        _inv_date = df["투자일"].min()
-                        _sc_df = simulate_exit(_total_inv, _inv_date, [0.5,1.0,1.5,2.0,2.5,3.0,4.0,5.0])
-                        _sc_opt = optimal_exit_timing(_total_inv, _total_val, _inv_date, 20)
-
-                    # Sensitivity: Analysis 탭 설정 우선, 없으면 펀드 전체 기준
-                    _sens_df = st.session_state.get("sensitivity_matrix_df")
-                    _sens_co = st.session_state.get("sensitivity_company", "")
-                    if _sens_df is None and "Sensitivity" in sel_str:
-                        _sens_co = "펀드 전체"
-                        _multiples = [0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 4.0, 5.0]
-                        _years = list(range(1, 11))
-                        _matrix = [[round((m ** (1/y) - 1) * 100, 1) for y in _years] for m in _multiples]
-                        _sens_df = pd.DataFrame(_matrix, index=[f"{m}x" for m in _multiples], columns=[f"{y}년" for y in _years])
-
-                    _tr = None
-                    if "분기별" in sel_str:
-                        from db import load_quarters, load_trend
-                        if load_quarters(): _tr = load_trend()
-                    _rate = st.session_state.get("macro_rate_df") if "거시" in sel_str else None
-                    _fx = st.session_state.get("macro_fx_df") if "거시" in sel_str else None
-                    _inc_wf = "Waterfall" in sel_str
-                    _wf_params = {
-                        "hurdle": st.session_state.get("wf_hurdle", 8),
-                        "carry": st.session_state.get("wf_carry", 20),
-                        "years": st.session_state.get("wf_years", 5),
-                    }
-                    _sens_df = st.session_state.get("sensitivity_matrix_df")
-                    _sens_co = st.session_state.get("sensitivity_company", "")
-                    _dart_df = st.session_state.get("dart_fin_df")
-                    _dart_co = st.session_state.get("dart_selected", "")
-                    _kvic_sec = st.session_state.get("kvic_sector")
-                    _kvic_trend = st.session_state.get("kvic_trend")
-                    pdf_bytes = generate_full_pdf(
-                        summary, result_df, df, _comm, quarter,
-                        fund_name=fund_name, fund_strategy=fund_strategy, base_date=base_date,
-                        jcurve_df=_jc, trend_df=_tr, rate_df=_rate, fx_df=_fx,
-                        spread=st.session_state.get("macro_spread"),
-                        include_waterfall=_inc_wf, include_scenario=_inc_sc,
-                        scenario_company=_sc_co, scenario_df=_sc_df, scenario_opt=_sc_opt,
-                        selected_sections=selected,
-                        sensitivity_df=_sens_df, sensitivity_company=_sens_co,
-                        dart_fin_df=_dart_df, dart_company=_dart_co,
-                        include_charts=st.session_state.get("report_include_charts", True),
-                        kvic_sector_df=_kvic_sec, kvic_trend_df=_kvic_trend,
-                        wf_params=_wf_params,
-                        )
-                st.download_button("PDF 다운로드", pdf_bytes, file_name=f"LP_Report_{quarter}.pdf",
-                                   mime="application/pdf", use_container_width=True)
-        with fmt2:
-            if st.button("IC 장표 (PPTX)", use_container_width=True):
+            if st.button("보고서 (PPTX)", use_container_width=True, type="primary"):
                 with st.spinner("PPTX 생성 중..."):
                     from report_pptx import generate_lp_pptx
                     _comm = generate_commentary(summary,
@@ -1716,12 +1613,12 @@ span[data-baseweb="tag"] svg { fill:#999 !important; width:12px !important; }
                         fund_name=fund_name, fund_strategy=fund_strategy, base_date=base_date,
                         selected_sections=selected,
                         include_charts=st.session_state.get("report_include_charts", True))
-                st.download_button("PPTX 다운로드", pptx_bytes, file_name=f"IC_Report_{quarter}.pptx",
+                st.download_button("PPTX 다운로드", pptx_bytes, file_name=f"Report_{quarter}.pptx",
                                    mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
                                    use_container_width=True)
         with fmt3:
             if st.button("데이터 (Excel)", use_container_width=True):
-                from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+                from openpyxl.styles import Font, PatternFill, Alignment
                 excel_buf = io.BytesIO()
                 sel = str(selected)
                 with pd.ExcelWriter(excel_buf, engine="openpyxl") as writer:
@@ -1741,7 +1638,22 @@ span[data-baseweb="tag"] svg { fill:#999 !important; width:12px !important; }
                             "값":[hhi,"High" if hhi>2500 else "Low",round((pd.to_datetime(df["기준일"])-pd.to_datetime(df["투자일"])).dt.days.mean()/365.25,1),
                                   round(df["회수금액_백만원"].sum()/(df["현재가치_백만원"].sum()+df["회수금액_백만원"].sum())*100,1)]
                         }).to_excel(writer, sheet_name="Analytics", index=False)
-                    df.to_excel(writer, sheet_name="Raw Data", index=False)
+                    _jc_ex = st.session_state.get("jcurve_trend")
+                    if _jc_ex is not None and "J-Curve" in sel:
+                        _jc_ex.to_excel(writer, sheet_name="J-Curve", index=False)
+                    _sc_ex = st.session_state.get("scenario_sim_df")
+                    if _sc_ex is not None and "시나리오" in sel:
+                        _sc_ex.to_excel(writer, sheet_name="Scenario", index=False)
+                    _sens_ex = st.session_state.get("sensitivity_matrix_df")
+                    if _sens_ex is not None and "Sensitivity" in sel:
+                        _sens_ex.to_excel(writer, sheet_name="IRR_Sensitivity")
+                    if "Waterfall" in sel:
+                        _wf_data = pd.DataFrame({
+                            "항목": ["총 투자금액", "총 회수금액", "LP 최종 수취", "GP Carry"],
+                            "금액(백만원)": [df["투자금액_백만원"].sum(), df["현재가치_백만원"].sum()+df["회수금액_백만원"].sum(), 0, 0]
+                        })
+                        _wf_data.to_excel(writer, sheet_name="Waterfall", index=False)
+                    df.to_excel(writer, sheet_name="Raw_Data", index=False)
                     wb = writer.book
                     gf = PatternFill(start_color="1B5E20",end_color="1B5E20",fill_type="solid")
                     wf = Font(name="맑은 고딕",bold=True,color="FFFFFF",size=11)
@@ -1755,6 +1667,27 @@ span[data-baseweb="tag"] svg { fill:#999 !important; width:12px !important; }
                 st.download_button("Excel 다운로드", excel_buf.getvalue(), file_name=f"Data_{quarter}.xlsx",
                                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                                    use_container_width=True)
+
+        # CSV 내보내기
+        with st.expander("CSV 개별 다운로드"):
+            st.caption("각 분석 결과를 CSV로 내보내 다른 도구에서 재사용할 수 있습니다.")
+            _csv_cols = st.columns(3)
+            with _csv_cols[0]:
+                st.download_button("포트폴리오 CSV", result_df.to_csv(index=False).encode("utf-8-sig"),
+                                   file_name="portfolio.csv", mime="text/csv", use_container_width=True)
+            with _csv_cols[1]:
+                _sec_csv = result_df.groupby("섹터").agg(기업수=("회사명","count"),총투자=("투자금액_백만원","sum"),평균MOIC=("MOIC","mean"),평균IRR=("IRR(%)","mean")).round(2).reset_index()
+                st.download_button("섹터 분석 CSV", _sec_csv.to_csv(index=False).encode("utf-8-sig"),
+                                   file_name="sector_analysis.csv", mime="text/csv", use_container_width=True)
+            with _csv_cols[2]:
+                st.download_button("원본 데이터 CSV", df.to_csv(index=False).encode("utf-8-sig"),
+                                   file_name="raw_data.csv", mime="text/csv", use_container_width=True)
+            if st.session_state.get("jcurve_trend") is not None:
+                st.download_button("J-Curve CSV", st.session_state["jcurve_trend"].to_csv(index=False).encode("utf-8-sig"),
+                                   file_name="jcurve.csv", mime="text/csv", use_container_width=True)
+            if st.session_state.get("sensitivity_matrix_df") is not None:
+                st.download_button("IRR Sensitivity CSV", st.session_state["sensitivity_matrix_df"].to_csv().encode("utf-8-sig"),
+                                   file_name="irr_sensitivity.csv", mime="text/csv", use_container_width=True)
 
         st.markdown("---")
         st.caption("본 보고서는 참고용 자료이며, 투자 결정의 근거로 단독 사용할 수 없습니다.")
