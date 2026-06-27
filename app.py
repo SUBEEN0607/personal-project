@@ -1677,16 +1677,21 @@ span[data-baseweb="tag"] svg { fill:#999 !important; width:12px !important; }
         # CSV 데이터 내보내기
         with st.expander("데이터 내보내기 (CSV)"):
             st.caption("분석 결과를 CSV로 내보내 Excel 등에서 재가공할 수 있습니다.")
-            # 포트폴리오 풍부하게
             _full = result_df.copy()
             _full["투자기간(년)"] = ((pd.to_datetime(_full["기준일"]) - pd.to_datetime(_full["투자일"])).dt.days / 365.25).round(1)
             _full["투자비중(%)"] = (_full["투자금액_백만원"] / _full["투자금액_백만원"].sum() * 100).round(1)
-            _full["수익금액(백만)"] = (_full["현재가치_백만원"] + _full["회수금액_백만원"] - _full["투자금액_백만원"]).round(0)
+            _full["총가치(백만)"] = (_full["현재가치_백만원"] + _full["회수금액_백만원"]).round(0)
+            _full["수익금액(백만)"] = (_full["총가치(백만)"] - _full["투자금액_백만원"]).round(0)
+            _full["수익률(%)"] = (_full["수익금액(백만)"] / _full["투자금액_백만원"] * 100).round(1)
+            _full["실현비율(%)"] = (_full["회수금액_백만원"] / _full["총가치(백만)"] * 100).where(_full["총가치(백만)"] > 0, 0).round(1)
             _full["투자금액(백만)"] = _full["투자금액_백만원"].apply(lambda x: round(x))
             _full["현재가치(백만)"] = _full["현재가치_백만원"].apply(lambda x: round(x))
             _full["회수금액(백만)"] = _full["회수금액_백만원"].apply(lambda x: round(x))
-            _export = _full[["회사명","섹터","투자단계","투자금액(백만)","현재가치(백만)","회수금액(백만)",
-                             "MOIC","IRR(%)","DPI","RVPI","TVPI","투자기간(년)","투자비중(%)","수익금액(백만)"]].copy()
+            _full["BM달성"] = _full["MOIC"].apply(lambda x: "O" if x >= 2.0 else "X")
+            _full["등급"] = _full["MOIC"].apply(lambda x: "상위" if x >= 3.0 else "양호" if x >= 2.0 else "보통" if x >= 1.0 else "부진")
+            _export = _full[["회사명","섹터","투자단계","투자금액(백만)","현재가치(백만)","회수금액(백만)","총가치(백만)",
+                             "MOIC","IRR(%)","DPI","RVPI","TVPI","투자기간(년)","투자비중(%)",
+                             "수익금액(백만)","수익률(%)","실현비율(%)","BM달성","등급"]].copy()
             c1, c2 = st.columns(2)
             with c1:
                 st.download_button("포트폴리오 전체", _export.to_csv(index=False).encode("utf-8-sig"),
