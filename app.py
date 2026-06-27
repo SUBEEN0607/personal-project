@@ -739,94 +739,61 @@ with tab1:
         st.markdown("---")
 
         # ── Charts ────────────────────────────────────
-        st.markdown("#### Charts")
-
-        # ── 초록 인포그래픽 차트 팔레트 ──────────────
         _GP = ["#1b5e20","#2e7d32","#43a047","#66bb6a","#81c784","#a5d6a7","#c8e6c9","#e8f5e9"]
-        _CHART = dict(
-            height=300, margin=dict(t=30,b=20,l=20,r=20),
-            plot_bgcolor="#ffffff", paper_bgcolor="#ffffff",
-            font=dict(family="Pretendard, sans-serif", color="#1a1a1a", size=12),
-        )
-        _GRID  = dict(showgrid=True, gridcolor="#f0f0f0", gridwidth=1, zeroline=False)
-        _NOGRID = dict(showgrid=False, zeroline=False)
+        _CS = dict(plot_bgcolor="#ffffff", paper_bgcolor="#ffffff",
+                   font=dict(family="Pretendard, sans-serif", color="#1a1a1a", size=11))
+
+        # MOIC 분포 (가로 풀와이드)
+        sorted_moic = result_df.sort_values("MOIC", ascending=True)
+        colors_moic = ["#1b5e20" if m >= 2 else "#43a047" if m >= 1 else "#e0a0a0" for m in sorted_moic["MOIC"]]
+        fig_bar = go.Figure(go.Bar(
+            x=sorted_moic["MOIC"].tolist(), y=sorted_moic["회사명"].tolist(),
+            orientation="h", marker_color=colors_moic, marker_line_width=0,
+            text=[f"{m}x · {s}" for m, s in zip(sorted_moic["MOIC"], sorted_moic["섹터"])],
+            textposition="outside", textfont=dict(size=10, color="#555"),
+        ))
+        fig_bar.add_vline(x=1.0, line_dash="dot", line_color="#ccc", annotation_text="BM 1.0x", annotation_font_size=9, annotation_font_color="#999")
+        fig_bar.add_vline(x=2.0, line_dash="dot", line_color="#bbb", annotation_text="BM 2.0x", annotation_font_size=9, annotation_font_color="#999")
+        fig_bar.update_layout(**_CS, height=280, margin=dict(t=30, b=15, l=90, r=80),
+            title=dict(text="MOIC Distribution", font=dict(size=13), x=0.02),
+            xaxis=dict(showgrid=True, gridcolor="#f0f0f0", zeroline=False),
+            yaxis=dict(showgrid=False), bargap=0.3)
+        st.plotly_chart(fig_bar, use_container_width=True)
 
         col_a, col_b = st.columns(2)
         with col_a:
-            st.markdown('<p style="font-size:12px;letter-spacing:0.1em;text-transform:uppercase;color:#1b5e20;font-weight:700;margin-bottom:6px;">MOIC Distribution</p>', unsafe_allow_html=True)
-            fig_bar = px.bar(
-                result_df.sort_values("MOIC", ascending=False),
-                x="회사명", y="MOIC", color="섹터",
-                color_discrete_sequence=_GP,
-                labels={"MOIC": "MOIC (x)", "회사명": ""},
-            )
-            fig_bar.add_hline(y=1.0, line_dash="dot", line_color="#c8e6c9",
-                              annotation_text="1.0x", annotation_font_color="#81c784",
-                              annotation_font_size=10)
-            fig_bar.update_traces(marker_line_width=0, opacity=0.9)
-            fig_bar.update_layout(**_CHART,
-                                  legend=dict(font_size=10, orientation="h", y=-0.15, bgcolor="rgba(0,0,0,0)"),
-                                  bargap=0.55)
-            fig_bar.update_xaxes(**_NOGRID, tickfont_size=10)
-            fig_bar.update_yaxes(**_GRID, tickfont_size=10)
-            st.plotly_chart(fig_bar, use_container_width=True)
-
-        with col_b:
-            st.markdown('<p style="font-size:12px;letter-spacing:0.1em;text-transform:uppercase;color:#1b5e20;font-weight:700;margin-bottom:6px;">MOIC vs IRR</p>', unsafe_allow_html=True)
+            # MOIC vs IRR 버블
             max_size = result_df["투자금액_백만원"].max()
             fig_sc = px.scatter(
-                result_df, x="IRR(%)", y="MOIC",
-                text="회사명", color="섹터", size="투자금액_백만원",
-                color_discrete_sequence=_GP, size_max=55,
+                result_df, x="IRR(%)", y="MOIC", text="회사명",
+                size="투자금액_백만원", color="섹터",
+                color_discrete_sequence=_GP, size_max=45,
             )
             fig_sc.update_traces(
-                textposition="top center", textfont_size=10, textfont_color="#666",
-                marker=dict(sizeref=2.0*max_size/(55**2), sizemode="area", opacity=0.75,
-                            line=dict(width=1, color="#ffffff")),
+                textposition="top center", textfont=dict(size=9, color="#666"),
+                marker=dict(opacity=0.7, line=dict(width=1.5, color="#fff")),
             )
-            fig_sc.add_hline(y=1.0, line_dash="dot", line_color="#e8f5e9")
-            fig_sc.add_vline(x=0, line_dash="dot", line_color="#e8f5e9")
-            fig_sc.update_layout(**_CHART,
-                                  legend=dict(font_size=10, orientation="h", y=-0.15, bgcolor="rgba(0,0,0,0)"))
-            fig_sc.update_xaxes(**_GRID, tickfont_size=10)
-            fig_sc.update_yaxes(**_GRID, tickfont_size=10)
+            fig_sc.add_hline(y=1.0, line_dash="dot", line_color="#ddd")
+            fig_sc.add_vline(x=0, line_dash="dot", line_color="#ddd")
+            fig_sc.update_layout(**_CS, height=320, margin=dict(t=35, b=20, l=20, r=20),
+                title=dict(text="MOIC vs IRR (버블 = 투자금액)", font=dict(size=13), x=0.02),
+                legend=dict(font_size=9, orientation="h", y=-0.18, bgcolor="rgba(0,0,0,0)"),
+                xaxis=dict(showgrid=True, gridcolor="#f5f5f5", title="IRR (%)"),
+                yaxis=dict(showgrid=True, gridcolor="#f5f5f5", title="MOIC (x)"))
             st.plotly_chart(fig_sc, use_container_width=True)
 
-        col_c, col_d = st.columns(2)
-        with col_c:
-            st.markdown('<p style="font-size:12px;letter-spacing:0.1em;text-transform:uppercase;color:#1b5e20;font-weight:700;margin-bottom:6px;">Sector Allocation</p>', unsafe_allow_html=True)
-            sector_df = df.groupby("섹터")["투자금액_백만원"].sum().reset_index()
-            fig_pie = px.pie(sector_df, names="섹터", values="투자금액_백만원",
-                             color_discrete_sequence=_GP)
-            fig_pie.update_traces(
-                textinfo="label+percent", hole=0.5, textfont_size=11,
-                marker_line_width=2, marker_line_color="#ffffff",
-                pull=[0.02]*len(sector_df),
-            )
-            fig_pie.update_layout(
-                height=300, margin=dict(t=10,b=10), showlegend=False,
-                paper_bgcolor="#ffffff", font=dict(color="#1a1a1a"),
-            )
+        with col_b:
+            # 섹터 비중 도넛
+            sector_df = df.groupby("섹터")["투자금액_백만원"].sum().sort_values(ascending=False).reset_index()
+            fig_pie = go.Figure(go.Pie(
+                labels=sector_df["섹터"].tolist(), values=sector_df["투자금액_백만원"].tolist(),
+                marker=dict(colors=_GP, line=dict(color="#fff", width=2)),
+                textinfo="label+percent", textfont=dict(size=11), hole=0.4,
+            ))
+            fig_pie.update_layout(**_CS, height=320, margin=dict(t=35, b=10, l=10, r=10),
+                title=dict(text="Sector Allocation", font=dict(size=13), x=0.02),
+                showlegend=False)
             st.plotly_chart(fig_pie, use_container_width=True)
-
-        with col_d:
-            st.markdown('<p style="font-size:12px;letter-spacing:0.1em;text-transform:uppercase;color:#1b5e20;font-weight:700;margin-bottom:6px;">Investment & MOIC Treemap</p>', unsafe_allow_html=True)
-            fig_tree = px.treemap(
-                result_df, path=["섹터","회사명"],
-                values="투자금액_백만원", color="MOIC",
-                color_continuous_scale=["#e8f5e9","#66bb6a","#2e7d32","#1b5e20"],
-                hover_data={"IRR(%)": True, "TVPI": True},
-            )
-            fig_tree.update_traces(
-                textinfo="label+value", textfont_size=11,
-                marker_line_width=2, marker_line_color="#ffffff",
-            )
-            fig_tree.update_layout(
-                height=300, margin=dict(t=10,b=0),
-                paper_bgcolor="#ffffff",
-                coloraxis_colorbar=dict(title="MOIC", thickness=12, len=0.5),
-            )
-            st.plotly_chart(fig_tree, use_container_width=True)
 
 
 
@@ -1291,15 +1258,27 @@ GP는 Hurdle을 넘어야 Carry를 받을 수 있어 LP 이익 보호 장치로 
 
         # LP vs GP 결과 요약
         _lp_moic = total_lp / wf_invested if wf_invested > 0 else 0
-        _r1, _r2, _r3, _r4 = st.columns(4)
-        with _r1:
-            st.metric("LP 수취", f"{total_lp:,.0f}M", delta=f"MOIC {_lp_moic:.2f}x")
-        with _r2:
-            st.metric("GP Carry", f"{total_gp:,.0f}M", delta=f"실효 {eff_carry:.1f}%")
-        with _r3:
-            st.metric("LP 순수익", f"{total_lp-wf_invested:,.0f}M")
-        with _r4:
-            st.metric("총 수익", f"{total_profit:,.0f}M")
+        _col_pie, _col_metrics = st.columns([1, 2])
+        with _col_pie:
+            fig_pie = go.Figure(go.Pie(
+                values=[total_lp, total_gp], labels=["LP", "GP"],
+                marker=dict(colors=["#1b5e20", "#c8e6c9"], line=dict(color="#fff", width=2)),
+                textinfo="label+percent", textfont=dict(size=12),
+                hole=0.45,
+            ))
+            fig_pie.update_layout(
+                showlegend=False, height=220, margin=dict(t=10, b=10, l=10, r=10),
+                paper_bgcolor="#ffffff",
+            )
+            st.plotly_chart(fig_pie, use_container_width=True)
+        with _col_metrics:
+            _r1, _r2 = st.columns(2)
+            with _r1:
+                st.metric("LP 수취", f"{total_lp:,.0f}M", delta=f"MOIC {_lp_moic:.2f}x")
+                st.metric("LP 순수익", f"{total_lp-wf_invested:,.0f}M")
+            with _r2:
+                st.metric("GP Carry", f"{total_gp:,.0f}M", delta=f"실효 {eff_carry:.1f}%")
+                st.metric("총 수익", f"{total_profit:,.0f}M")
         st.caption(f"Hurdle {wf_hurdle}% · 캐치업 {wf_catchup}% · Carry {wf_carry}% · {wf_years}년")
 
 # ── TAB 4: Benchmark ─────────────────────────────

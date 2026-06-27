@@ -73,11 +73,14 @@ def _circle_num(s, l, t, txt, bg=D_GREEN, fg=WHITE):
     _circle(s, l, t, Inches(0.4), bg)
     _text(s, l, t, Inches(0.4), Inches(0.4), txt, sz=11, c=fg, bold=True, align=PP_ALIGN.CENTER)
 
-def _header(s, label, title):
-    _text(s, Inches(0.8), Inches(0.35), Inches(6), Inches(0.2), label, sz=9, c=GREY, bold=True)
-    _text(s, Inches(0.8), Inches(0.6), Inches(11), Inches(0.5), title, sz=26, c=BLACK, bold=True)
-    _rect(s, Inches(0.8), Inches(1.15), Inches(0.6), Pt(3), D_GREEN)
-    _rect(s, Inches(1.5), Inches(1.15), Inches(11), Pt(1), BORDER)
+def _header(s, label, title, message=""):
+    _rect(s, Inches(0), Inches(0), W, Inches(0.06), D_GREEN)
+    _rect(s, Inches(0.5), Inches(0.15), Inches(8), Inches(0.5), WHITE)
+    _text(s, Inches(0.6), Inches(0.18), Inches(8), Inches(0.45), title, sz=22, c=BLACK, bold=True)
+    _text(s, Inches(10.5), Inches(0.2), Inches(2.5), Inches(0.2), label, sz=9, c=GREY, align=PP_ALIGN.RIGHT)
+    _rect(s, Inches(0.5), Inches(0.7), Inches(12.3), Pt(2), BLACK)
+    if message:
+        _text(s, Inches(0.6), Inches(0.85), Inches(12), Inches(0.35), message, sz=13, c=BLACK, bold=True)
 
 def _page(s, n, total):
     _text(s, Inches(12.0), Inches(7.05), Inches(1.2), Inches(0.3),
@@ -186,10 +189,27 @@ def generate_lp_pptx(
     _text(s, Inches(1.2), Inches(6.3), Inches(8), Inches(0.2), "PE/VC 분기 보고 도우미  ·  SDIC", sz=10, c=L_GREEN)
     slides.append("표지")
 
+    # ═══ Agenda ═══
+    s = prs.slides.add_slide(prs.slide_layouts[6]); _bg(s, WHITE)
+    _rect(s, Inches(0), Inches(0), W, Inches(0.06), D_GREEN)
+    _text(s, Inches(1.5), Inches(2.5), Inches(4), Inches(0.8), "Agenda", sz=40, c=BLACK, bold=True)
+    _rect(s, Inches(6.0), Inches(1.5), Pt(3), Inches(5.0), D_GREY)
+    _agenda_items = [
+        "성과 요약", "포트폴리오 상세", "섹터 분석",
+        "Top/Bottom", "리스크 평가", "J-Curve",
+        "시나리오 분석", "Waterfall", "AI 코멘터리",
+    ]
+    for i, item in enumerate(_agenda_items):
+        _in = any(item.split()[0] in s_name for s_name in [s for s in (selected_sections or [])])
+        _text(s, Inches(6.5), Inches(1.8)+Inches(i*0.5), Inches(5), Inches(0.3),
+              f"{i+1}.  {item}", sz=15, c=BLACK if _in else L_GREY, bold=_in)
+    slides.append("Agenda")
+
     # ═══ 2. 성과 요약 ═══
     if _sec("성과 요약"):
         s = prs.slides.add_slide(prs.slide_layouts[6]); _bg(s)
-        _header(s, "PERFORMANCE SUMMARY", "성과 요약")
+        _msg = f"펀드 MOIC {moic}x, IRR {avg_irr}%로 {'벤치마크를 달성' if moic >= 2.0 else '성장 중인'} 펀드입니다"
+        _header(s, "성과 요약", "성과 요약", _msg)
 
         # 좌측: Hero 지표
         _metric_card(s, Inches(0.8), Inches(1.5), Inches(3.8), Inches(1.5), "MOIC", f"{moic}x", "투자원금 대비 전체 가치")
