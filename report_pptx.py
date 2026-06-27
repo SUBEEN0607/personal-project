@@ -243,25 +243,49 @@ def generate_lp_pptx(
     # ═══ 3. 포트폴리오 상세 ═══
     if _sec("포트폴리오"):
         s = prs.slides.add_slide(prs.slide_layouts[6]); _bg(s)
-        _header(s, "PORTFOLIO DETAIL", "포트폴리오 상세")
+        _top1 = result_df.sort_values("MOIC", ascending=False).iloc[0]
+        _bot1 = result_df.sort_values("MOIC", ascending=True).iloc[0]
+        _msg = f"{n}개 기업 중 {_top1['회사명']}({_top1['MOIC']}x)이 최고 성과, {_bot1['회사명']}({_bot1['MOIC']}x)이 최저"
+        _header(s, "포트폴리오", "포트폴리오 상세", _msg)
+
+        # 좌측: 테이블 스타일 (정렬 정확)
         sorted_df = result_df.sort_values("MOIC", ascending=False).head(8)
+        _table_cols = ["회사명", "섹터", "투자(M)", "MOIC", "IRR", "TVPI"]
+        _col_w = [Inches(1.6), Inches(1.2), Inches(1.0), Inches(0.8), Inches(0.8), Inches(0.8)]
+        _table_x = Inches(0.6)
+
+        # 헤더
+        for j, (col_name, w) in enumerate(_col_w):
+            _x = _table_x + sum(cw for cw in _col_w[:j])
+            _rounded(s, _x, Inches(1.4), w - Inches(0.05), Inches(0.3), D_GREEN, D_GREEN)
+            _text(s, _x, Inches(1.42), w - Inches(0.05), Inches(0.25), _table_cols[j], sz=8, c=WHITE, bold=True, align=PP_ALIGN.CENTER)
+
+        # 데이터 행
         for i, (_, row) in enumerate(sorted_df.iterrows()):
-            col = i % 4; r = i // 4
-            x = Inches(0.5) + Inches(col * 3.15); y = Inches(1.5) + Inches(r * 2.8)
-            clr = colors[i % len(colors)]
-            _rounded(s, x, y, Inches(2.9), Inches(2.5), WHITE, BORDER)
-            _circle_num(s, x+Inches(0.15), y+Inches(0.15), str(i+1), bg=clr)
-            _text(s, x+Inches(0.65), y+Inches(0.18), Inches(2.0), Inches(0.25), row["회사명"], sz=13, c=BLACK, bold=True)
-            _text(s, x+Inches(0.65), y+Inches(0.45), Inches(2.0), Inches(0.2), f'{row["섹터"]} · {row["투자단계"]}', sz=8, c=GREY)
-            moic_val = float(row["MOIC"]); irr_val = float(row["IRR(%)"])
-            _text(s, x+Inches(0.15), y+Inches(0.85), Inches(0.8), Inches(0.2), "MOIC", sz=8, c=GREY, bold=True)
-            _text(s, x+Inches(1.8), y+Inches(0.85), Inches(0.9), Inches(0.2), f"{moic_val}x", sz=10, c=clr, bold=True, align=PP_ALIGN.RIGHT)
-            _bar_visual(s, x+Inches(0.15), y+Inches(1.1), Inches(2.55), Inches(0.15), min(moic_val/5.0, 1.0), clr)
-            _text(s, x+Inches(0.15), y+Inches(1.4), Inches(0.8), Inches(0.2), "IRR", sz=8, c=GREY, bold=True)
-            _text(s, x+Inches(1.8), y+Inches(1.4), Inches(0.9), Inches(0.2), f"{irr_val}%", sz=10, c=clr, bold=True, align=PP_ALIGN.RIGHT)
-            _bar_visual(s, x+Inches(0.15), y+Inches(1.65), Inches(2.55), Inches(0.15), min(max(irr_val,0)/50.0, 1.0), clr)
-            _text(s, x+Inches(0.15), y+Inches(2.0), Inches(1.3), Inches(0.2), f'투자 {int(row["투자금액_백만원"]):,}M', sz=8, c=D_GREY)
-            _text(s, x+Inches(1.5), y+Inches(2.0), Inches(1.2), Inches(0.2), f'TVPI {row["TVPI"]}x', sz=8, c=D_GREY, align=PP_ALIGN.RIGHT)
+            y = Inches(1.8) + Inches(i * 0.55)
+            bg_row = XP_GREEN if i % 2 == 0 else WHITE
+            vals = [row["회사명"], row["섹터"], f'{int(row["투자금액_백만원"]):,}', f'{row["MOIC"]}x', f'{row["IRR(%)"]}%', f'{row["TVPI"]}x']
+            for j, (val, w) in enumerate(zip(vals, _col_w)):
+                _x = _table_x + sum(cw for cw in _col_w[:j])
+                _rounded(s, _x, y, w - Inches(0.05), Inches(0.45), bg_row, BORDER)
+                clr = D_GREEN if j == 3 and float(row["MOIC"]) >= 2.0 else RED_SOFT if j == 3 and float(row["MOIC"]) < 1.0 else BLACK
+                _text(s, _x, y + Inches(0.08), w - Inches(0.05), Inches(0.25), str(val), sz=9, c=clr, align=PP_ALIGN.CENTER)
+
+        # 우측: MOIC 차트
+        if include_charts:
+            import plotly.graph_objects as go
+            sd = result_df.sort_values("MOIC", ascending=True)
+            fig = go.Figure(go.Bar(
+                x=sd["MOIC"].tolist(), y=sd["회사명"].tolist(), orientation="h",
+                marker_color=["rgba(27,94,32,0.6)" if m >= 2 else "rgba(67,160,71,0.5)" if m >= 1 else "rgba(224,160,160,0.5)" for m in sd["MOIC"]],
+                text=[f"{m}x" for m in sd["MOIC"]], textposition="outside", textfont=dict(size=9),
+                marker_line_width=0,
+            ))
+            fig.add_vline(x=2.0, line_dash="dot", line_color="#bbb")
+            fig.update_layout(height=320, width=400, margin=dict(t=5,b=5,l=70,r=30),
+                paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                xaxis=dict(showgrid=True, gridcolor="#eee"), yaxis=dict(showgrid=False), bargap=0.25)
+            _add_chart_to_slide(s, fig, 7.5, 1.4, 5.5, 4.5)
         slides.append("포트폴리오")
 
     # ═══ 4. 섹터 분석 ═══
