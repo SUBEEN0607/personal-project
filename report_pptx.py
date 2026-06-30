@@ -37,9 +37,9 @@ M_LEFT   = Inches(0.6)          # 좌측 마진
 M_RIGHT  = Inches(12.73)        # 우측 끝 (13.333-0.6)
 C_WIDTH  = Inches(12.13)        # 콘텐츠 폭
 TOP_BAR  = Inches(0.06)         # 상단 바 높이
-HDR_Y    = Inches(0.25)         # 제목 Y
-MSG_Y    = Inches(0.95)         # 핵심 메시지 Y
-BODY_Y   = Inches(1.50)         # 본문 시작 Y (헤더+메시지 아래 충분한 간격)
+HDR_Y    = Inches(0.10)         # 제목 Y
+MSG_Y    = Inches(0.88)         # 핵심 메시지 Y
+BODY_Y   = Inches(1.85)         # 본문 시작 Y (헤더+메시지 아래 충분한 간격)
 BOT_Y    = Inches(7.10)         # 페이지 번호 Y
 
 # ── 기본 헬퍼 ───────────────────────────────────────
@@ -80,15 +80,15 @@ def _multiline(s, l, t, w, h, lines, sz=10, color=C_DARK, spacing=4, bold=False)
 
 # ── 컴포넌트 ───────────────────────────────────────
 def _header(s, section_label, title, key_message=""):
-    _shape(s, Inches(0), Inches(0), SW, TOP_BAR, C_PRIMARY)
-    _txt(s, M_LEFT, HDR_Y, Inches(9), Inches(0.42), title,
-         sz=24, color=C_BLACK, bold=True)
-    _txt(s, Inches(10.0), HDR_Y + Inches(0.08), Inches(2.7), Inches(0.2),
-         section_label, sz=8, color=C_GREY, align=PP_ALIGN.RIGHT)
-    _shape(s, M_LEFT, Inches(0.72), C_WIDTH, Pt(2), C_PRIMARY)
+    _txt(s, M_LEFT, HDR_Y, Inches(8), Inches(0.45), title,
+         sz=26, color=C_BLACK, bold=True)
+    _txt(s, Inches(9.5), HDR_Y + Inches(0.10), Inches(3.2), Inches(0.35),
+         section_label, sz=10, color=C_GREY, align=PP_ALIGN.RIGHT)
+    # 레퍼런스 스타일: 두꺼운 초록 언더바
+    _shape(s, M_LEFT, Inches(0.70), C_WIDTH, Pt(3.5), C_PRIMARY)
     if key_message:
-        _txt(s, M_LEFT, Inches(0.95), C_WIDTH, Inches(0.30),
-             f"▸ {key_message}", sz=11, color=C_PRIMARY, bold=True)
+        _txt(s, M_LEFT, Inches(0.92), C_WIDTH, Inches(0.32),
+             key_message, sz=13, color=C_BLACK, bold=True)
 
 def _page_num(s, n, total):
     _txt(s, Inches(12.0), BOT_Y, Inches(1.2), Inches(0.2),
@@ -105,14 +105,67 @@ def _kpi_card(s, l, t, w, h, label, value, sub="", val_color=C_PRIMARY):
         _txt(s, l, t + h - Inches(0.22), w, Inches(0.18), sub,
              sz=7, color=C_GREY, align=PP_ALIGN.CENTER)
 
+def _formula_box(s, l, t, w, h, title, formula, example, criteria):
+    """레퍼런스 Appendix 스타일 — 공식+예시+해석기준 박스 (콘텐츠에 맞춘 타이트한 배치)"""
+    _shape(s, l, t, w, h, C_WHITE, C_BORDER, radius=True)
+    _txt(s, l + Inches(0.14), t + Inches(0.12), w - Inches(0.28), Inches(0.24),
+         title, sz=10.5, color=C_BLACK, bold=True)
+    _shape(s, l + Inches(0.14), t + Inches(0.42), w - Inches(0.28), Inches(0.36), C_PALE, radius=True)
+    _txt(s, l + Inches(0.20), t + Inches(0.46), w - Inches(0.40), Inches(0.30),
+         formula, sz=9, color=C_PRIMARY, bold=True)
+    _txt(s, l + Inches(0.14), t + Inches(0.86), w - Inches(0.28), Inches(0.42),
+         example, sz=8, color=C_DARK)
+    crit_y = t + Inches(1.32)
+    crit_h = max(h - Inches(1.32) - Inches(0.10), Inches(0.40))
+    _shape(s, l + Inches(0.14), crit_y, w - Inches(0.28), crit_h, C_BEIGE, radius=True)
+    _txt(s, l + Inches(0.20), crit_y + Inches(0.06), w - Inches(0.40), crit_h - Inches(0.10),
+         f"해석기준: {criteria}", sz=7.5, color=C_DARK)
+
+def _process_box(s, l, t, w, h, num, title, desc, bg=C_XPALE, num_bg=C_PRIMARY):
+    """레퍼런스 스타일 — 번호 아이콘 + 제목 + 설명 박스"""
+    _shape(s, l, t, w, h, bg, C_BORDER, radius=True)
+    _shape(s, l + Inches(0.12), t + Inches(0.12), Inches(0.30), Inches(0.30), num_bg, radius=True)
+    _txt(s, l + Inches(0.12), t + Inches(0.14), Inches(0.30), Inches(0.26),
+         str(num), sz=11, color=C_WHITE, bold=True, align=PP_ALIGN.CENTER)
+    _txt(s, l + Inches(0.55), t + Inches(0.12), w - Inches(0.70), Inches(0.22),
+         title, sz=10, color=C_BLACK, bold=True)
+    _txt(s, l + Inches(0.12), t + Inches(0.46), w - Inches(0.24), h - Inches(0.55),
+         desc, sz=8, color=C_DARK)
+
+def _process_list(s, l, t, w, items, box_h=Inches(0.46), gap=Inches(0.08), title="ANALYSIS PROCESS"):
+    """ANALYSIS 텍스트 블록을 번호 박스 리스트로 구조화"""
+    _txt(s, l, t, w, Inches(0.18), title, sz=8.5, color=C_GREY, bold=True)
+    y0 = t + Inches(0.34)
+    for i, text in enumerate(items):
+        y = y0 + i * (box_h + gap)
+        _shape(s, l, y, w, box_h, C_WHITE, C_BORDER, radius=True)
+        _shape(s, l + Inches(0.10), y + Inches(0.08), Inches(0.28), Inches(0.28), C_PRIMARY, radius=True)
+        _txt(s, l + Inches(0.10), y + Inches(0.105), Inches(0.28), Inches(0.24),
+             str(i + 1), sz=9.5, color=C_WHITE, bold=True, align=PP_ALIGN.CENTER)
+        _txt(s, l + Inches(0.48), y + Inches(0.06), w - Inches(0.60), box_h - Inches(0.12),
+             text, sz=8.5, color=C_DARK)
+    return y0 + len(items) * (box_h + gap)
+
+def _arrow(s, l, t, size=Inches(0.3), color=C_LGREY):
+    _txt(s, l, t, size, size, "▸", sz=16, color=color, bold=True, align=PP_ALIGN.CENTER)
+
+def _label_row(s, l, t, label_w, val_w, label, value, row_h=Inches(0.42), bg=C_WHITE):
+    _shape(s, l, t, label_w, row_h, C_PRIMARY)
+    _txt(s, l + Inches(0.1), t + Inches(0.08), label_w - Inches(0.2), row_h - Inches(0.16),
+         label, sz=9, color=C_WHITE, bold=True)
+    _shape(s, l + label_w, t, val_w, row_h, bg, C_BORDER)
+    _txt(s, l + label_w + Inches(0.15), t + Inches(0.08), val_w - Inches(0.3), row_h - Inches(0.16),
+         value, sz=9, color=C_DARK)
+
 def _insight_panel(s, l, t, w, h, title, bullets):
     actual_h = max(h, Inches(0.40 + len(bullets[:6]) * 0.22))
     _shape(s, l, t, w, actual_h, C_INSIGHT, C_BORDER, radius=True)
-    _txt(s, l + Inches(0.15), t + Inches(0.10), w - Inches(0.30), Inches(0.18),
-         f"💡 {title}", sz=9, color=C_GREY, bold=True)
+    _shape(s, l, t, Inches(0.06), actual_h, C_PRIMARY, radius=False)
+    _txt(s, l + Inches(0.18), t + Inches(0.10), w - Inches(0.34), Inches(0.18),
+         title, sz=9, color=C_PRIMARY, bold=True)
     for i, b in enumerate(bullets[:6]):
-        _txt(s, l + Inches(0.15), t + Inches(0.35) + Inches(i * 0.22),
-             w - Inches(0.30), Inches(0.20), f"· {b}", sz=9, color=C_DARK)
+        _txt(s, l + Inches(0.18), t + Inches(0.35) + Inches(i * 0.22),
+             w - Inches(0.34), Inches(0.20), f"· {b}", sz=9, color=C_DARK)
 
 def _table(s, l, t, headers, rows, col_widths, row_h=Inches(0.32)):
     tbl = s.shapes.add_table(len(rows) + 1, len(headers), l, t,
@@ -216,28 +269,9 @@ def generate_lp_pptx(
     s = prs.slides.add_slide(prs.slide_layouts[6])
     _bg(s, C_WHITE)
 
-    # 상단 초록 블록 (슬라이드 약 75%)
-    cover_h = Inches(5.5)
+    # 상단 초록 단색 블록 (슬라이드 약 88%) — 배경 이미지 사용하지 않음
+    cover_h = Inches(6.6)
     _shape(s, Inches(0), Inches(0), SW, cover_h, C_PRIMARY)
-
-    # 배경 이미지 (있으면 상단 블록 위에)
-    for _p in [os.path.join(os.path.dirname(os.path.abspath(__file__)), "skku_wallpaper.jpg"),
-               os.path.join(os.getcwd(), "skku_wallpaper.jpg")]:
-        if os.path.exists(_p):
-            s.shapes.add_picture(_p, Inches(0), Inches(0), SW, cover_h)
-            # 반투명 오버레이
-            ov = s.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0), Inches(0), SW, cover_h)
-            ov.fill.solid(); ov.fill.fore_color.rgb = RGBColor(0x10, 0x30, 0x12)
-            ov.line.fill.background()
-            try:
-                ns = "http://schemas.openxmlformats.org/drawingml/2006/main"
-                fe = ov._element.find(f'.//{{{ns}}}solidFill')
-                if fe is not None:
-                    from lxml import etree
-                    etree.SubElement(fe[0], f'{{{ns}}}alpha').set('val', '40000')
-            except Exception:
-                pass
-            break
 
     # 제목 (상단 블록 중앙)
     _txt(s, Inches(1.2), Inches(1.8), Inches(10), Inches(0.8),
@@ -249,11 +283,9 @@ def generate_lp_pptx(
     _shape(s, Inches(0), cover_h, SW, SH - cover_h, C_WHITE)
     _shape(s, Inches(0), cover_h, SW, Pt(4), C_PRIMARY)
 
-    _txt(s, Inches(1.2), cover_h + Inches(0.25), Inches(5), Inches(0.22),
-         f"{base_date}", sz=12, color=C_DARK)
-    _txt(s, Inches(1.2), cover_h + Inches(0.55), Inches(5), Inches(0.22),
-         "이수빈  ·  SDIC  ·  PE/VC 분기 보고 도우미", sz=10, color=C_GREY)
-    _txt(s, Inches(1.2), cover_h + Inches(0.85), Inches(8), Inches(0.18),
+    _txt(s, Inches(1.2), cover_h + Inches(0.28), Inches(5), Inches(0.20),
+         f"{base_date}  ·  이수빈  ·  SDIC", sz=11, color=C_DARK)
+    _txt(s, Inches(1.2), cover_h + Inches(0.55), Inches(8), Inches(0.18),
          "본 보고서는 포트폴리오 성과 데이터를 기반으로 자동 생성되었습니다.", sz=8, color=C_LGREY)
 
     slide_labels.append("표지")
@@ -275,52 +307,71 @@ def generate_lp_pptx(
          f"{n_cos}개 기업에 총 {total_inv:,}백만원을 투자하여 MOIC {moic}x, IRR {avg_irr}%의 성과를 달성하였습니다.",
          sz=13, color=C_BLACK, bold=True)
 
-    # 요약 테이블 — 예시 이미지처럼 좌측 라벨 + 우측 내용
-    es_y = BODY_Y + Inches(0.55)
-    es_items = [
-        ("펀드 개요", f"{fund_name} · {fund_strategy} · {quarter} · 기준일 {base_date}"),
-        ("포트폴리오", f"{n_cos}개 기업, 총 투자금 {total_inv:,}백만원"),
-        ("핵심 성과", f"MOIC {moic}x · IRR {avg_irr}% · TVPI {tvpi}x · DPI {dpi}x · RVPI {rvpi}x"),
-        ("가치 창출", f"투자 {total_inv:,.0f}M → 가치 {total_cur+total_rec:,.0f}M (수익률 {profit_pct:+.0f}%)"),
-        ("벤치마크", f"MOIC {'달성' if moic >= 2.0 else '미달'}(목표 2.0x) · IRR {'달성' if avg_irr >= 15 else '미달'}(목표 15%)"),
-    ]
+    # 레퍼런스 스타일: 좌측 라벨(다크그린) + 2개 값 컬럼 그리드
     bm_over = len(result_df[result_df["MOIC"] >= 2.0])
     bm_under = len(result_df[result_df["MOIC"] < 1.0])
-    es_items.append(("등급 분포", f"BM 달성 {bm_over}개사 · 원금 미달 {bm_under}개사 · 전체 {n_cos}개사"))
-
-    # Top performer
     top_r = result_df.sort_values("MOIC", ascending=False).iloc[0]
     bot_r = result_df.sort_values("MOIC", ascending=True).iloc[0]
-    es_items.append(("Top/Bottom", f"최고 {top_r['회사명']}({top_r['MOIC']}x) · 최저 {bot_r['회사명']}({bot_r['MOIC']}x)"))
-
     realized_ratio = total_rec / (total_cur + total_rec) * 100 if (total_cur + total_rec) > 0 else 0
-    es_items.append(("회수 현황", f"현금 실현율 {realized_ratio:.0f}% — {'회수 진행 중' if realized_ratio > 30 else '초기 투자 단계, 미실현 가치 위주'}"))
 
+    es_y = BODY_Y + Inches(0.55)
     label_w = Inches(1.5)
-    val_w = Inches(10.5)
-    for i, (label, value) in enumerate(es_items):
-        row_y = es_y + Inches(i * 0.45)
-        bg_c = C_XPALE if i % 2 == 0 else C_WHITE
-        _shape(s, M_LEFT, row_y, label_w, Inches(0.38), C_PRIMARY)
-        _txt(s, M_LEFT + Inches(0.1), row_y + Inches(0.07), label_w - Inches(0.2), Inches(0.24),
-             label, sz=9, color=C_WHITE, bold=True)
-        _shape(s, M_LEFT + label_w, row_y, val_w, Inches(0.38), bg_c, C_BORDER)
-        _txt(s, M_LEFT + label_w + Inches(0.15), row_y + Inches(0.07), val_w - Inches(0.3), Inches(0.24),
-             value, sz=9, color=C_DARK)
+    col_w = Inches(5.25)
+    col2_x = M_LEFT + label_w + col_w
 
-    # 하단 핵심 인사이트
-    es_bot = es_y + Inches(len(es_items) * 0.45) + Inches(0.15)
-    es_insights = []
-    if moic >= 2.0 and avg_irr >= 15:
-        es_insights.append("펀드 전체 성과가 MOIC·IRR 벤치마크를 모두 달성하여 우수한 수준입니다.")
-    elif moic >= 2.0:
-        es_insights.append(f"MOIC {moic}x로 벤치마크를 달성했으나, IRR은 목표 대비 {15-avg_irr:.1f}%p 부족합니다.")
-    else:
-        es_insights.append(f"현재 MOIC {moic}x로 벤치마크(2.0x) 대비 {moic/2.0*100:.0f}% 수준이며, 추가 성장이 필요합니다.")
-    es_insights.append(f"전체 {n_cos}개 기업 중 {bm_over}개사가 BM을 달성하여 펀드 수익을 견인하고 있습니다.")
-    if bm_under > 0:
-        es_insights.append(f"원금 미달 {bm_under}개사에 대한 집중 모니터링 및 Exit 전략 수립이 필요합니다.")
-    _insight_panel(s, M_LEFT, es_bot, C_WIDTH, Inches(1.2), "EXECUTIVE INSIGHT", es_insights)
+    # 헤더 행 (Core System / AI & Export 처럼 두 컬럼 제목)
+    _shape(s, M_LEFT, es_y, label_w, Inches(0.32), C_WHITE)
+    _shape(s, M_LEFT + label_w, es_y, col_w, Inches(0.32), C_BG, C_BORDER)
+    _txt(s, M_LEFT + label_w, es_y + Inches(0.05), col_w, Inches(0.24), "성과 지표", sz=10, color=C_DARK, bold=True, align=PP_ALIGN.CENTER)
+    _shape(s, col2_x, es_y, col_w, Inches(0.32), C_BG, C_BORDER)
+    _txt(s, col2_x, es_y + Inches(0.05), col_w, Inches(0.24), "포트폴리오 현황", sz=10, color=C_DARK, bold=True, align=PP_ALIGN.CENTER)
+
+    rows_y = es_y + Inches(0.32)
+
+    def _es_row(y, h, label, left_lines, right_lines, highlight=False):
+        bg = C_PALE if highlight else C_WHITE
+        _shape(s, M_LEFT, y, label_w, h, C_PRIMARY)
+        _txt(s, M_LEFT + Inches(0.1), y + Inches(0.10), label_w - Inches(0.2), h - Inches(0.2),
+             label, sz=10, color=C_WHITE, bold=True)
+        _shape(s, M_LEFT + label_w, y, col_w, h, bg, C_BORDER)
+        _multiline(s, M_LEFT + label_w + Inches(0.12), y + Inches(0.08), col_w - Inches(0.24), h - Inches(0.16),
+                   left_lines, sz=8.5, color=C_DARK, spacing=3)
+        _shape(s, col2_x, y, col_w, h, bg, C_BORDER)
+        _multiline(s, col2_x + Inches(0.12), y + Inches(0.08), col_w - Inches(0.24), h - Inches(0.16),
+                   right_lines, sz=8.5, color=C_DARK, spacing=3)
+
+    h1 = Inches(0.55)
+    _es_row(rows_y, h1, "펀드 개요",
+            [f"{fund_name} · {fund_strategy}", f"{quarter} · 기준일 {base_date}"],
+            [f"포트폴리오 {n_cos}개 기업", f"총 투자금 {total_inv:,}백만원"])
+
+    y2 = rows_y + h1
+    h2 = Inches(0.55)
+    _es_row(y2, h2, "핵심 성과",
+            [f"MOIC {moic}x · IRR {avg_irr}%", f"BM 대비 {'달성' if moic >= 2.0 else f'{moic/2.0*100:.0f}% 수준'}"],
+            [f"TVPI {tvpi}x · DPI {dpi}x", f"RVPI {rvpi}x"])
+
+    y3 = y2 + h2
+    h3 = Inches(0.85)
+    _es_row(y3, h3, "가치 창출",
+            [f"투자금 {total_inv:,.0f}M → 가치 {total_cur+total_rec:,.0f}M", f"전체 수익률 {profit_pct:+.0f}%", f"현금 실현율 {realized_ratio:.0f}%"],
+            [f"BM 달성 {bm_over}개사 / 원금 미달 {bm_under}개사", f"최고: {top_r['회사명']}({top_r['MOIC']}x)", f"최저: {bot_r['회사명']}({bot_r['MOIC']}x)"],
+            highlight=True)
+
+    es_bot = y3 + h3 + Inches(0.20)
+
+    # 하단: 기대 효과 4분할 (레퍼런스 "단기효과/중장기효과" 스타일)
+    _txt(s, M_LEFT, es_bot, Inches(4), Inches(0.18), "향후 모니터링 포인트", sz=9, color=C_GREY, bold=True)
+    box_w = Inches(2.85); box_h = Inches(1.1); box_gap = Inches(0.15)
+    monitor_items = [
+        ("성과 모니터링", f"MOIC {moic}x 유지/개선 여부를 분기별로 추적하며, BM(2.0x) 미달 시 원인 분석 필요"),
+        ("리스크 관리", f"원금 미달 {bm_under}개사에 대한 집중 모니터링 및 Exit 전략 재검토"),
+        ("회수 전략", f"실현율 {realized_ratio:.0f}% — {'후속 회수 가속화' if realized_ratio < 30 else '회수 모멘텀 유지'} 방안 수립"),
+        ("포트폴리오 운영", f"섹터 분산 및 투자단계별 밸런스 점검을 통한 리스크 분산 강화"),
+    ]
+    for i, (mt, md) in enumerate(monitor_items):
+        mx = M_LEFT + i * (box_w + box_gap)
+        _process_box(s, mx, es_bot + Inches(0.22), box_w, box_h, i + 1, mt, md, bg=C_XPALE)
 
     slide_labels.append("Executive Summary")
 
@@ -333,28 +384,28 @@ def generate_lp_pptx(
     _txt(s, Inches(1.5), Inches(2.8), Inches(4), Inches(0.8),
          "Agenda", sz=40, color=C_DARK, bold=True)
 
-    # 세로 구분선 (중앙)
-    _shape(s, Inches(5.8), Inches(1.2), Pt(1.5), Inches(5.2), C_LGREY)
+    # 세로 구분선 (중앙) — 굵고 진한 검정
+    _shape(s, Inches(6.3), Inches(1.2), Pt(3), Inches(5.2), C_BLACK)
 
-    # 우측: 목차 항목 (세로 중앙 정렬)
+    # 우측: 목차 항목 (세로 중앙 정렬, 우측으로 이동)
     agenda = ["펀드 성과 종합", "포트폴리오 · 섹터 분석", "Top/Bottom · 리스크",
               "J-Curve · 시나리오 · Sensitivity", "Waterfall 분배",
-              "KVIC 시장 비교 · 거시지표", "AI 코멘터리"]
+              "KVIC 시장 비교 · 거시지표", "AI 코멘터리", "Appendix"]
     agenda_keys = [["성과"], ["포트폴리오", "섹터"], ["Top", "리스크"],
                     ["J-Curve", "시나리오", "Sensitivity"], ["Waterfall"],
-                    ["KVIC", "거시", "DART"], ["AI"]]
+                    ["KVIC", "거시", "DART"], ["AI"], None]
     n_items = len(agenda)
     item_h = 0.55
     total_h = n_items * item_h
     start_y = (7.5 - total_h) / 2
     for i, item in enumerate(agenda):
         keys = agenda_keys[i] if i < len(agenda_keys) else [item.split()[0]]
-        active = any(any(k in sn for k in keys) for sn in (selected_sections or []))
+        active = True if keys is None else any(any(k in sn for k in keys) for sn in (selected_sections or []))
         y = Inches(start_y + i * item_h)
-        _txt(s, Inches(6.5), y, Inches(0.5), Inches(0.35),
+        _txt(s, Inches(7.1), y, Inches(0.5), Inches(0.35),
              f"{i + 1}.", sz=14, color=C_DARK if active else C_LGREY,
              bold=active, align=PP_ALIGN.RIGHT)
-        _txt(s, Inches(7.1), y, Inches(5), Inches(0.35),
+        _txt(s, Inches(7.7), y, Inches(5), Inches(0.35),
              item, sz=14, color=C_DARK if active else C_LGREY, bold=active)
     slide_labels.append("Agenda")
 
@@ -463,7 +514,7 @@ def generate_lp_pptx(
         insights.append(f"투자 {total_inv:,.0f}M → 가치 {total_cur+total_rec:,.0f}M 창출 (수익률 {profit_pct:+.0f}%)")
         insights.append(f"현금 실현율 {realized_ratio:.0f}% — {'회수 진행 중' if realized_ratio > 30 else '초기 투자 단계, 미실현 가치 위주'}")
         insights.append(f"BM 달성 {moic_over2}개사 / 원금 미달 {moic_under1}개사 — 전체 {n_cos}개 포트폴리오")
-        _insight_panel(s, rx, r3 + Inches(0.85), rw, Inches(1.15), "KEY INSIGHT", insights)
+        _insight_panel(s, rx, r3 + Inches(1.05), rw, Inches(1.15), "성과 종합 코멘트", insights)
 
         slide_labels.append("성과")
 
@@ -493,8 +544,16 @@ def generate_lp_pptx(
             ])
         _table(s, M_LEFT, BODY_Y, hdrs, rows, cw, Inches(0.28))
 
-        # 우측에 차트 (테이블 아래 또는 옆)
-        chart_y = BODY_Y + Inches(0.28) * (len(rows) + 1) + Inches(0.15)
+        # 차트 (테이블 아래 좌측)
+        chart_y = BODY_Y + Inches(0.28) * (len(rows) + 1) + Inches(0.20)
+        moic_over2 = len(result_df[result_df["MOIC"] >= 2.0])
+        moic_under1 = len(result_df[result_df["MOIC"] < 1.0])
+        avg_moic = result_df["MOIC"].mean()
+        med_moic = result_df["MOIC"].median()
+        top_name = result_df.sort_values("MOIC", ascending=False).iloc[0]["회사명"]
+        top_moic = result_df.sort_values("MOIC", ascending=False).iloc[0]["MOIC"]
+        top_sector_name = result_df.sort_values("MOIC", ascending=False).iloc[0].get("섹터", "-")
+
         if include_charts:
             import plotly.graph_objects as go
             sd = result_df.sort_values("MOIC", ascending=True)
@@ -505,26 +564,28 @@ def generate_lp_pptx(
                 marker_line_width=0,
             ))
             fig.add_vline(x=2.0, line_dash="dot", line_color="#999", annotation_text="BM 2.0x", annotation_font_size=8)
-            fig.update_layout(height=220, width=550, margin=dict(t=5, b=10, l=70, r=30),
+            fig.update_layout(height=270, width=560, margin=dict(t=10, b=45, l=80, r=40),
                               paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-                              xaxis=dict(showgrid=True, gridcolor="#eee"), yaxis=dict(showgrid=False), bargap=0.25)
-            _chart_img(s, fig, 0.6, min(float(chart_y / 914400), 5.0), 6.0, 2.5)
+                              xaxis=dict(showgrid=True, gridcolor="#eee", title="MOIC (배)"), yaxis=dict(showgrid=False), bargap=0.3)
+            _chart_img(s, fig, 0.6, min(float(chart_y / 914400), 4.6), 6.3, 2.95)
 
-        # 인사이트 (테이블 아래 우측)
-        moic_over2 = len(result_df[result_df["MOIC"] >= 2.0])
-        moic_under1 = len(result_df[result_df["MOIC"] < 1.0])
-        avg_moic = result_df["MOIC"].mean()
-        med_moic = result_df["MOIC"].median()
-        top_name = result_df.sort_values("MOIC", ascending=False).iloc[0]["회사명"]
-        top_moic = result_df.sort_values("MOIC", ascending=False).iloc[0]["MOIC"]
-        ins = [
-            f"BM 달성(≥2.0x): {moic_over2}개사 ({moic_over2/n_cos*100:.0f}%) — 포트폴리오 {n_cos}개 중",
-            f"원금 미회수(<1.0x): {moic_under1}개사 — {'리스크 관리 필요' if moic_under1 > 0 else '전 기업 원금 이상'}",
-            f"평균 MOIC {avg_moic:.2f}x / 중앙값 {med_moic:.2f}x — {'상위 집중' if avg_moic > med_moic * 1.2 else '균등 분포'}",
-            f"최고 성과: {top_name} ({top_moic}x) — 펀드 전체 수익의 핵심 드라이버",
-        ]
-        ins_y = min(float(chart_y / 914400), 4.8)
-        _insight_panel(s, Inches(6.8), Inches(ins_y), Inches(5.9), Inches(1.3), "PORTFOLIO INSIGHT", ins)
+        # 우측: 줄글 해설 (차트 옆 빈 공간 채움) — 헤더 바 포함 카드형
+        narrative = (
+            f"본 펀드는 {n_cos}개 포트폴리오 기업에 총 {total_inv:,}백만원을 투자하였으며, "
+            f"이 중 {moic_over2}개사({moic_over2/n_cos*100:.0f}%)가 벤치마크 MOIC 2.0x를 상회하는 성과를 기록하고 있습니다. "
+            f"가장 우수한 성과를 보인 {top_name}({top_sector_name})은 MOIC {top_moic}x를 달성하며 펀드 전체 수익의 핵심 동력으로 작용하고 있습니다.\n\n"
+            f"전체 포트폴리오의 평균 MOIC는 {avg_moic:.2f}x, 중앙값은 {med_moic:.2f}x로, "
+            f"{'평균이 중앙값을 크게 상회하여 소수 우수 기업에 수익이 집중되는 구조' if avg_moic > med_moic * 1.2 else '평균과 중앙값의 차이가 크지 않아 비교적 고른 성과 분포'}를 보이고 있습니다. "
+            f"{f'한편 원금을 회수하지 못한 기업이 {moic_under1}개사 존재하여, 해당 기업에 대한 후속 모니터링과 Exit 전략 재검토가 필요합니다.' if moic_under1 > 0 else '모든 포트폴리오 기업이 투자 원금 이상의 가치를 유지하고 있어 안정적인 펀드 운용 상태입니다.'}"
+        )
+        ins_y = min(float(chart_y / 914400), 4.6)
+        narr_w = Inches(5.6)
+        narr_h = Inches(2.15)
+        _shape(s, Inches(7.1), Inches(ins_y), narr_w, narr_h, C_WHITE, C_BORDER, radius=True)
+        _shape(s, Inches(7.1), Inches(ins_y), narr_w, Inches(0.34), C_PRIMARY, radius=True)
+        _txt(s, Inches(7.1), Inches(ins_y) + Inches(0.07), narr_w, Inches(0.22),
+             "PORTFOLIO NARRATIVE", sz=9, color=C_WHITE, bold=True, align=PP_ALIGN.CENTER)
+        _txt(s, Inches(7.3), Inches(ins_y) + Inches(0.48), narr_w - Inches(0.4), narr_h - Inches(0.60), narrative, sz=9, color=C_DARK)
         slide_labels.append("포트폴리오")
 
     # ════════════════════════════════════════════════
@@ -543,7 +604,7 @@ def generate_lp_pptx(
         _header(s, "SECTOR ANALYSIS", "섹터별 투자 분석",
                 f"총 {len(sa)}개 섹터에 분산 투자하며, {top_sec['섹터']}에 전체의 {top_sec['총투자']/total_all*100:.0f}%가 집중되어 있습니다.")
 
-        # ── 페이지 1: 테이블 ──
+        # ── 페이지 1: 테이블 + 차트 + KPI + 줄글 ──
         sec_hdrs = ["섹터", "기업수", "투자(M)", "비중", "MOIC", "IRR"]
         sec_cw = [Inches(1.1), Inches(0.55), Inches(0.9), Inches(0.6), Inches(0.7), Inches(0.7)]
         sec_rows = []
@@ -553,8 +614,8 @@ def generate_lp_pptx(
                              f'{pct:.0f}%', f'{r["평균MOIC"]:.1f}x', f'{r["평균IRR"]:.0f}%'])
         _table(s, M_LEFT, BODY_Y, sec_hdrs, sec_rows, sec_cw, Inches(0.32))
 
-        # 우측: Plotly 바 차트 — 테이블 오른쪽에 배치 (겹침 방지)
-        chart_x = 5.5
+        # 우측: Plotly 바 차트 — 테이블과 간격을 넓혀 배치
+        chart_x = 6.5
         if include_charts:
             import plotly.graph_objects as go
             sa_plot = sa.head(6).sort_values("총투자", ascending=True)
@@ -564,17 +625,34 @@ def generate_lp_pptx(
                 text=[f'{int(v):,}M ({v/total_all*100:.0f}%)' for v in sa_plot["총투자"]],
                 textposition="outside", textfont=dict(size=8), marker_line_width=0,
             ))
-            fig.update_layout(height=250, width=480, margin=dict(t=5, b=25, l=80, r=70),
+            fig.update_layout(height=250, width=460, margin=dict(t=5, b=30, l=80, r=70),
                               paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
                               xaxis=dict(showgrid=True, gridcolor="#eee", title="투자금(백만원)"),
                               yaxis=dict(showgrid=False), bargap=0.3)
-            _chart_img(s, fig, chart_x, float(BODY_Y / 914400) + 0.2, 4.8, 3.0)
+            _chart_img(s, fig, chart_x, float(BODY_Y / 914400) + 0.2, 5.4, 3.05)
 
-        # 하단 요약 텍스트 (잘리지 않게)
-        sec_sum_y = BODY_Y + Inches(3.8)
-        _txt(s, M_LEFT, sec_sum_y, C_WIDTH, Inches(0.20),
-             f"총 {len(sa)}개 섹터에 {n_cos}개 기업이 분산 투자되어 있으며, 상위 3개 섹터가 전체 투자금의 {top3_pct:.0f}%를 차지합니다.",
-             sz=10, color=C_DARK)
+        # 하단: KPI 카드 4개 (섹터 다변화 지표)
+        kpi_y = BODY_Y + Inches(3.6)
+        kw4 = Inches(2.85)
+        gini_like = (sa["총투자"] / total_all).pow(2).sum()
+        _kpi_card(s, M_LEFT, kpi_y, kw4, Inches(0.85), "섹터 수", f"{len(sa)}개", "분산 투자 범위", C_PRIMARY)
+        _kpi_card(s, M_LEFT + Inches(3.05), kpi_y, kw4, Inches(0.85), "상위 3개 집중도", f"{top3_pct:.0f}%", "Top3 섹터 비중", C_RED if top3_pct > 70 else C_PRIMARY)
+        _kpi_card(s, M_LEFT + Inches(6.10), kpi_y, kw4, Inches(0.85), "최고 MOIC 섹터", f"{best_moic_sec['평균MOIC']:.1f}x", best_moic_sec["섹터"], C_PRIMARY)
+        _kpi_card(s, M_LEFT + Inches(9.15), kpi_y, kw4, Inches(0.85), "섹터 집중지수", f"{gini_like:.2f}", "HHI식 분산도(0~1)", C_ORANGE if gini_like > 0.3 else C_PRIMARY)
+
+        # 하단: 줄글 분석
+        sec_narrative = (
+            f"본 펀드는 총 {len(sa)}개 섹터에 {n_cos}개 포트폴리오 기업을 분산 배치하였으며, "
+            f"이 중 {top_sec['섹터']} 섹터에 {top_sec['총투자']:,.0f}백만원({top_sec['총투자']/total_all*100:.0f}%)이 집중되어 가장 큰 투자 비중을 차지하고 있습니다. "
+            f"상위 3개 섹터({', '.join(sa.head(3)['섹터'].tolist())})가 전체 투자금의 {top3_pct:.0f}%를 차지하여, "
+            f"{'섹터 편중도가 다소 높은 편이며 향후 신규 투자 시 미투자 섹터로의 분산을 검토할 필요가 있습니다.' if top3_pct > 70 else '비교적 고른 섹터 분산을 유지하고 있습니다.'} "
+            f"수익성 측면에서는 {best_moic_sec['섹터']} 섹터가 평균 MOIC {best_moic_sec['평균MOIC']:.1f}x, IRR {best_moic_sec['평균IRR']:.0f}%로 가장 우수한 성과를 보이고 있어, "
+            f"향후 동일 섹터 내 후속 투자 기회를 적극적으로 검토할 가치가 있습니다."
+        )
+        sec_sum_y = kpi_y + Inches(1.05)
+        _shape(s, M_LEFT, sec_sum_y, C_WIDTH, Inches(0.78), C_BG, C_BORDER, radius=True)
+        _txt(s, M_LEFT + Inches(0.15), sec_sum_y + Inches(0.08), C_WIDTH - Inches(0.3), Inches(0.62),
+             sec_narrative, sz=9, color=C_DARK)
         slide_labels.append("섹터")
 
         # ── 페이지 2: 섹터 심층 분석 ──
@@ -672,22 +750,21 @@ def generate_lp_pptx(
             _txt(s, rx + Inches(4.9), y + Inches(0.12), Inches(0.8), Inches(0.2),
                  f'TVPI {r["TVPI"]}x', sz=10, color=C_DARK)
 
-        # 하단: 분석 과정 + 인사이트 (차트 없이 텍스트로 — 겹침 방지)
-        tb_bot = BODY_Y + Inches(3.0)
-        _txt(s, M_LEFT, tb_bot, Inches(4), Inches(0.18), "ANALYSIS", sz=9, color=C_GREY, bold=True)
+        # 하단: 분석 과정(좌, 번호박스) + 인사이트(우)
+        tb_bot = BODY_Y + Inches(3.1)
         tb_process = [
-            f"① MOIC 기준 전체 {n_cos}개사를 정렬하여 상위 3개와 하위 3개를 추출",
-            f"② 상위 3개 평균 MOIC {sd.head(3)['MOIC'].mean():.1f}x vs 하위 3개 {sd.tail(3)['MOIC'].mean():.1f}x — 격차 {sd.head(3)['MOIC'].mean()-sd.tail(3)['MOIC'].mean():.1f}x",
-            f"③ 원금 미달(MOIC<1.0x) {len(sd[sd['MOIC']<1.0])}개사 → {'리스크 관리 필요' if len(sd[sd['MOIC']<1.0]) > 0 else '전 기업 원금 이상'}",
-            f"④ 성과 편차(표준편차 {result_df['MOIC'].std():.2f}) — {'분산 큼, 상위 기업 의존도 높음' if result_df['MOIC'].std() > 1.0 else '안정적 분포'}",
+            f"MOIC 기준 전체 {n_cos}개사를 정렬하여 상위 3개와 하위 3개를 추출",
+            f"상위 3개 평균 {sd.head(3)['MOIC'].mean():.1f}x vs 하위 3개 {sd.tail(3)['MOIC'].mean():.1f}x — 격차 {sd.head(3)['MOIC'].mean()-sd.tail(3)['MOIC'].mean():.1f}x",
+            f"원금 미달(MOIC<1.0x) {len(sd[sd['MOIC']<1.0])}개사 → {'리스크 관리 필요' if len(sd[sd['MOIC']<1.0]) > 0 else '전 기업 원금 이상'}",
         ]
-        _multiline(s, M_LEFT, tb_bot + Inches(0.22), Inches(5.5), Inches(1.2), tb_process, sz=9, color=C_DARK, spacing=5)
+        _process_list(s, M_LEFT, tb_bot, half_w, tb_process, box_h=Inches(0.42), gap=Inches(0.08))
 
         tb_ins = [
             f"상위 기업이 펀드 수익을 견인하고 있으며, 하위 기업의 Exit 전략 재검토가 필요합니다.",
             f"{'원금 미달 기업에 대한 집중 모니터링이 시급합니다.' if len(sd[sd['MOIC']<1.0]) > 0 else '전 기업이 원금 이상을 유지하고 있어 안정적입니다.'}",
+            f"성과 편차(표준편차 {result_df['MOIC'].std():.2f}) — {'분산이 커 상위 기업 의존도가 높습니다.' if result_df['MOIC'].std() > 1.0 else '안정적인 분포를 보이고 있습니다.'}",
         ]
-        _insight_panel(s, Inches(6.3), tb_bot, Inches(6.4), Inches(1.3), "PERFORMANCE GAP", tb_ins)
+        _insight_panel(s, rx, tb_bot + Inches(0.24), half_w, Inches(1.1), "PERFORMANCE GAP", tb_ins)
         slide_labels.append("Top/Bottom")
 
     # ════════════════════════════════════════════════
@@ -720,9 +797,9 @@ def generate_lp_pptx(
 
         # ── 좌측: 리스크 항목 (간격 줄임) ──
         left_w = Inches(5.85)
-        _txt(s, M_LEFT, BODY_Y, Inches(3), Inches(0.18), "리스크 항목 평가", sz=9, color=C_GREY, bold=True)
+        _txt(s, M_LEFT, BODY_Y, Inches(4), Inches(0.18), "1. 리스크 항목 평가", sz=9, color=C_DARK, bold=True)
         for i, (title, desc, level) in enumerate(risks):
-            y = BODY_Y + Inches(0.22) + Inches(i * 0.52)
+            y = BODY_Y + Inches(0.34) + Inches(i * 0.52)
             if level == "HIGH":
                 icon_c, bg_c, bd_c = C_RED, RGBColor(0xFE, 0xF5, 0xF5), RGBColor(0xF0, 0xD0, 0xD0)
             elif level == "MEDIUM":
@@ -750,38 +827,39 @@ def generate_lp_pptx(
                 pass
         avg_yrs = round(avg_days / 365.25, 1) if avg_days > 0 else 0
 
-        _kpi_card(s, rx, BODY_Y, Inches(1.85), Inches(0.80), "HHI", f"{hhi:,}", hhi_label,
+        _txt(s, rx, BODY_Y, Inches(4), Inches(0.18), "2. 핵심 지표", sz=9, color=C_GREY, bold=True)
+        kpi_y2 = BODY_Y + Inches(0.22)
+        _kpi_card(s, rx, kpi_y2, Inches(1.85), Inches(0.80), "HHI", f"{hhi:,}", hhi_label,
                   C_RED if hhi > 2500 else C_ORANGE if hhi > 1500 else C_PRIMARY)
-        _kpi_card(s, rx + Inches(1.95), BODY_Y, Inches(1.85), Inches(0.80), "실현율", f"{realized_pct}%", "회수/전체가치",
+        _kpi_card(s, rx + Inches(1.95), kpi_y2, Inches(1.85), Inches(0.80), "실현율", f"{realized_pct}%", "회수/전체가치",
                   C_PRIMARY if realized_pct > 50 else C_BLACK)
-        _kpi_card(s, rx + Inches(3.90), BODY_Y, Inches(1.85), Inches(0.80), "보유기간", f"{avg_yrs}년", "최초투자~기준일", C_BLACK)
+        _kpi_card(s, rx + Inches(3.90), kpi_y2, Inches(1.85), Inches(0.80), "보유기간", f"{avg_yrs}년", "최초투자~기준일", C_BLACK)
 
         # 우측: 투자단계 분포 (KPI 바로 아래)
         if "투자단계" in result_df.columns:
-            _txt(s, rx, BODY_Y + Inches(0.95), Inches(5.8), Inches(0.18), "투자단계 분포", sz=9, color=C_GREY, bold=True)
+            _txt(s, rx, kpi_y2 + Inches(0.95), Inches(5.8), Inches(0.18), "3. 투자단계 분포", sz=9, color=C_DARK, bold=True)
             stage_cnt = result_df["투자단계"].value_counts()
             for j, (stage, cnt) in enumerate(stage_cnt.items()):
                 if j >= 4: break
                 sx = rx + Inches(j * 1.45)
-                _shape(s, sx, BODY_Y + Inches(1.15), Inches(1.35), Inches(0.42), C_XPALE, C_PALE, radius=True)
-                _txt(s, sx, BODY_Y + Inches(1.17), Inches(1.35), Inches(0.16), stage, sz=9, color=C_PRIMARY, bold=True, align=PP_ALIGN.CENTER)
-                _txt(s, sx, BODY_Y + Inches(1.34), Inches(1.35), Inches(0.18), f"{cnt}개사 ({cnt/n_cos*100:.0f}%)", sz=8, color=C_DARK, align=PP_ALIGN.CENTER)
+                _shape(s, sx, kpi_y2 + Inches(1.28), Inches(1.35), Inches(0.42), C_XPALE, C_PALE, radius=True)
+                _txt(s, sx, kpi_y2 + Inches(1.30), Inches(1.35), Inches(0.16), stage, sz=9, color=C_PRIMARY, bold=True, align=PP_ALIGN.CENTER)
+                _txt(s, sx, kpi_y2 + Inches(1.47), Inches(1.35), Inches(0.18), f"{cnt}개사 ({cnt/n_cos*100:.0f}%)", sz=8, color=C_DARK, align=PP_ALIGN.CENTER)
 
-        # ── 하단: 분석 과정(좌) + 인사이트(우) ──
-        risk_bot = BODY_Y + Inches(2.8)
-        _txt(s, M_LEFT, risk_bot, Inches(3), Inches(0.18), "ANALYSIS", sz=9, color=C_GREY, bold=True)
+        # ── 하단: 분석 과정(좌, 번호박스) + 인사이트(우) ──
+        risk_bot = BODY_Y + Inches(2.9)
         risk_process = [
-            f"① HHI 산출: 투자비중 제곱합 × 10,000 = {hhi:,} → {hhi_label}",
-            f"② 실현율: 회수 {result_df['회수금액_백만원'].sum():,.0f}M / 전체 {total_val:,.0f}M = {realized_pct}%",
-            f"③ MOIC<1.0x 스크리닝: {len(under)}개사 → {'모니터링 대상' if len(under) > 0 else '해당 없음'}",
+            f"HHI 산출: 투자비중 제곱합 × 10,000 = {hhi:,} → {hhi_label}",
+            f"실현율 산출: 회수 {result_df['회수금액_백만원'].sum():,.0f}M / 전체 {total_val:,.0f}M = {realized_pct}%",
+            f"MOIC<1.0x 스크리닝: {len(under)}개사 → {'모니터링 대상' if len(under) > 0 else '해당 없음'}",
         ]
-        _multiline(s, M_LEFT, risk_bot + Inches(0.20), Inches(5.5), Inches(0.9), risk_process, sz=9, color=C_DARK, spacing=5)
+        _process_list(s, M_LEFT, risk_bot, Inches(5.7), risk_process, box_h=Inches(0.42), gap=Inches(0.08), title="4. 리스크 분석 과정")
 
         risk_ins = [
             f"{'집중도 높음 — 특정 기업 부진 시 펀드 전체에 영향 가능' if hhi > 2500 else '적정 분산 — 개별 기업 리스크 제한적'}",
             f"{'현금 회수 초기 — 미실현 가치 현실화 모니터링 필요' if realized_pct < 30 else '회수 진행 중 — LP 배분 가능성 증가'}",
         ]
-        _insight_panel(s, Inches(6.3), risk_bot, Inches(6.4), Inches(1.0), "RISK ASSESSMENT", risk_ins)
+        _insight_panel(s, Inches(6.6), risk_bot + Inches(0.24), Inches(6.13), Inches(1.0), "RISK ASSESSMENT", risk_ins)
         slide_labels.append("리스크")
 
     # ════════════════════════════════════════════════
@@ -804,7 +882,8 @@ def generate_lp_pptx(
         _kpi_card(s, M_LEFT + Inches(6.10), BODY_Y, kw, Inches(0.90), "회복률", f"{recovery:.0f}%", "현재CF / MaxDD", C_PRIMARY if recovery > 100 else C_ORANGE)
         _kpi_card(s, M_LEFT + Inches(9.15), BODY_Y, kw, Inches(0.90), "손익분기", be_dt, "BEP 달성 시점", C_PRIMARY if be_dt != "미도달" else C_GREY)
 
-        # 차트
+        # 차트 (좌측, 폭 좁혀 우측에 현금흐름 테이블 배치)
+        chart_top = Inches(2.75)
         if include_charts:
             import plotly.graph_objects as go
             dates = jcurve_df["날짜"].astype(str).tolist()
@@ -815,30 +894,36 @@ def generate_lp_pptx(
                                      fill="tozeroy", fillcolor="rgba(27,94,32,0.08)",
                                      marker=dict(size=5, color=["#1b5e20" if v >= 0 else "#c62828" for v in cf])))
             fig.add_hline(y=0, line_dash="dash", line_color="#999")
-            fig.update_layout(height=240, width=650, margin=dict(t=10, b=25, l=50, r=15),
+            fig.update_layout(height=230, width=580, margin=dict(t=10, b=25, l=50, r=15),
                               paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", showlegend=False,
                               xaxis=dict(showgrid=False), yaxis=dict(showgrid=True, gridcolor="#eee", title="백만원"))
-            _chart_img(s, fig, 0.6, 2.55, 7.0, 2.8)
+            _chart_img(s, fig, 0.6, float(chart_top / 914400), 6.4, 2.6)
 
-        # 우측: J-Curve 분석 과정 + 해석
-        jc_stage = "투자 집행기" if cr < 0 else ("회수 전환기" if recovery < 100 else "수익 실현기")
-        jc_texts = [
-            f"① {len(jcurve_df)}건의 현금흐름을 시계열로 누적 산출",
-            f"② 최대 누적 손실 {abs(mn):,.0f}M 시점 확인 → 투자 집행 피크",
-            f"③ 현재 누적 CF {cr:,.0f}M → 회복률 {recovery:.0f}%",
-            f"④ 현재 단계: {jc_stage}",
-            f"⑤ 손익분기: {'달성(' + be_dt + ')' if be_dt != '미도달' else '미도달 — 추가 회수 필요'}",
-        ]
-        _insight_panel(s, Inches(8.0), Inches(2.55), Inches(4.7), Inches(1.5), "J-CURVE 분석 과정", jc_texts)
-
-        # 현금흐름 테이블
+        # 우측: 현금흐름 테이블
         jc_hdrs = ["날짜", "현금흐름(M)", "누적(M)"]
-        jc_cw = [Inches(1.2), Inches(1.0), Inches(1.0)]
+        jc_cw = [Inches(1.3), Inches(1.05), Inches(1.05)]
         jc_rows_data = []
         for _, r in jcurve_df.tail(6).iterrows():
             jc_rows_data.append([str(r["날짜"])[:10], f'{r.get("현금흐름_백만원", 0):,.0f}', f'{r["누적현금흐름"]:,.0f}'])
         if jc_rows_data:
-            _table(s, Inches(8.0), Inches(3.95), jc_hdrs, jc_rows_data, jc_cw, Inches(0.25))
+            _txt(s, Inches(7.4), chart_top, Inches(5), Inches(0.18), "현금흐름 상세", sz=8.5, color=C_GREY, bold=True)
+            _table(s, Inches(7.4), chart_top + Inches(0.22), jc_hdrs, jc_rows_data, jc_cw, Inches(0.30))
+
+        # 하단: 분석 과정(좌, 번호박스) + 인사이트(우)
+        jc_stage = "투자 집행기" if cr < 0 else ("회수 전환기" if recovery < 100 else "수익 실현기")
+        jc_bot = chart_top + Inches(2.70)
+        jc_process = [
+            f"{len(jcurve_df)}건의 현금흐름을 시계열로 누적 산출하여 J-Curve 형성",
+            f"최대 누적 손실 {abs(mn):,.0f}M 시점을 투자 집행 피크로 확인",
+            f"현재 단계는 {jc_stage}이며, 회복률은 {recovery:.0f}%",
+        ]
+        _process_list(s, M_LEFT, jc_bot, Inches(5.7), jc_process, box_h=Inches(0.38), gap=Inches(0.06))
+
+        jc_ins = [
+            f"손익분기: {'달성(' + be_dt + ')' if be_dt != '미도달' else '미도달 — 추가 회수 필요'}",
+            f"{'회복률 100% 초과 — 원금 회수 완료' if recovery >= 100 else '원금 회수 진행 중 — 추가 모니터링 필요'}",
+        ]
+        _insight_panel(s, Inches(6.6), jc_bot + Inches(0.24), Inches(6.13), Inches(1.0), "J-CURVE INSIGHT", jc_ins)
         slide_labels.append("J-Curve")
 
     # ════════════════════════════════════════════════
@@ -896,15 +981,14 @@ def generate_lp_pptx(
         max_irr_exit = scenario_df.loc[scenario_df['IRR (%)'].idxmax(), 'Exit 배수'] if "IRR (%)" in scenario_df.columns else "-"
         max_irr_exit_disp = max_irr_exit if str(max_irr_exit).endswith(("x", "X")) else f"{max_irr_exit}x"
 
-        sc_bot = Inches(5.2)
-        _txt(s, M_LEFT, sc_bot, Inches(3), Inches(0.18), "ANALYSIS", sz=9, color=C_GREY, bold=True)
+        sc_bot = Inches(5.3)
         sc_process = [
-            f"① {scenario_company}의 현재 투자금을 기준으로 {len(scenario_df)}개 Exit 배수 시나리오를 시뮬레이션",
-            f"② 목표 IRR 15% 달성을 위해서는 최소 Exit {min_exit_disp} 이상이 필요",
-            f"③ 최대 IRR {max_irr}%는 Exit {max_irr_exit_disp} 시나리오에서 달성",
-            f"④ Exit 배수가 1.0x 이하인 경우 원금 손실이 발생하므로 최소 1.5x 이상 Exit을 목표로 설정 권장",
+            f"{scenario_company}의 현재 투자금을 기준으로 {len(scenario_df)}개 Exit 배수 시나리오를 시뮬레이션",
+            f"목표 IRR 15% 달성을 위해서는 최소 Exit {min_exit_disp} 이상이 필요",
+            f"최대 IRR {max_irr}%는 Exit {max_irr_exit_disp} 시나리오에서 달성",
+            f"Exit 배수가 1.0x 이하인 경우 원금 손실이 발생하므로 최소 1.5x 이상을 목표로 설정 권장",
         ]
-        _multiline(s, M_LEFT, sc_bot + Inches(0.20), Inches(6.0), Inches(1.2), sc_process, sz=9, color=C_DARK, spacing=5)
+        _process_list(s, M_LEFT, sc_bot, Inches(5.7), sc_process, box_h=Inches(0.38), gap=Inches(0.06))
 
         # 하단 우측: 인사이트
         min_exit_ok = min_exit_val is not None and min_exit_val <= 2.0
@@ -912,7 +996,7 @@ def generate_lp_pptx(
             f"IRR 15% 달성 최소 배수: {min_exit_disp} — {'달성 가능성 높음' if min_exit_ok else '높은 Exit 배수 필요'}",
             f"LP 관점에서 Exit 타이밍과 배수 관리가 펀드 수익률을 결정짓는 핵심 변수입니다.",
         ]
-        _insight_panel(s, Inches(6.8), sc_bot, Inches(5.9), Inches(1.0), "SCENARIO INSIGHT", sc_ins)
+        _insight_panel(s, Inches(6.6), sc_bot + Inches(0.24), Inches(6.13), Inches(1.4), "SCENARIO INSIGHT", sc_ins)
         slide_labels.append("시나리오")
 
     # ════════════════════════════════════════════════
@@ -1016,9 +1100,9 @@ def generate_lp_pptx(
                               paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
                               legend=dict(orientation="h", y=-0.18), bargap=0.3,
                               yaxis=dict(showgrid=True, gridcolor="#eee", title="백만원"))
-            _chart_img(s, fig, 0.6, 2.0, 6.0, 3.0)
+            _chart_img(s, fig, 0.6, float(BODY_Y / 914400) + 0.55, 6.0, 3.0)
 
-        # 우측: 분배 상세 테이블
+        # 우측: 분배 상세 테이블 (파라미터 박스와 간격 확보)
         wf_hdrs = ["단계", "LP", "GP", "설명"]
         wf_cw = [Inches(1.2), Inches(1.0), Inches(1.0), Inches(2.0)]
         wf_rows = [
@@ -1028,30 +1112,46 @@ def generate_lp_pptx(
             ["④ Carry Split", f"{s4_lp:,.0f}", f"{s4_gp:,.0f}", f"LP {100-carry}% / GP {carry}%"],
             ["합계", f"{total_lp:,.0f}", f"{total_gp:,.0f}", f"총 {wf_proc:,.0f}M"],
         ]
-        _table(s, Inches(7.0), BODY_Y + Inches(0.50), wf_hdrs, wf_rows, wf_cw, Inches(0.30))
+        wf_tbl_x = Inches(7.4)
+        wf_tbl_y = BODY_Y + Inches(0.55)
+        _table(s, wf_tbl_x, wf_tbl_y, wf_hdrs, wf_rows, wf_cw, Inches(0.30))
 
-        # 테이블 아래: 분배 구조 설명
-        wf_desc_y = BODY_Y + Inches(0.50) + Inches(0.30 * 6) + Inches(0.10)
-        wf_descs = [
-            "① 원금반환: LP가 투자한 원금을 최우선으로 반환받는 단계",
-            f"② 우선수익: LP에게 Hurdle Rate({hurdle}%) 기준 {years}년간 우선수익을 배분",
-            "③ GP Catch-up: GP가 전체 수익의 Carry 비율만큼 추가 수취",
-            f"④ Carry Split: 잔여 수익을 LP({100-carry}%)와 GP({carry}%)가 분배",
+        # 테이블 아래: 분배 구조 설명 (박스형 2x2)
+        wf_desc_y = wf_tbl_y + Inches(0.30 * 6) + Inches(0.15)
+        wf_step_items = [
+            ("① 원금반환", "LP 투자 원금을 최우선 반환"),
+            ("② 우선수익", f"Hurdle {hurdle}% × {years}년 우선배분"),
+            ("③ GP Catch-up", "GP가 Carry 비율만큼 추가 수취"),
+            ("④ Carry Split", f"잔여 LP{100-carry}% / GP{carry}% 분배"),
         ]
-        _multiline(s, Inches(7.0), wf_desc_y, Inches(5.2), Inches(1.0), wf_descs, sz=8, color=C_DARK, spacing=4)
+        wf_box_w = Inches(2.35); wf_box_h = Inches(0.46); wf_box_gap = Inches(0.10)
+        for wi, (wt, wd) in enumerate(wf_step_items):
+            wx = wf_tbl_x + (wi % 2) * (wf_box_w + wf_box_gap)
+            wy = wf_desc_y + (wi // 2) * (wf_box_h + wf_box_gap)
+            _shape(s, wx, wy, wf_box_w, wf_box_h, C_XPALE, C_PALE, radius=True)
+            _txt(s, wx + Inches(0.10), wy + Inches(0.05), wf_box_w - Inches(0.20), Inches(0.18),
+                 wt, sz=8.5, color=C_PRIMARY, bold=True)
+            _txt(s, wx + Inches(0.10), wy + Inches(0.23), wf_box_w - Inches(0.20), Inches(0.20),
+                 wd, sz=7.5, color=C_DARK)
 
-        # 하단 KPI — 3개 + 인사이트
-        ky = Inches(5.5)
-        kw = Inches(2.9)
-        _kpi_card(s, M_LEFT, ky, kw, Inches(0.70), "LP 수취", f"{total_lp:,.0f}M", f"MOIC {lp_moic:.2f}x", C_PRIMARY)
-        _kpi_card(s, M_LEFT + Inches(3.05), ky, kw, Inches(0.70), "GP Carry", f"{total_gp:,.0f}M", f"실효 {eff_carry:.1f}%", C_ACCENT)
-        _kpi_card(s, M_LEFT + Inches(6.10), ky, kw, Inches(0.70), "수익 배분", f"{total_lp/wf_proc*100:.0f}% / {total_gp/wf_proc*100:.0f}%" if wf_proc > 0 else "-", "LP / GP", C_BLACK)
+        # 하단: KPI 3개 + 인사이트 — 4개 박스를 슬라이드 전폭에 균등 배치
+        ky = Inches(5.65)
+        kw = Inches(2.75)
+        gap4 = Inches(0.15)
+        ins_w = Inches(3.4)
+        x0 = M_LEFT
+        x1 = x0 + kw + gap4
+        x2 = x1 + kw + gap4
+        x3 = x2 + kw + gap4
+        _kpi_card(s, x0, ky, kw, Inches(0.70), "LP 수취", f"{total_lp:,.0f}M", f"MOIC {lp_moic:.2f}x", C_PRIMARY)
+        _kpi_card(s, x1, ky, kw, Inches(0.70), "GP Carry", f"{total_gp:,.0f}M", f"실효 {eff_carry:.1f}%", C_ACCENT)
+        _kpi_card(s, x2, ky, kw, Inches(0.70), "수익 배분", f"{total_lp/wf_proc*100:.0f}% / {total_gp/wf_proc*100:.0f}%" if wf_proc > 0 else "-", "LP / GP", C_BLACK)
 
         wf_ins = [
-            f"LP는 총 {total_lp:,.0f}M을 수취하여 MOIC {lp_moic:.2f}x를 달성하였습니다.",
-            f"{'LP 원금 이상 회수 완료' if lp_moic >= 1.0 else 'LP 원금 미달 — Hurdle 수익률 확보를 위한 추가 회수 필요'}",
+            f"LP 수취 {total_lp:,.0f}M, MOIC {lp_moic:.2f}x 달성",
+            f"{'LP 원금 이상 회수 완료' if lp_moic >= 1.0 else 'LP 원금 미달, 추가 회수 필요'}",
         ]
-        _insight_panel(s, M_LEFT + Inches(9.15), ky, Inches(3.5), Inches(0.85), "DISTRIBUTION", wf_ins)
+        _insight_panel(s, x3, ky, ins_w, Inches(1.0), "DISTRIBUTION", wf_ins)
         slide_labels.append("Waterfall")
 
     # ════════════════════════════════════════════════
@@ -1102,22 +1202,21 @@ def generate_lp_pptx(
             kv_rows.append([r["투자분야"], f'{r["총약정액(억원)"]:,.0f}', f'{int(r["조합수"])}', f'{pct:.1f}%'])
         _table(s, Inches(7.0), Inches(2.55), kv_hdrs, kv_rows, kv_cw, Inches(0.26))
 
-        # 하단: 분석 과정 + 인사이트
-        kv_bot = Inches(5.3)
+        # 하단: 분석 과정(좌, 번호박스) + 인사이트(우)
+        kv_bot = Inches(5.4)
         top_sector = kvic_sector_df.iloc[0]
-        _txt(s, M_LEFT, kv_bot, Inches(3), Inches(0.18), "MARKET ANALYSIS", sz=9, color=C_GREY, bold=True)
         kv_process = [
-            f"① KVIC 공시 데이터 기준 {kvic_funds:,}개 조합, 총 {kvic_total:,.0f}억원 시장 규모 확인",
-            f"② 내 펀드 {my_inv:,.0f}억원은 KVIC 평균 조합({avg_fund:,.0f}억) 대비 {my_inv/avg_fund:.1f}배" if avg_fund > 0 else "② KVIC 평균 조합 대비 비교",
-            f"③ KVIC 최대 분야: {top_sector['투자분야']} ({top_sector['총약정액(억원)']:,.0f}억, {top_sector['총약정액(억원)']/kvic_total*100:.0f}%)",
+            f"KVIC 공시 데이터 기준 {kvic_funds:,}개 조합, 총 {kvic_total:,.0f}억원 시장 규모 확인",
+            f"내 펀드 {my_inv:,.0f}억원은 KVIC 평균 조합({avg_fund:,.0f}억) 대비 {my_inv/avg_fund:.1f}배" if avg_fund > 0 else "내 펀드 규모를 KVIC 평균 조합과 비교",
+            f"KVIC 최대 분야: {top_sector['투자분야']} ({top_sector['총약정액(억원)']:,.0f}억, {top_sector['총약정액(억원)']/kvic_total*100:.0f}%)",
         ]
-        _multiline(s, M_LEFT, kv_bot + Inches(0.20), Inches(5.8), Inches(0.9), kv_process, sz=9, color=C_DARK, spacing=5)
+        _process_list(s, M_LEFT, kv_bot, Inches(5.7), kv_process, box_h=Inches(0.42), gap=Inches(0.08))
 
         kv_ins = [
             f"내 펀드는 KVIC 전체 시장의 {my_inv/kvic_total*100:.3f}%에 해당하며, 평균 조합 대비 {my_inv/avg_fund:.1f}배 규모입니다." if avg_fund > 0 else "",
             f"KVIC 시장 트렌드와 비교하여 포트폴리오 전략의 시장 적합성을 점검할 수 있습니다.",
         ]
-        _insight_panel(s, Inches(6.5), kv_bot, Inches(6.2), Inches(1.0), "MARKET POSITIONING", [i for i in kv_ins if i])
+        _insight_panel(s, Inches(6.6), kv_bot + Inches(0.24), Inches(6.13), Inches(1.0), "MARKET POSITIONING", [i for i in kv_ins if i])
         slide_labels.append("KVIC")
 
     # ════════════════════════════════════════════════
@@ -1147,6 +1246,39 @@ def generate_lp_pptx(
                       "IRR vs 금리", f"{spread:+.1f}%p", "펀드 스프레드",
                       C_PRIMARY if spread > 0 else C_RED)
             col_i += 1
+
+        # DART 데이터 없을 때: 금리/환율 추이 차트로 중간 영역 채움
+        _macro_chart_drawn = False
+        if (dart_fin_df is None or dart_fin_df.empty) and include_charts:
+            _macro_chart_drawn = True
+            trend_y = BODY_Y + Inches(1.10)
+            import plotly.graph_objects as go
+            fig = go.Figure()
+            if rate_df is not None and not rate_df.empty and "기준금리(%)" in rate_df.columns:
+                fig.add_trace(go.Scatter(y=rate_df["기준금리(%)"].tolist(), mode="lines+markers",
+                                         name="기준금리(%)", line=dict(color="#1b5e20", width=2.5),
+                                         yaxis="y1"))
+            if fx_df is not None and not fx_df.empty and "원/달러(원)" in fx_df.columns:
+                fig.add_trace(go.Scatter(y=fx_df["원/달러(원)"].tolist(), mode="lines+markers",
+                                         name="원/달러(원)", line=dict(color="#43a047", width=2.5, dash="dot"),
+                                         yaxis="y2"))
+            fig.update_layout(height=190, width=950, margin=dict(t=10, b=25, l=50, r=50),
+                              paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                              legend=dict(orientation="h", y=-0.20),
+                              xaxis=dict(showgrid=False, title="기간"),
+                              yaxis=dict(title="기준금리(%)", showgrid=True, gridcolor="#eee"),
+                              yaxis2=dict(title="원/달러(원)", overlaying="y", side="right", showgrid=False))
+            _chart_img(s, fig, 0.6, float(trend_y / 914400), 11.9, 2.1)
+
+            # 분석 과정 박스 (차트 바로 아래, 겹침 방지 간격 확보)
+            macro_proc_y = trend_y + Inches(2.35)
+            macro_process = [
+                f"기준금리·환율 데이터를 한국은행 ECOS API에서 조회기간 전체 시계열로 수집",
+                f"펀드 평균 IRR과 기준금리를 비교하여 스프레드(초과수익) 산출",
+                f"금리·환율 변동 추세를 포트폴리오 밸류에이션 및 해외투자 전략에 반영",
+            ]
+            _process_list(s, M_LEFT, macro_proc_y, Inches(11.9), macro_process,
+                          box_h=Inches(0.36), gap=Inches(0.06), title="MACRO ANALYSIS PROCESS")
 
         # DART 재무 (있으면)
         if dart_fin_df is not None and not dart_fin_df.empty:
@@ -1198,19 +1330,20 @@ def generate_lp_pptx(
                 _txt(s, Inches(6.8), BODY_Y + Inches(1.45) + Inches(0.28 * (len(d_rows) + 1)) + Inches(0.10),
                      Inches(5.2), Inches(0.4), dart_note, sz=8, color=C_GREY)
 
-        # 하단: 거시경제 해석
-        macro_bot = Inches(5.3)
-        macro_texts = []
-        if rate_df is not None and not rate_df.empty:
-            macro_texts.append(f"기준금리 {latest_rate}%: {'인하 기조로 PE/VC 투자환경 개선 기대' if rate_chg < 0 else '금리 인상기로 밸류에이션 부담 증가 가능'}" if 'latest_rate' in dir() else "")
-        if fx_df is not None and not fx_df.empty:
-            macro_texts.append(f"환율 {latest_fx:,.0f}원: {'원화 약세로 해외 투자 포트폴리오 환차익 가능성' if fx_chg > 0 else '원화 강세로 해외 자산 환산 시 불리'}" if 'latest_fx' in dir() else "")
-        if spread is not None:
-            macro_texts.append(f"펀드 스프레드 {spread:+.1f}%p: {'금리 대비 초과수익 확보' if spread > 0 else '금리 수준에 미달하는 수익률'}")
-        macro_texts = [t for t in macro_texts if t]
-        if macro_texts:
-            _txt(s, M_LEFT, macro_bot, Inches(3), Inches(0.18), "MACRO IMPACT", sz=9, color=C_GREY, bold=True)
-            _multiline(s, M_LEFT, macro_bot + Inches(0.20), C_WIDTH, Inches(1.0), macro_texts, sz=9, color=C_DARK, spacing=5)
+        # 하단: 거시경제 해석 (추이 차트+분석과정이 이미 그려졌으면 중복이라 생략)
+        if not _macro_chart_drawn:
+            macro_bot = Inches(5.3)
+            macro_texts = []
+            if rate_df is not None and not rate_df.empty:
+                macro_texts.append(f"기준금리 {latest_rate}%: {'인하 기조로 PE/VC 투자환경 개선 기대' if rate_chg < 0 else '금리 인상기로 밸류에이션 부담 증가 가능'}" if 'latest_rate' in dir() else "")
+            if fx_df is not None and not fx_df.empty:
+                macro_texts.append(f"환율 {latest_fx:,.0f}원: {'원화 약세로 해외 투자 포트폴리오 환차익 가능성' if fx_chg > 0 else '원화 강세로 해외 자산 환산 시 불리'}" if 'latest_fx' in dir() else "")
+            if spread is not None:
+                macro_texts.append(f"펀드 스프레드 {spread:+.1f}%p: {'금리 대비 초과수익 확보' if spread > 0 else '금리 수준에 미달하는 수익률'}")
+            macro_texts = [t for t in macro_texts if t]
+            if macro_texts:
+                _txt(s, M_LEFT, macro_bot, Inches(3), Inches(0.18), "MACRO IMPACT", sz=9, color=C_GREY, bold=True)
+                _multiline(s, M_LEFT, macro_bot + Inches(0.20), C_WIDTH, Inches(1.0), macro_texts, sz=9, color=C_DARK, spacing=5)
         slide_labels.append("거시지표")
 
     # ════════════════════════════════════════════════
@@ -1221,26 +1354,67 @@ def generate_lp_pptx(
         _header(s, "AI COMMENTARY", "AI 분석 코멘터리 — Claude",
                 "Claude AI가 전체 포트폴리오 데이터를 종합 분석하여 자동 생성한 분기 코멘터리입니다.")
 
-        _shape(s, M_LEFT, BODY_Y, C_WIDTH, Inches(5.3), C_WHITE, C_PALE, radius=True)
+        # 코멘터리를 섹션 키워드 기준으로 분할 (헤더 줄과 본문을 합쳐 내용 손실 방지)
+        section_titles = ["전체 성과 총평", "Top Performer 분석", "리스크 요인", "DPI vs RVPI 분석", "향후 전략 제언"]
+        lines_all = [l.strip() for l in commentary.split("\n") if l.strip()]
+        sections = {t: [] for t in section_titles}
+        current = None
+        for line in lines_all:
+            matched = None
+            for t in section_titles:
+                # "1. 전체 성과 총평" 같은 헤더 줄(짧고 키워드를 포함) 인식
+                if t in line and len(line) <= len(t) + 8:
+                    matched = t
+                    break
+            if matched:
+                current = matched
+                continue
+            if current:
+                sections[current].append(line)
 
-        # AI 아이콘
-        _shape(s, M_LEFT + Inches(0.15), BODY_Y + Inches(0.15), Inches(0.35), Inches(0.35), C_PRIMARY, radius=True)
-        _txt(s, M_LEFT + Inches(0.15), BODY_Y + Inches(0.18), Inches(0.35), Inches(0.30),
-             "AI", sz=9, color=C_WHITE, bold=True, align=PP_ALIGN.CENTER)
-        _txt(s, M_LEFT + Inches(0.60), BODY_Y + Inches(0.20), Inches(4), Inches(0.25),
-             "Claude AI 분기 코멘터리", sz=11, color=C_PRIMARY, bold=True)
+        box_titles, paras = [], []
+        for t in section_titles:
+            content = " ".join(sections[t]).strip()
+            if content:
+                box_titles.append(t)
+                paras.append(content)
 
-        # 본문 (최대 20줄)
-        lines = [l for l in commentary.split("\n") if l.strip()][:20]
-        _multiline(s, M_LEFT + Inches(0.20), BODY_Y + Inches(0.55), C_WIDTH - Inches(0.40),
-                   Inches(4.8), lines, sz=10, color=C_DARK, spacing=4)
+        if not paras:
+            # 폴백: 섹션 키워드를 찾지 못하면 단락 단위로 분할
+            paras = [p.strip() for p in commentary.split("\n\n") if p.strip()]
+            if len(paras) <= 1:
+                raw = " ".join(lines_all)
+                sentences = [seg.strip() + "다." for seg in raw.split("다.") if seg.strip()]
+                paras, chunk = [], []
+                for sent in sentences:
+                    chunk.append(sent)
+                    if len(chunk) >= 2:
+                        paras.append(" ".join(chunk)); chunk = []
+                if chunk:
+                    paras.append(" ".join(chunk))
+            paras = paras[:5]
+            box_titles = [f"코멘터리 {i+1}" for i in range(len(paras))]
+
+        box_h = Inches(1.02) if len(paras) <= 5 else Inches(5.0 / max(len(paras), 1))
+        box_gap = Inches(0.08)
+        for i, (title, para) in enumerate(zip(box_titles, paras)):
+            by = BODY_Y + i * (box_h + box_gap)
+            _shape(s, M_LEFT, by, C_WIDTH, box_h, C_WHITE, C_PALE, radius=True)
+            _shape(s, M_LEFT + Inches(0.12), by + Inches(0.10), Inches(0.26), Inches(0.26), C_PRIMARY, radius=True)
+            _txt(s, M_LEFT + Inches(0.12), by + Inches(0.115), Inches(0.26), Inches(0.22),
+                 str(i + 1), sz=10, color=C_WHITE, bold=True, align=PP_ALIGN.CENTER)
+            _txt(s, M_LEFT + Inches(0.48), by + Inches(0.08), Inches(4), Inches(0.22),
+                 title, sz=10, color=C_PRIMARY, bold=True)
+            _txt(s, M_LEFT + Inches(0.20), by + Inches(0.46), C_WIDTH - Inches(0.40), box_h - Inches(0.54),
+                 para, sz=9, color=C_DARK)
         slide_labels.append("AI")
 
     # ════════════════════════════════════════════════
-    # 마지막: End of Document
+    # 마지막 본문: End of Document (Appendix 앞으로 이동)
     # ════════════════════════════════════════════════
     s = prs.slides.add_slide(prs.slide_layouts[6])
     _bg(s, C_PRIMARY)
+    _shape(s, Inches(0), Inches(0), SW, SH, C_PRIMARY)
     _txt(s, Inches(0), Inches(2.8), SW, Inches(0.9),
          "End of Document", sz=48, color=C_WHITE, bold=True, align=PP_ALIGN.CENTER)
     _shape(s, Inches(1.5), Inches(3.8), Inches(10.333), Pt(2), C_LIGHT)
@@ -1251,6 +1425,129 @@ def generate_lp_pptx(
     _txt(s, Inches(0), Inches(6.2), SW, Inches(0.3),
          "본 보고서는 자동 생성된 참고 자료이며, 투자 의사결정의 최종 근거로 사용할 수 없습니다.", sz=8, color=C_LIGHT, align=PP_ALIGN.CENTER)
     slide_labels.append("End")
+
+    # ════════════════════════════════════════════════
+    # Appendix 디바이더 슬라이드 — End of Document와 동일한 진한 초록 단색
+    # ════════════════════════════════════════════════
+    s = prs.slides.add_slide(prs.slide_layouts[6])
+    _bg(s, C_PRIMARY)
+    _shape(s, Inches(0), Inches(0), SW, SH, C_PRIMARY)  # 테마 배경 덮어쓰는 명시적 사각형
+    _txt(s, Inches(0), Inches(2.8), SW, Inches(0.9),
+         "Appendix", sz=48, color=C_WHITE, bold=True, align=PP_ALIGN.CENTER)
+    _shape(s, Inches(1.5), Inches(3.8), Inches(10.333), Pt(2), C_LIGHT)
+    _txt(s, Inches(0), Inches(4.1), SW, Inches(0.4),
+         "주요 지표 계산식", sz=16, color=C_LIGHT, align=PP_ALIGN.CENTER)
+    slide_labels.append("Appendix Divider")
+
+    # ════════════════════════════════════════════════
+    # Appendix p1: 핵심 성과 지표 계산식
+    # ════════════════════════════════════════════════
+    s = prs.slides.add_slide(prs.slide_layouts[6]); _bg(s)
+    _header(s, "Appendix", "주요 지표 계산식 (1/2) — 성과 지표",
+            "업계 표준 계산 산식을 기반으로, 투자 원금 대비 절대 수익(MOIC)부터 시간가치를 반영한 실질 수익률(IRR)까지 지표를 자동 산출합니다.")
+
+    ex_row = result_df.iloc[0]
+    ex_name = ex_row["회사명"]
+    ex_inv = ex_row["투자금액_백만원"]
+    ex_cur = ex_row["현재가치_백만원"]
+    ex_rec = ex_row["회수금액_백만원"]
+    ex_moic = ex_row["MOIC"]
+    ex_dpi = ex_row["DPI"]
+    ex_rvpi = ex_row["RVPI"]
+    ex_tvpi = ex_row["TVPI"]
+    ex_irr = ex_row["IRR(%)"]
+
+    fb_w = Inches(3.85)
+    fb_h = Inches(1.85)
+    fb_gap = Inches(0.20)
+    fb_y = BODY_Y + Inches(0.20)
+
+    _formula_box(s, M_LEFT, fb_y, fb_w, fb_h, "MOIC (Multiple on Invested Capital)",
+                 "MOIC = (현재가치 + 회수금액) / 투자원금",
+                 f"EX. {ex_name}: MOIC = ({ex_cur:,.0f}+{ex_rec:,.0f}) / {ex_inv:,.0f} = {ex_moic}x",
+                 "1.0x 미만=원금손실, 2.0x 이상=우수, 3.0x 이상=최상위")
+
+    _formula_box(s, M_LEFT + fb_w + fb_gap, fb_y, fb_w, fb_h, "DPI (Distributions to Paid-In)",
+                 "DPI = 회수금액 / 투자원금",
+                 f"EX. {ex_name}: DPI = {ex_rec:,.0f} / {ex_inv:,.0f} = {ex_dpi}x",
+                 "1.0x = 원금 회수 완료, 0 = 아직 미회수")
+
+    _formula_box(s, M_LEFT + (fb_w + fb_gap) * 2, fb_y, fb_w, fb_h, "TVPI (Total Value to Paid-In)",
+                 "TVPI = DPI + RVPI = (회수금액+현재가치) / 투자원금",
+                 f"EX. {ex_name}: TVPI = {ex_dpi} + {ex_rvpi} = {ex_tvpi}x",
+                 "MOIC와 유사하나 LP 출자금 기준, 2.0x 이상 = 우수")
+
+    fb_y2 = fb_y + fb_h + Inches(0.25)
+    _formula_box(s, M_LEFT, fb_y2, fb_w, fb_h, "IRR (Internal Rate of Return)",
+                 "Σ CFt / (1+r)^t = 0 을 만족하는 r",
+                 f"EX. {ex_name}: 투자 {ex_inv:,.0f}M → 회수 {ex_cur+ex_rec:,.0f}M → IRR = {ex_irr}%",
+                 "10% 미만=저조, 15% 이상=우수, 25% 이상=최상위")
+
+    _formula_box(s, M_LEFT + fb_w + fb_gap, fb_y2, fb_w, fb_h, "RVPI (Residual Value to Paid-In)",
+                 "RVPI = 현재가치 / 투자원금",
+                 f"EX. {ex_name}: RVPI = {ex_cur:,.0f} / {ex_inv:,.0f} = {ex_rvpi}x",
+                 "펀드 초기 높음, 후기에도 높으면 Exit 지연 의심")
+
+    # IRR vs MOIC 관계 박스
+    rel_x = M_LEFT + (fb_w + fb_gap) * 2
+    _shape(s, rel_x, fb_y2, fb_w, fb_h, C_BEIGE, C_BORDER, radius=True)
+    _txt(s, rel_x + Inches(0.12), fb_y2 + Inches(0.08), fb_w - Inches(0.24), Inches(0.22),
+         "IRR vs MOIC 관계", sz=11, color=C_BLACK, bold=True)
+    rel_texts = [
+        "시간가치의 차이: MOIC 2.0x를 3년에 달성하면 IRR 26%, 5년이면 IRR 15%로 절반 수준",
+        "PE/VC 펀드의 일반적 목표: MOIC 2.0x 이상 + IRR 15% 이상",
+        "빠른 Exit이 IRR에 유리하지만, 충분한 가치 성장 후 Exit이 MOIC에 유리 — 균형 필요",
+    ]
+    _multiline(s, rel_x + Inches(0.12), fb_y2 + Inches(0.34), fb_w - Inches(0.24), Inches(1.4),
+               rel_texts, sz=8, color=C_DARK, spacing=4)
+
+    slide_labels.append("Appendix p1")
+
+    # ════════════════════════════════════════════════
+    # Appendix p2: 고급 분석 지표 계산식 (HHI, IRR Sensitivity, Waterfall)
+    # ════════════════════════════════════════════════
+    s = prs.slides.add_slide(prs.slide_layouts[6]); _bg(s)
+    _header(s, "Appendix", "주요 지표 계산식 (2/2) — 고급 분석 도구",
+            "포트폴리오 집중도부터 회수 시뮬레이션까지, 본 보고서가 사용한 고급 분석 지표의 계산 로직을 안내합니다.")
+
+    weights_ap = result_df["투자금액_백만원"] / result_df["투자금액_백만원"].sum()
+    hhi_ap = round((weights_ap ** 2).sum() * 10000)
+
+    fb2_w = Inches(3.85); fb2_h = Inches(1.85); fb2_gap = Inches(0.20)
+    fb2_y = BODY_Y + Inches(0.20)
+
+    _formula_box(s, M_LEFT, fb2_y, fb2_w, fb2_h, "HHI (Herfindahl-Hirschman Index)",
+                 "HHI = Σ(투자비중)² × 10,000",
+                 f"EX. 본 펀드: 투자비중 제곱합 × 10,000 = {hhi_ap:,}",
+                 "1,500 미만=LOW, 1,500~2,500=MEDIUM, 2,500 이상=HIGH(집중)")
+
+    _formula_box(s, M_LEFT + fb2_w + fb2_gap, fb2_y, fb2_w, fb2_h, "IRR Sensitivity Matrix",
+                 "IRR = (Exit배수)^(1/보유기간) − 1",
+                 "EX. Exit 2.0x, 보유 3년 → IRR = (2.0)^(1/3) − 1 = 26.0%",
+                 "Exit 배수(행) × 보유기간(열) 조합을 매트릭스로 산출, 단기·고배수일수록 IRR 극대화")
+
+    _formula_box(s, M_LEFT + (fb2_w + fb2_gap) * 2, fb2_y, fb2_w, fb2_h, "회수 시나리오 시뮬레이션",
+                 "회수금액 = 투자원금 × Exit 배수",
+                 "EX. 투자 1,000M × Exit 2.5x = 회수 2,500M → IRR 환산",
+                 "Exit 배수 구간(0.5x~5.0x)별 IRR을 산출하여 목표 IRR 달성 최소 배수 도출")
+
+    fb2_y2 = fb2_y + fb2_h + Inches(0.25)
+    _formula_box(s, M_LEFT, fb2_y2, fb2_w, fb2_h, "Waterfall — ① 원금반환 · ② 우선수익",
+                 "우선수익 = 투자원금 × [(1+Hurdle)^연수 − 1]",
+                 "EX. 9,050M × [(1.08)^5 − 1] = 4,247M",
+                 "LP가 투자 원금과 약정 Hurdle Rate(통상 8%) 수익을 최우선으로 수취")
+
+    _formula_box(s, M_LEFT + fb2_w + fb2_gap, fb2_y2, fb2_w, fb2_h, "Waterfall — ③ GP Catch-up",
+                 "GP Catch-up = MIN(잔여재원, 총수익×Carry%)",
+                 "EX. 총수익 9,165M × 20% = 1,833M",
+                 "GP가 전체 수익 대비 약정 Carry 비율(통상 20%)만큼 우선 배분받는 단계")
+
+    _formula_box(s, M_LEFT + (fb2_w + fb2_gap) * 2, fb2_y2, fb2_w, fb2_h, "Waterfall — ④ Carry Split",
+                 "LP/GP 잔여분배 = 잔여재원 × (1−Carry%) / Carry%",
+                 "EX. 잔여 3,085M → LP 2,468M(80%) · GP 617M(20%)",
+                 "①~③ 이후 남은 수익을 LP와 GP가 약정 비율(통상 80:20)로 최종 분배")
+
+    slide_labels.append("Appendix p2")
 
     # ── 페이지 번호 ─────────────────────────────────
     total = len(prs.slides)
