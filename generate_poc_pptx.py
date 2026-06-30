@@ -160,7 +160,7 @@ def build():
     prs = Presentation()
     prs.slide_width = W
     prs.slide_height = H
-    TOTAL = 20
+    TOTAL = 22
 
     # ═══════════════════════════════════════════════
     # 1. 표지
@@ -673,7 +673,7 @@ def build():
         ("02", "펀드 추이", "J-Curve\n분기별 추이\nAI 해석 PDF", M_GREEN),
         ("03", "투자 분석", "DART 재무 조회\n시나리오 시뮬레이터\nIRR Sensitivity\nWaterfall", GREEN),
         ("04", "시장 벤치마크", "ECOS 기준금리\n환율 추이\nKVIC 모태펀드", L_GREEN),
-        ("05", "AI 분석", "Claude 코멘터리\n자연어 질문(RAG)\n뉴스 모니터링", M_GREEN),
+        ("05", "AI 분석", "Claude 코멘터리\n자연어 질문(RAG)", M_GREEN),
     ]
     for i, (num, title, desc, clr) in enumerate(tabs):
         x = Inches(0.3) + Inches(i * 2.6)
@@ -685,6 +685,108 @@ def build():
         _multi(s, x + Inches(0.2), Inches(3.1), Inches(1.9), Inches(3.3),
                desc.split("\n"), sz=11, color=D_GREY, spacing=2.0)
     _page(s, 18, TOTAL)
+
+    # 14-2. 정성적 목표와 달성 현황
+    s = prs.slides.add_slide(prs.slide_layouts[6])
+    _bg(s)
+    _header(s, "QUALITATIVE GOALS", "정성적 목표와 달성 현황")
+    _text(s, Inches(0.8), Inches(1.45), Inches(11.7), Inches(0.4),
+          "정량적 자동화를 넘어 4가지 정성적 가치를 함께 추구했으며, 3개는 완전히 달성했고 1개는 진행 중입니다.",
+          sz=13, color=BLACK, bold=True)
+
+    goals = [
+        ("01", "투명성", "Transparency",
+         "AI·자동계산 결과의 산출 근거를 항상 추적 가능하게",
+         "모든 벨류에이션·지표에 근거 문자열 저장, Appendix에 계산식+실제 예시 병기",
+         "완전 달성", D_GREEN),
+        ("02", "접근성", "Affordability",
+         "고가 솔루션을 못 쓰는 중소형 GP도 사용할 수 있게",
+         "오픈소스 + 공공 API(DART/ECOS/KVIC)만으로 구축, 라이선스 비용 0원",
+         "완전 달성", D_GREEN),
+        ("03", "신뢰 가능한 산출물", "Professional-grade Output",
+         "자동 생성이라도 실제 IC/LP 미팅에 바로 쓸 수 있는 수준으로",
+         "PPTX 20슬라이드를 컨설팅 장표 수준으로 다수 피드백 반영해 재설계",
+         "완전 달성", D_GREEN),
+        ("04", "확장 가능한 유연성", "Flexibility",
+         "펀드 전략·필요 섹션에 맞춰 산출물이 달라지게",
+         "VC/PE 전략별 KPI, Report Builder 섹션 선택은 구현. 뉴스 모니터링 등 일부는 미착수",
+         "부분 달성", M_GREEN),
+    ]
+    for i, (num, title_kr, title_en, why, evidence, status, clr) in enumerate(goals):
+        y = Inches(2.0) + Inches(i * 1.15)
+        _rounded(s, Inches(0.8), y, Inches(11.7), Inches(1.0), WHITE, BORDER)
+        _circle_text(s, Inches(1.0), y + Inches(0.18), Inches(0.5), num, bg_color=clr, txt_size=13)
+        _text(s, Inches(1.7), y + Inches(0.1), Inches(3.5), Inches(0.3),
+              f"{title_kr} ({title_en})", sz=13, color=BLACK, bold=True)
+        _text(s, Inches(1.7), y + Inches(0.42), Inches(7.0), Inches(0.5),
+              f"왜: {why}\n근거: {evidence}", sz=9, color=D_GREY)
+        _pill(s, Inches(10.5), y + Inches(0.35), Inches(1.7), Inches(0.32), status,
+              bg=(P_GREEN if status == "완전 달성" else RGBColor(0xFF,0xE8,0xCC)),
+              fg=(D_GREEN if status == "완전 달성" else RGBColor(0xB0,0x6A,0x00)), sz=10)
+
+    _rounded(s, Inches(0.8), Inches(6.6), Inches(11.7), Inches(0.6), WARM_BG, BORDER)
+    _text(s, Inches(1.0), Inches(6.72), Inches(11.3), Inches(0.4),
+          "핵심 시사점: 단순 계산 자동화를 넘어 GP가 결과를 신뢰하고 바로 쓸 수 있는 도구를 지향했습니다.",
+          sz=11, color=D_GREEN, bold=True)
+    _page(s, 19, TOTAL)
+
+    # 14-3. 시스템 적용 범위 (가능 / 불가능)
+    s = prs.slides.add_slide(prs.slide_layouts[6])
+    _bg(s)
+    _header(s, "SCOPE", "시스템 적용 범위")
+    _text(s, Inches(0.8), Inches(1.45), Inches(11.7), Inches(0.4),
+          "국내 중소형 GP의 분기 보고 자동화에 집중하기 위해, 네 가지는 의도적으로 비워뒀습니다.",
+          sz=13, color=BLACK, bold=True)
+
+    # 좌측: 가능 (체크리스트, 이미 앞에서 설명함 — 압축)
+    _rounded(s, Inches(0.8), Inches(2.1), Inches(5.7), Inches(4.4), XP_GREEN, P_GREEN)
+    _text(s, Inches(1.0), Inches(2.25), Inches(4), Inches(0.3),
+          "✓ 가능 (Core Scope)", sz=14, color=D_GREEN, bold=True)
+    can_items = [
+        "5대 성과지표 자동계산 (calculator.py·irr.py)",
+        "비상장사 가치평가 (valuation_fetcher.py)",
+        "Waterfall·Sensitivity·J-Curve 시각화",
+        "AI 코멘터리 + 자연어 질의(RAG)",
+        "DART·ECOS·KVIC 실시간 연동",
+        "PPTX·CSV·Excel 동시 출력",
+    ]
+    for i, item in enumerate(can_items):
+        y = Inches(2.7) + Inches(i * 0.6)
+        _circle_text(s, Inches(1.0), y, Inches(0.3), "✓", bg_color=D_GREEN, txt_size=11)
+        _text(s, Inches(1.45), y + Inches(0.02), Inches(4.9), Inches(0.4),
+              item, sz=11, color=BLACK)
+
+    # 우측: 불가능 (디테일 유지, 2개 그룹으로 구분)
+    rx = Inches(6.8)
+    _text(s, rx, Inches(2.1), Inches(5.7), Inches(0.3),
+          "미구현 — 향후 로드맵 가능성", sz=10, color=GREY, bold=True)
+    _rounded(s, rx, Inches(2.45), Inches(5.7), Inches(0.85), WARM_BG, L_GREY)
+    _text(s, rx + Inches(0.2), Inches(2.55), Inches(5.3), Inches(0.25),
+          "포트폴리오사 뉴스 모니터링", sz=11, color=BLACK, bold=True)
+    _text(s, rx + Inches(0.2), Inches(2.82), Inches(5.3), Inches(0.45),
+          "API는 사용 가능하나, 무분별한 수집은 정보 과다로 의사결정에 방해될 우려 — 유의미한 시그널 필터링 로직 설계 후 재추진",
+          sz=8.5, color=D_GREY)
+
+    _text(s, rx, Inches(3.45), Inches(5.7), Inches(0.3),
+          "설계상 범위 제외 — 의도적 선택", sz=10, color=GREY, bold=True)
+    cannot_items = [
+        ("법적 효력 있는 공식 벨류에이션 발급", "시가총액·매출 배수 추정치일 뿐, 회계법인 정식 평가 절차(실사·감사) 미수행"),
+        ("해외 자산 / 멀티통화 펀드 손익 계산", "원화(KRW) 단일통화 기준 설계 — 국내 자산 포트폴리오에 범위 집중"),
+        ("실시간 거래 체결 연동", "브로커리지·거래소 API 연계 없음 — '보고 자동화' 도구이지 '거래 실행' 도구가 아님"),
+    ]
+    for i, (title, reason) in enumerate(cannot_items):
+        y = Inches(3.8) + Inches(i * 0.82)
+        _rounded(s, rx, y, Inches(5.7), Inches(0.74), WHITE, BORDER)
+        _text(s, rx + Inches(0.2), y + Inches(0.06), Inches(5.3), Inches(0.25),
+              title, sz=11, color=BLACK, bold=True)
+        _text(s, rx + Inches(0.2), y + Inches(0.34), Inches(5.3), Inches(0.4),
+              reason, sz=8.5, color=D_GREY)
+
+    _rounded(s, Inches(0.8), Inches(6.6), Inches(11.7), Inches(0.6), WARM_BG, BORDER)
+    _text(s, Inches(1.0), Inches(6.72), Inches(11.3), Inches(0.4),
+          "핵심 시사점: 이 구성은 기술적 한계가 아닌 설계 선택이며, 향후 수요에 따라 단계적으로 확장 가능합니다.",
+          sz=11, color=D_GREEN, bold=True)
+    _page(s, 20, TOTAL)
 
     # ═══════════════════════════════════════════════
     # PART 5
@@ -727,7 +829,7 @@ def build():
                          bg_color=clr, txt_size=10)
             _text(s, x + Inches(0.7), y + Inches(0.02), Inches(2.8), Inches(0.3),
                   item, sz=12, color=BLACK)
-    _page(s, 20, TOTAL)
+    _page(s, 22, TOTAL)
 
     # 16. Q&A
     s = prs.slides.add_slide(prs.slide_layouts[6])
