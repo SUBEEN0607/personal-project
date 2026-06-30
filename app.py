@@ -548,9 +548,9 @@ with tab1:
     <div style="font-size:10px;color:#999;">잔존 가치</div>
   </div>
   <div style="background:#fff;border:1px solid {'#c8e6c9' if tvpi >= 2.0 else '#e5e5e5'};border-radius:10px;padding:18px 20px;">
-    <div style="font-size:10px;color:#1b5e20;font-weight:600;">TVPI</div>
+    <div style="font-size:10px;color:#1a1a1a;font-weight:600;">TVPI</div>
     <div style="font-size:28px;font-weight:800;color:{_tvpi_color};">{tvpi}x</div>
-    <div style="font-size:10px;color:#1b5e20;">{'BM 달성' if tvpi >= 2.0 else 'DPI + RVPI'}</div>
+    <div style="font-size:10px;color:#1a1a1a;">{'BM 달성' if tvpi >= 2.0 else 'DPI + RVPI'}</div>
   </div>
   <div style="background:#fff;border:1px solid #e5e5e5;border-radius:10px;padding:18px 20px;">
     <div style="font-size:10px;color:#999;font-weight:600;">COMPANIES</div>
@@ -1601,20 +1601,23 @@ span[data-baseweb="tag"] span { color:#1a1a1a !important; }
 span[data-baseweb="tag"] svg { fill:#999 !important; width:12px !important; }
 </style>""", unsafe_allow_html=True)
 
-        # 가이드 카드 — 중요도 top-down
+        # 가이드 — 한 줄 안내
         st.markdown("""
-<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px;">
-  <div style="background:#fafafa;border-radius:8px;padding:10px 14px;">
-    <div style="font-size:10px;color:#1b5e20;font-weight:700;letter-spacing:0.08em;margin-bottom:4px;">1. 핵심 성과</div>
-    <div style="font-size:10px;color:#999;line-height:1.5;">성과 요약 · 포트폴리오 상세<br>Top/Bottom · 섹터 · 리스크<br>AI 코멘터리 · 시각화 차트</div>
+<div style="display:flex;gap:24px;margin-bottom:12px;padding:10px 0;">
+  <div style="display:flex;align-items:center;gap:6px;">
+    <span style="background:#1b5e20;color:#fff;font-size:9px;font-weight:700;width:18px;height:18px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;">1</span>
+    <span style="font-size:11px;color:#333;font-weight:600;">핵심 성과</span>
+    <span style="font-size:10px;color:#aaa;">성과 · 포트폴리오 · 리스크</span>
   </div>
-  <div style="background:#fafafa;border-radius:8px;padding:10px 14px;">
-    <div style="font-size:10px;color:#1b5e20;font-weight:700;letter-spacing:0.08em;margin-bottom:4px;">2. 분석 · 시뮬레이션</div>
-    <div style="font-size:10px;color:#999;line-height:1.5;">J-Curve · 시나리오 · Waterfall<br>KVIC 시장 비교 · DART 재무</div>
+  <div style="display:flex;align-items:center;gap:6px;">
+    <span style="background:#2e7d32;color:#fff;font-size:9px;font-weight:700;width:18px;height:18px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;">2</span>
+    <span style="font-size:11px;color:#333;font-weight:600;">분석</span>
+    <span style="font-size:10px;color:#aaa;">J-Curve · 시나리오 · Waterfall</span>
   </div>
-  <div style="background:#fafafa;border-radius:8px;padding:10px 14px;">
-    <div style="font-size:10px;color:#1b5e20;font-weight:700;letter-spacing:0.08em;margin-bottom:4px;">3. 부가 정보</div>
-    <div style="font-size:10px;color:#999;line-height:1.5;">거시지표 (금리·환율)<br>집중도·투자기간·실현율</div>
+  <div style="display:flex;align-items:center;gap:6px;">
+    <span style="background:#43a047;color:#fff;font-size:9px;font-weight:700;width:18px;height:18px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;">3</span>
+    <span style="font-size:11px;color:#333;font-weight:600;">부가</span>
+    <span style="font-size:10px;color:#aaa;">거시지표 · KVIC · DART</span>
   </div>
 </div>
 """, unsafe_allow_html=True)
