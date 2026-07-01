@@ -205,6 +205,22 @@ def _table(s, l, t, headers, rows, col_widths, row_h=Inches(0.32)):
         pass
     return tbl
 
+def _fmt_m(val_mil: float) -> str:
+    """백만원 단위 숫자를 간결하게 표기 (슬라이드 공간 절약)"""
+    v = float(val_mil)
+    if v >= 1_000_000:
+        return f"{v/1_000_000:.1f}조원"
+    if v >= 10_000:
+        return f"{v/10_000:.0f}억원"
+    if v >= 1_000:
+        return f"{v/1_000:.1f}십억"
+    return f"{int(v):,}M"
+
+def _trunc(text: str, max_len: int = 8) -> str:
+    """긴 텍스트를 말줄임표로 줄임"""
+    s = str(text)
+    return s if len(s) <= max_len else s[:max_len - 1] + "…"
+
 def _bar_h(s, l, t, w, h, pct, fill=C_PRIMARY, bg=C_PALE):
     _shape(s, l, t, w, h, bg, radius=True)
     fw = max(int(w * min(pct, 1.0)), Inches(0.05))
@@ -351,7 +367,7 @@ def generate_lp_pptx(
     h1 = Inches(0.55)
     _es_row(rows_y, h1, "펀드 개요",
             [f"{fund_name} · {fund_strategy}", f"{quarter} · 기준일 {base_date}"],
-            [f"포트폴리오 {n_cos}개 기업", f"총 투자금 {total_inv:,}백만원"])
+            [f"포트폴리오 {n_cos}개 기업", f"총 투자금 {_fmt_m(total_inv)}"])
 
     y2 = rows_y + h1
     h2 = Inches(0.55)
@@ -432,7 +448,7 @@ def generate_lp_pptx(
             ("MOIC", f"{moic}x", "투자 대비 전체 가치", C_PRIMARY),
             ("IRR (평균)", f"{avg_irr}%", "연환산 수익률", C_PRIMARY),
             ("TVPI", f"{tvpi}x", "DPI + RVPI", C_PRIMARY if tvpi >= 2.0 else C_BLACK),
-            ("투자기업 수", f"{n_cos}개", f"총 {total_inv:,}백만원", C_PRIMARY),
+            ("투자기업 수", f"{n_cos}개", f"총 {_fmt_m(total_inv)}", C_PRIMARY),
         ]):
             x = M_LEFT + (kpi_w + kpi_gap) * i
             _kpi_card(s, x, r1, kpi_w, Inches(0.95), lab, val, sub, vc)
@@ -560,24 +576,30 @@ def generate_lp_pptx(
         _header(s, "PORTFOLIO DETAIL", "포트폴리오 상세",
                 f'{n_cos}개 포트폴리오 기업 중 {top1["회사명"]}이 MOIC {top1["MOIC"]}x로 가장 높은 성과를 보이고 있습니다.')
 
-        # 전체 테이블 (최대 10개사)
-        sorted_df = result_df.sort_values("MOIC", ascending=False).head(10)
-        hdrs = ["회사명", "섹터", "투자단계", "투자(M)", "현재가치(M)", "회수(M)", "MOIC", "IRR(%)", "DPI", "RVPI", "TVPI"]
-        cw = [Inches(1.3), Inches(0.9), Inches(0.75), Inches(0.85), Inches(0.95), Inches(0.85),
-              Inches(0.65), Inches(0.7), Inches(0.55), Inches(0.55), Inches(0.55)]
+        # 전체 테이블 — 슬라이드 공간에 맞게 행수·행높이 동적 결정
+        _tbl_max_rows = 8 if n_cos <= 8 else (10 if n_cos <= 15 else 12)
+        _row_h = Inches(0.26) if n_cos > 10 else Inches(0.28)
+        sorted_df = result_df.sort_values("MOIC", ascending=False).head(_tbl_max_rows)
+        hdrs = ["회사명", "섹터", "투자단계", "투자액", "현재가치", "회수액", "MOIC", "IRR", "DPI", "RVPI", "TVPI"]
+        cw = [Inches(1.2), Inches(0.85), Inches(0.75), Inches(0.80), Inches(0.90), Inches(0.80),
+              Inches(0.60), Inches(0.65), Inches(0.52), Inches(0.52), Inches(0.52)]
         rows = []
         for _, r in sorted_df.iterrows():
             rows.append([
-                r["회사명"], r.get("섹터", "-"), r.get("투자단계", "-"),
-                f'{int(r["투자금액_백만원"]):,}', f'{int(r["현재가치_백만원"]):,}',
-                f'{int(r["회수금액_백만원"]):,}',
+                _trunc(r["회사명"], 7), _trunc(r.get("섹터", "-"), 6), _trunc(r.get("투자단계", "-"), 8),
+                _fmt_m(r["투자금액_백만원"]), _fmt_m(r["현재가치_백만원"]), _fmt_m(r["회수금액_백만원"]),
                 f'{r["MOIC"]}x', f'{r["IRR(%)"]}%',
                 f'{r["DPI"]}x', f'{r["RVPI"]}x', f'{r["TVPI"]}x',
             ])
-        _table(s, M_LEFT, BODY_Y, hdrs, rows, cw, Inches(0.28))
+        _table(s, M_LEFT, BODY_Y, hdrs, rows, cw, _row_h)
 
-        # 차트 (테이블 아래 좌측)
-        chart_y = BODY_Y + Inches(0.28) * (len(rows) + 1) + Inches(0.20)
+        # 차트/narrative Y — 테이블 끝 기준, 슬라이드 안에 들어오도록 상한 고정
+        _tbl_end_y = float((BODY_Y + _row_h * (len(rows) + 1)) / 914400)
+        _chart_y   = min(_tbl_end_y + 0.15, 4.30)   # 차트 상단: 최대 4.30"
+        _chart_h   = min(7.10 - _chart_y - 0.10, 2.70)  # 하단 여백 0.1" 확보
+        _narr_y    = _chart_y
+        _narr_h    = min(_chart_h, 2.10)
+
         moic_over2 = len(result_df[result_df["MOIC"] >= 2.0])
         moic_under1 = len(result_df[result_df["MOIC"] < 1.0])
         avg_moic = result_df["MOIC"].mean()
@@ -588,36 +610,53 @@ def generate_lp_pptx(
 
         if include_charts:
             import plotly.graph_objects as go
-            sd = result_df.sort_values("MOIC", ascending=True)
+            # 차트에 표시할 기업 수 제한 (20개 초과 시 상위·하위 각 10개)
+            if n_cos > 20:
+                _sd_top = result_df.sort_values("MOIC", ascending=False).head(10)
+                _sd_bot = result_df.sort_values("MOIC", ascending=True).head(10)
+                sd = pd.concat([_sd_bot, _sd_top]).drop_duplicates().sort_values("MOIC")
+                _chart_title = f"MOIC 상위·하위 각 10개사 (전체 {n_cos}개)"
+            else:
+                sd = result_df.sort_values("MOIC", ascending=True)
+                _chart_title = f"전체 {n_cos}개사 MOIC"
+            _bar_sz = max(6, min(9, int(160 / len(sd))))  # 기업 수에 따라 폰트 크기 조정
+            _chart_px_h = max(220, min(int(_chart_h * 96), 300))
             fig = go.Figure(go.Bar(
-                x=sd["MOIC"].tolist(), y=sd["회사명"].tolist(), orientation="h",
-                marker_color=["rgba(27,94,32,0.7)" if m >= 2 else "rgba(67,160,71,0.5)" if m >= 1 else "rgba(198,40,40,0.4)" for m in sd["MOIC"]],
-                text=[f"{m}x" for m in sd["MOIC"]], textposition="outside", textfont=dict(size=8),
+                x=sd["MOIC"].tolist(),
+                y=[_trunc(nm, 7) for nm in sd["회사명"].tolist()],
+                orientation="h",
+                marker_color=["rgba(27,94,32,0.8)" if m >= 2 else "rgba(67,160,71,0.6)" if m >= 1 else "rgba(198,40,40,0.5)" for m in sd["MOIC"]],
+                text=[f"{m}x" for m in sd["MOIC"]],
+                textposition="outside", textfont=dict(size=_bar_sz),
                 marker_line_width=0,
             ))
-            fig.add_vline(x=2.0, line_dash="dot", line_color="#999", annotation_text="BM 2.0x", annotation_font_size=8)
-            fig.update_layout(height=270, width=560, margin=dict(t=10, b=45, l=80, r=40),
-                              paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-                              xaxis=dict(showgrid=True, gridcolor="#eee", title="MOIC (배)"), yaxis=dict(showgrid=False), bargap=0.3)
-            _chart_img(s, fig, 0.6, min(float(chart_y / 914400), 4.6), 6.3, 2.95)
+            fig.add_vline(x=2.0, line_dash="dot", line_color="#999", annotation_text="BM 2.0x", annotation_font_size=7)
+            fig.update_layout(
+                height=_chart_px_h, width=500,
+                margin=dict(t=8, b=30, l=70, r=50),
+                paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                xaxis=dict(showgrid=True, gridcolor="#eee", title="MOIC"),
+                yaxis=dict(showgrid=False, tickfont=dict(size=_bar_sz)),
+                bargap=max(0.15, 0.45 - len(sd) * 0.01),
+            )
+            _chart_img(s, fig, 0.6, _chart_y, 6.0, _chart_h)
 
-        # 우측: 줄글 해설 (차트 옆 빈 공간 채움) — 헤더 바 포함 카드형
+        # 우측: 줄글 해설
         narrative = (
-            f"본 펀드는 {n_cos}개 포트폴리오 기업에 총 {total_inv:,}백만원을 투자하였으며, "
-            f"이 중 {moic_over2}개사({moic_over2/n_cos*100:.0f}%)가 벤치마크 MOIC 2.0x를 상회하는 성과를 기록하고 있습니다. "
-            f"가장 우수한 성과를 보인 {top_name}({top_sector_name})은 MOIC {top_moic}x를 달성하며 펀드 전체 수익의 핵심 동력으로 작용하고 있습니다.\n\n"
-            f"전체 포트폴리오의 평균 MOIC는 {avg_moic:.2f}x, 중앙값은 {med_moic:.2f}x로, "
-            f"{'평균이 중앙값을 크게 상회하여 소수 우수 기업에 수익이 집중되는 구조' if avg_moic > med_moic * 1.2 else '평균과 중앙값의 차이가 크지 않아 비교적 고른 성과 분포'}를 보이고 있습니다. "
-            f"{f'한편 원금을 회수하지 못한 기업이 {moic_under1}개사 존재하여, 해당 기업에 대한 후속 모니터링과 Exit 전략 재검토가 필요합니다.' if moic_under1 > 0 else '모든 포트폴리오 기업이 투자 원금 이상의 가치를 유지하고 있어 안정적인 펀드 운용 상태입니다.'}"
+            f"본 펀드는 {n_cos}개 기업에 총 {_fmt_m(total_inv)}을 투자하였으며, "
+            f"{moic_over2}개사({moic_over2/n_cos*100:.0f}%)가 BM MOIC 2.0x를 상회합니다. "
+            f"최고 성과는 {top_name}({top_sector_name}) MOIC {top_moic}x입니다.\n\n"
+            f"평균 MOIC {avg_moic:.2f}x, 중앙값 {med_moic:.2f}x. "
+            f"{'평균>중앙값: 소수 우수 기업에 수익 집중.' if avg_moic > med_moic * 1.2 else '평균≈중앙값: 고른 성과 분포.'} "
+            f"{'원금 미달 ' + str(moic_under1) + '개사 — Exit 전략 재검토 필요.' if moic_under1 > 0 else '전 기업 원금 이상 유지.'}"
         )
-        ins_y = min(float(chart_y / 914400), 4.6)
         narr_w = Inches(5.6)
-        narr_h = Inches(2.15)
-        _shape(s, Inches(7.1), Inches(ins_y), narr_w, narr_h, C_WHITE, C_BORDER, radius=True)
-        _shape(s, Inches(7.1), Inches(ins_y), narr_w, Inches(0.34), C_PRIMARY, radius=True)
-        _txt(s, Inches(7.1), Inches(ins_y) + Inches(0.07), narr_w, Inches(0.22),
+        _shape(s, Inches(6.9), Inches(_narr_y), narr_w, Inches(_narr_h), C_WHITE, C_BORDER, radius=True)
+        _shape(s, Inches(6.9), Inches(_narr_y), narr_w, Inches(0.32), C_PRIMARY, radius=True)
+        _txt(s, Inches(6.9), Inches(_narr_y) + Inches(0.06), narr_w, Inches(0.22),
              "PORTFOLIO NARRATIVE", sz=9, color=C_WHITE, bold=True, align=PP_ALIGN.CENTER)
-        _txt(s, Inches(7.3), Inches(ins_y) + Inches(0.48), narr_w - Inches(0.4), narr_h - Inches(0.60), narrative, sz=9, color=C_DARK)
+        _txt(s, Inches(7.1), Inches(_narr_y) + Inches(0.44), narr_w - Inches(0.4),
+             Inches(_narr_h - 0.55), narrative, sz=8.5, color=C_DARK)
         slide_labels.append("포트폴리오")
 
     # ════════════════════════════════════════════════
@@ -663,8 +702,10 @@ def generate_lp_pptx(
                               yaxis=dict(showgrid=False), bargap=0.3)
             _chart_img(s, fig, chart_x, float(BODY_Y / 914400) + 0.2, 5.4, 3.05)
 
-        # 하단: KPI 카드 4개 (섹터 다변화 지표)
-        kpi_y = BODY_Y + Inches(3.6)
+        # 하단: KPI 카드 4개 — 차트 끝 기준으로 Y 결정 (겹침 방지)
+        _sec_chart_end = float(BODY_Y / 914400) + 0.2 + 3.05  # 차트 끝 Y
+        kpi_y_in = min(max(_sec_chart_end + 0.15, float(BODY_Y / 914400) + 3.3), 4.90)
+        kpi_y = Inches(kpi_y_in)
         kw4 = Inches(2.85)
         gini_like = (sa["총투자"] / total_all).pow(2).sum()
         _kpi_card(s, M_LEFT, kpi_y, kw4, Inches(0.85), "섹터 수", f"{len(sa)}개", "분산 투자 범위", C_PRIMARY)
@@ -672,19 +713,20 @@ def generate_lp_pptx(
         _kpi_card(s, M_LEFT + Inches(6.10), kpi_y, kw4, Inches(0.85), "최고 MOIC 섹터", f"{best_moic_sec['평균MOIC']:.1f}x", best_moic_sec["섹터"], C_PRIMARY)
         _kpi_card(s, M_LEFT + Inches(9.15), kpi_y, kw4, Inches(0.85), "섹터 집중지수", f"{gini_like:.2f}", "HHI식 분산도(0~1)", C_ORANGE if gini_like > 0.3 else C_PRIMARY)
 
-        # 하단: 줄글 분석
-        sec_narrative = (
-            f"본 펀드는 총 {len(sa)}개 섹터에 {n_cos}개 포트폴리오 기업을 분산 배치하였으며, "
-            f"이 중 {top_sec['섹터']} 섹터에 {top_sec['총투자']:,.0f}백만원({top_sec['총투자']/total_all*100:.0f}%)이 집중되어 가장 큰 투자 비중을 차지하고 있습니다. "
-            f"상위 3개 섹터({', '.join(sa.head(3)['섹터'].tolist())})가 전체 투자금의 {top3_pct:.0f}%를 차지하여, "
-            f"{'섹터 편중도가 다소 높은 편이며 향후 신규 투자 시 미투자 섹터로의 분산을 검토할 필요가 있습니다.' if top3_pct > 70 else '비교적 고른 섹터 분산을 유지하고 있습니다.'} "
-            f"수익성 측면에서는 {best_moic_sec['섹터']} 섹터가 평균 MOIC {best_moic_sec['평균MOIC']:.1f}x, IRR {best_moic_sec['평균IRR']:.0f}%로 가장 우수한 성과를 보이고 있어, "
-            f"향후 동일 섹터 내 후속 투자 기회를 적극적으로 검토할 가치가 있습니다."
-        )
-        sec_sum_y = kpi_y + Inches(1.05)
-        _shape(s, M_LEFT, sec_sum_y, C_WIDTH, Inches(0.78), C_BG, C_BORDER, radius=True)
-        _txt(s, M_LEFT + Inches(0.15), sec_sum_y + Inches(0.08), C_WIDTH - Inches(0.3), Inches(0.62),
-             sec_narrative, sz=9, color=C_DARK)
+        # 하단: 줄글 분석 — KPI 아래 여백이 있을 때만 표시
+        sec_sum_y = kpi_y + Inches(0.95)
+        _sec_sum_bot = float(sec_sum_y / 914400) + 0.72
+        if _sec_sum_bot <= 7.10:
+            sec_narrative = (
+                f"총 {len(sa)}개 섹터, {n_cos}개 기업. "
+                f"{top_sec['섹터']}에 {_fmt_m(top_sec['총투자'])}({top_sec['총투자']/total_all*100:.0f}%) 집중. "
+                f"상위 3개 섹터가 {top3_pct:.0f}%를 차지. "
+                f"{'섹터 편중도 높음 — 분산 검토 필요.' if top3_pct > 70 else '고른 섹터 분산 유지.'} "
+                f"최고 수익 섹터: {best_moic_sec['섹터']} MOIC {best_moic_sec['평균MOIC']:.1f}x / IRR {best_moic_sec['평균IRR']:.0f}%."
+            )
+            _shape(s, M_LEFT, sec_sum_y, C_WIDTH, Inches(0.70), C_BG, C_BORDER, radius=True)
+            _txt(s, M_LEFT + Inches(0.15), sec_sum_y + Inches(0.07), C_WIDTH - Inches(0.3), Inches(0.56),
+                 sec_narrative, sz=8.5, color=C_DARK)
         slide_labels.append("섹터")
 
         # ── 페이지 2: 섹터 심층 분석 ──
@@ -815,23 +857,29 @@ def generate_lp_pptx(
         risks = []
         under = result_df[result_df["MOIC"] < 1.0]
         if len(under) > 0:
-            risks.append(("원금 손실 위험", f"MOIC<1.0x: {', '.join(under['회사명'].tolist())}", "HIGH"))
+            # 원금 미달 기업이 많으면 이름 줄임
+            under_names = ", ".join(_trunc(nm, 6) for nm in under["회사명"].tolist()[:5])
+            if len(under) > 5:
+                under_names += f" 외 {len(under)-5}개"
+            risks.append(("원금 손실 위험", f"MOIC<1.0x: {under_names}", "HIGH"))
         if hhi > 2500:
-            risks.append(("집중 리스크", f"HHI {hhi:,} — 특정 기업에 투자 편중", "HIGH"))
+            risks.append(("집중 리스크", f"HHI {hhi:,} — 투자 편중", "HIGH"))
         elif hhi > 1500:
-            risks.append(("집중도 보통", f"HHI {hhi:,} — 분산 확대 검토 필요", "MEDIUM"))
+            risks.append(("집중도 보통", f"HHI {hhi:,} — 분산 확대 검토", "MEDIUM"))
         else:
-            risks.append(("분산 양호", f"HHI {hhi:,} — 적정 분산 수준", "LOW"))
+            risks.append(("분산 양호", f"HHI {hhi:,} — 적정 분산", "LOW"))
         if dpi < 0.5:
             risks.append(("회수 지연", f"DPI {dpi}x — 현금 회수 제한적", "MEDIUM"))
         if moic >= 2.0:
             risks.append(("우수 성과", f"MOIC {moic}x — 벤치마크 달성", "POSITIVE"))
+        risks = risks[:5]  # 최대 5개 항목 (슬라이드 초과 방지)
 
-        # ── 좌측: 리스크 항목 (간격 줄임) ──
+        # ── 좌측: 리스크 항목 (항목 수에 따라 간격 동적 조정) ──
         left_w = Inches(5.85)
+        _risk_gap = min(0.52, (3.0 / max(len(risks), 1)))  # 가용 높이 3" 내 균등 배분
         _txt(s, M_LEFT, BODY_Y, Inches(4), Inches(0.18), "1. 리스크 항목 평가", sz=9, color=C_DARK, bold=True)
         for i, (title, desc, level) in enumerate(risks):
-            y = BODY_Y + Inches(0.34) + Inches(i * 0.52)
+            y = BODY_Y + Inches(0.34) + Inches(i * _risk_gap)
             if level == "HIGH":
                 icon_c, bg_c, bd_c = C_RED, RGBColor(0xFE, 0xF5, 0xF5), RGBColor(0xF0, 0xD0, 0xD0)
             elif level == "MEDIUM":
