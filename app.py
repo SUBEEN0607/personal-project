@@ -2004,10 +2004,11 @@ span[data-baseweb="tag"] svg { fill:#999 !important; width:12px !important; }
                             _col_hdr = _ws.cell(row=_ref_hdr, column=_cell.column).value or ""
                             if _col_hdr in _LONG_COLS:
                                 _cell.alignment = Alignment(horizontal="left", vertical="top", wrap_text=True)
-                                # 텍스트 길이 기반 동적 행 높이 (열폭 65자 기준, 줄당 13pt)
-                                _clen = len(str(_cell.value)) if _cell.value else 0
-                                _lines = (_clen // 62) + 1
-                                _est_h = min(10 + _lines * 13, 46)  # 최대 46pt (약 3줄)
+                                # 한글은 Excel에서 ASCII의 약 1.8배 폭 → 유효 길이로 줄 수 추정
+                                _cval = str(_cell.value) if _cell.value else ""
+                                _eff = sum(1.8 if ord(c) > 127 else 1.0 for c in _cval)
+                                _lines = int(_eff // 40) + 1  # 열폭 65 기준 한글 혼합 약 40유닛/줄
+                                _est_h = min(8 + _lines * 14, 90)  # 최대 90pt (약 6줄)
                                 _ws.row_dimensions[_ridx].height = max(_ws.row_dimensions[_ridx].height, _est_h)
                             elif isinstance(_cell.value, (int, float)):
                                 _cell.number_format = _NUM_FMT
@@ -2023,13 +2024,18 @@ span[data-baseweb="tag"] svg { fill:#999 !important; width:12px !important; }
                     # 열 너비: 긴 텍스트 컬럼은 고정 폭, 나머지는 내용 기반 자동
                     for _col in _ws.columns:
                         _letter = _col[0].column_letter
+                        # 통합 시트는 수식 설명서 헤더(하단 블록)도 같이 확인
                         _hdr_val = str(_ws[f"{_letter}1"].value or "")
-                        if _hdr_val in _LONG_COLS:
+                        _hdr_val2 = str(_ws.cell(row=_formula_hdr_row, column=_col[0].column).value or "") if _is_merged else ""
+                        if _hdr_val in _LONG_COLS or _hdr_val2 in _LONG_COLS:
                             _ws.column_dimensions[_letter].width = 65
                         else:
-                            _max_len = max(
-                                (len(str(_c.value)) for _c in _col if _c.value is not None), default=8)
-                            _ws.column_dimensions[_letter].width = min(max(_max_len + 4, 12), 40)
+                            # Korean 글자는 Excel에서 ASCII의 약 2배 폭 → 한글 비율 반영
+                            def _ew(v):
+                                s = str(v) if v is not None else ""
+                                return sum(2 if ord(c) > 127 else 1 for c in s)
+                            _max_len = max((_ew(_c.value) for _c in _col if _c.value is not None), default=8)
+                            _ws.column_dimensions[_letter].width = min(max(_max_len + 4, 14), 55)
 
                 # ── 조건부 서식: MOIC / IRR / DPI (빨강→노랑→초록) ──
                 _ws2 = _writer.sheets["2_계산지표&설명서"]
