@@ -30,11 +30,17 @@ def xirr(cashflows: list[tuple]) -> float:
 
 def build_cashflows_from_row(row: pd.Series) -> list[tuple]:
     """portfolio row → 2~3 포인트 현금흐름 리스트"""
-    cfs = [(row["투자일"], -row["투자금액_백만원"])]
-    if row["회수금액_백만원"] > 0:
-        mid = row["투자일"] + (row["기준일"] - row["투자일"]) / 2
-        cfs.append((mid, row["회수금액_백만원"]))
-    cfs.append((row["기준일"], row["현재가치_백만원"]))
+    inv_date = pd.to_datetime(row["투자일"])
+    base_date = pd.to_datetime(row["기준일"])
+    inv_amt = float(row["투자금액_백만원"])
+    realized = float(row.get("회수금액_백만원", 0) or 0)
+    current = float(row.get("현재가치_백만원", 0) or 0)
+
+    cfs = [(inv_date, -inv_amt)]
+    if realized > 0:
+        mid = inv_date + (base_date - inv_date) / 2
+        cfs.append((mid, realized))
+    cfs.append((base_date, current))
     return cfs
 
 

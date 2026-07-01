@@ -151,9 +151,12 @@ def standardize(df: pd.DataFrame) -> tuple[pd.DataFrame, list[str]]:
     for col in ["투자일", "기준일"]:
         if col in df_renamed.columns:
             try:
-                df_renamed[col] = pd.to_datetime(df_renamed[col], infer_datetime_format=True)
+                df_renamed[col] = pd.to_datetime(df_renamed[col])
             except Exception:
-                warnings.append(f"{col} 날짜 형식 인식 실패 — YYYY-MM-DD 형식으로 입력해주세요")
+                try:
+                    df_renamed[col] = pd.to_datetime(df_renamed[col], format="mixed", dayfirst=False)
+                except Exception:
+                    warnings.append(f"{col} 날짜 형식 인식 실패 — YYYY-MM-DD 형식으로 입력해주세요")
 
     # 6. 데이터 유효성 검증
     if (df_renamed["투자금액_백만원"] <= 0).any():

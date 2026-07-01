@@ -1631,7 +1631,30 @@ span[data-baseweb="tag"] svg { fill:#999 !important; width:12px !important; }
             ("거시지표 · DART", False, ["거시", "DART"]),
             ("AI 코멘터리", True, ["AI"]),
         ]
-        st.markdown("##### 포함할 섹션")
+        # 섹션 선택 UI — 토글 카드
+        st.markdown("""<style>
+div[data-testid="stCheckbox"] label {
+    background: #f8f9fa;
+    border: 1.5px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 6px 12px 6px 8px !important;
+    transition: border-color 0.15s;
+    font-size: 13px !important;
+    cursor: pointer;
+}
+div[data-testid="stCheckbox"] label:hover {
+    border-color: #1b5e20;
+    background: #f1f8f2;
+}
+div[data-testid="stCheckbox"] input:checked + label,
+div[data-testid="stCheckbox"] input:checked ~ div label {
+    border-color: #1b5e20 !important;
+    background: #e8f5e9 !important;
+    color: #1b5e20 !important;
+    font-weight: 600 !important;
+}
+</style>""", unsafe_allow_html=True)
+
         _cols = st.columns(4)
         selected = []
         for i, (label, default, keywords) in enumerate(_section_groups):
@@ -1640,7 +1663,8 @@ span[data-baseweb="tag"] svg { fill:#999 !important; width:12px !important; }
                     selected.extend(keywords)
         st.session_state["report_sections"] = selected
         st.session_state["report_include_charts"] = "시각화 차트" in selected
-        st.caption(f"{len(_section_groups)}개 중 {sum(1 for _,d,_ in _section_groups if d)}개 기본 선택. 아래 버튼을 누르면 생성됩니다.")
+        _sel_cnt = sum(1 for i in range(len(_section_groups)) if st.session_state.get(f"sec_{i}", False))
+        st.caption(f"{_sel_cnt} / {len(_section_groups)} 섹션 선택됨")
 
         st.markdown("---")
 
@@ -1695,8 +1719,8 @@ span[data-baseweb="tag"] svg { fill:#999 !important; width:12px !important; }
                                use_container_width=True)
 
         # Excel 데이터 내보내기
-        with st.expander("데이터 내보내기 (Excel)"):
-            st.caption("분석 결과를 실무용 Excel 워크북으로 내보냅니다. PPT 선택 섹션과 자동 연동됩니다.")
+        with st.expander("Excel 내보내기"):
+            st.caption("실무용 워크북으로 내보냅니다. PPT 선택 섹션과 자동 연동됩니다.")
             _full = result_df.copy()
             _full["투자기간(년)"] = ((pd.to_datetime(_full["기준일"]) - pd.to_datetime(_full["투자일"])).dt.days / 365.25).round(1)
             _full["투자비중(%)"] = (_full["투자금액_백만원"] / _full["투자금액_백만원"].sum() * 100).round(1)
@@ -1719,8 +1743,7 @@ span[data-baseweb="tag"] svg { fill:#999 !important; width:12px !important; }
             ).round(2).reset_index()
             _sec_csv["섹터비중(%)"] = (_sec_csv["총투자백만"] / _sec_csv["총투자백만"].sum() * 100).round(1)
 
-            st.markdown("###### 전체 데이터 패키지 (Excel, 실무용)")
-            st.caption("원본 데이터, 계산 지표+설명서, 섹터 요약 등을 하나의 워크북으로 제공합니다. 실사·감사 대응 시 활용하세요.")
+            st.caption("원본 데이터, 계산지표, 계산식 설명서, 섹터 요약 등을 하나의 워크북으로 제공합니다.")
 
             # ── 원본 데이터 ──
             _raw_cols = [c for c in ["회사명","섹터","투자단계","투자일","기준일",
@@ -1914,12 +1937,12 @@ span[data-baseweb="tag"] svg { fill:#999 !important; width:12px !important; }
                         f'<span style="background:#eee;color:#999;font-size:10px;padding:2px 8px;border-radius:10px;margin:2px;text-decoration:line-through">{n}</span>'
                         for n, _ in _exc_sheets
                     )
-                st.markdown(f"**PPT 선택 섹션 연동 — 포함 시트 {len(_inc_sheets)}개:**", unsafe_allow_html=False)
+                st.caption(f"포함 시트 {len(_inc_sheets)}개 (PPT 섹션 연동)")
                 st.markdown(_badge_html, unsafe_allow_html=True)
                 if _exc_sheets:
                     st.caption("취소선 시트는 PPT에서 해당 섹션이 미선택되어 제외됩니다.")
             else:
-                st.caption("PPT 섹션을 선택하면 Excel 시트가 자동으로 연동됩니다. (현재: 전체 포함)")
+                st.caption("전체 시트 포함 (PPT 섹션 미선택 시 기본값)")
 
             # ── Excel 워크북 생성 ──
             _buf = io.BytesIO()
@@ -2064,7 +2087,7 @@ span[data-baseweb="tag"] svg { fill:#999 !important; width:12px !important; }
                                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                                use_container_width=True)
             _n_inc = len(_inc_sheets)
-            st.caption(f"틀고정·필터·조건부서식(MOIC/IRR/DPI) 적용. {_n_inc}개 시트 — PPT 선택 섹션 연동{'됨' if _ppt_sel else ' (전체 포함)'}.")
+            st.caption(f"틀고정 · 필터 · 조건부서식 적용 · {_n_inc}개 시트")
 
         st.markdown("---")
         st.caption("본 보고서는 참고용 자료이며, 투자 결정의 근거로 단독 사용할 수 없습니다.")

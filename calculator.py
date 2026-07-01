@@ -15,8 +15,11 @@ def calculate_moic(row: pd.Series) -> float:
 
 
 def calculate_irr(row: pd.Series) -> float:
-    cashflows = build_cashflows_from_row(row)
-    return xirr(cashflows)
+    try:
+        cashflows = build_cashflows_from_row(row)
+        return xirr(cashflows)
+    except Exception:
+        return 0.0
 
 
 def calculate_dpi(row: pd.Series) -> float:
