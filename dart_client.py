@@ -5,7 +5,18 @@ import pandas as pd
 from dotenv import load_dotenv
 
 load_dotenv()
-_API_KEY = os.getenv("DART_API_KEY")
+
+def _load_api_key() -> str | None:
+    key = os.getenv("DART_API_KEY")
+    if not key:
+        try:
+            import streamlit as st
+            key = st.secrets.get("DART_API_KEY") or st.secrets.get("dart_api_key")
+        except Exception:
+            pass
+    return key
+
+_API_KEY = _load_api_key()
 _DART_BASE = "https://opendart.fss.or.kr/api"
 
 _corp_list_cache = None
@@ -33,8 +44,10 @@ _load_disk_cache()
 
 
 def _get_corp_list():
-    global _corp_list_cache
+    global _corp_list_cache, _API_KEY
     if _corp_list_cache is None:
+        if not _API_KEY:
+            _API_KEY = _load_api_key()
         import dart_fss as dart
         dart.set_api_key(_API_KEY)
         _corp_list_cache = dart.get_corp_list()
@@ -73,6 +86,11 @@ _fin_cache: dict[str, pd.DataFrame] = {}
 
 def get_financials(corp_code: str, years: list[int] = None) -> pd.DataFrame:
     """DART OpenAPI 직접 호출로 연도별 손익계산서 조회 (캐시 적용)"""
+    global _API_KEY
+    if not _API_KEY:
+        _API_KEY = _load_api_key()
+    if not _API_KEY:
+        return pd.DataFrame()
     if years is None:
         years = [2022, 2023, 2024]
 

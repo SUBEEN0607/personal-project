@@ -6,6 +6,7 @@ import plotly.graph_objects as go
 import base64, os, re, requests
 
 from calculator import load_portfolio, run_all, portfolio_summary
+from valuation_fetcher import bulk_fetch_valuations
 from rag import answer_question
 from irr import j_curve_data
 from simulator import simulate_exit, optimal_exit_timing
@@ -374,6 +375,49 @@ if st.session_state["show_cover"]:
 
     st.stop()
 
+
+# ── 자동 밸류에이션 헬퍼 ─────────────────────────
+def _fill_missing_valuations(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    현재가치 = 0이고 회수금액 = 0인 행에 대해 DART P/S 배수 추정을 시도.
+    DART 실패 시 투자금액(취득원가)을 현재가치로 사용 (MOIC = 1.0 기준선).
+    """
+    df = df.copy()
+    need = df[(df["현재가치_백만원"] == 0) & (df["회수금액_백만원"] == 0)].index.tolist()
+    if not need:
+        return df
+
+    with st.spinner(f"현재가치 미입력 {len(need)}개사 자동 추정 중 (DART P/S 배수)..."):
+        subset = df.loc[need]
+        try:
+            fetched = bulk_fetch_valuations(subset)
+            for orig_idx, row in zip(need, fetched.itertuples()):
+                est = getattr(row, "현재가치_백만원_추정", None)
+                source = getattr(row, "source", "")
+                if est and est > 0:
+                    df.at[orig_idx, "현재가치_백만원"] = float(est)
+                    df.at[orig_idx, "_val_source"] = source
+                else:
+                    # DART 실패 → 취득원가 기준 (MOIC=1.0 기준선 유지)
+                    df.at[orig_idx, "현재가치_백만원"] = float(df.at[orig_idx, "투자금액_백만원"])
+                    df.at[orig_idx, "_val_source"] = "취득원가(기준선)"
+        except Exception as e:
+            # bulk_fetch 자체가 실패하면 전부 취득원가로
+            for orig_idx in need:
+                df.at[orig_idx, "현재가치_백만원"] = float(df.at[orig_idx, "투자금액_백만원"])
+                df.at[orig_idx, "_val_source"] = "취득원가(기준선)"
+            st.sidebar.warning(f"자동 밸류에이션 오류, 취득원가 기준 사용: {e}")
+
+    dart_est = sum(1 for i in need if "섹터배수" in str(df.at[i, "_val_source"]) or "멀티플" in str(df.at[i, "_val_source"]))
+    cost_fb  = len(need) - dart_est
+    if dart_est:
+        st.sidebar.info(f"자동추정: DART P/S {dart_est}개사 / 취득원가 {cost_fb}개사")
+    elif need:
+        st.sidebar.info(f"현재가치 미입력 {len(need)}개사 → 취득원가 기준 적용 (MOIC 기준선 1.0x)")
+
+    return df
+
+
 # ── 일반 헤더: 표지 통과 후 ──────────────────────
 st.markdown("""
 <div style="padding: 0 0 20px 0; border-bottom: 1px solid #e5e5e5; margin-bottom: 24px;">
@@ -435,6 +479,7 @@ if uploaded:
             st.sidebar.warning(w)
 
     if "투자금액_백만원" in raw.columns and len(raw) > 0:
+        raw = _fill_missing_valuations(raw)
         result_df = run_all(raw)
         st.session_state["df"] = raw
         st.session_state["result_df"] = result_df
@@ -445,6 +490,7 @@ if uploaded:
 
 elif use_sample:
     raw = load_portfolio("sample_portfolio.csv")
+    raw = _fill_missing_valuations(raw)
     result_df = run_all(raw)
     st.session_state["df"] = raw
     st.session_state["result_df"] = result_df
