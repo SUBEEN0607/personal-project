@@ -1734,53 +1734,125 @@ span[data-baseweb="tag"] svg { fill:#999 !important; width:12px !important; }
             st.markdown("###### 전체 데이터 패키지 (Excel, 실무용)")
             st.caption("원본 데이터, 계산 지표, 계산식 설명서, 섹터 요약을 하나의 워크북(시트별 구분)으로 제공합니다. 실사·감사 대응 시 활용하세요.")
 
-            # 원본 vs 계산 데이터 명확히 분리
+            # ── 원본 데이터 ──
             _raw_cols = [c for c in ["회사명","섹터","투자단계","투자일","기준일",
                                       "투자금액_백만원","현재가치_백만원","회수금액_백만원"] if c in df.columns]
             _raw_export = df[_raw_cols].copy()
 
+            # ── 계산지표 (해석 컬럼 추가) ──
+            _export_rich = _export.copy()
+            _export_rich["MOIC 해석"] = _export_rich["MOIC"].apply(
+                lambda x: "최상위(3.0x+)" if x >= 3.0 else "우수(2.0x+)" if x >= 2.0 else "보통(1.0x+)" if x >= 1.0 else "부진(<1.0x)")
+            _export_rich["IRR 해석"] = _export_rich["IRR(%)"].apply(
+                lambda x: "최상위(25%+)" if x >= 25 else "우수(15%+)" if x >= 15 else "보통(10%+)" if x >= 10 else "저조(<10%)")
+            _export_rich["DPI 해석"] = _export_rich["DPI"].apply(
+                lambda x: "원금 전액 회수" if x >= 1.0 else "부분 회수" if x > 0 else "미회수")
+
+            # ── 계산식 설명서 (합산용, 아래 블록으로 붙임) ──
             _weights = result_df["투자금액_백만원"] / result_df["투자금액_백만원"].sum()
             _hhi = round((_weights ** 2).sum() * 10000)
             _ex = result_df.iloc[0]
             _formula_dict = pd.DataFrame([
-                {"지표": "MOIC", "분류": "성과", "산식": "MOIC = (현재가치 + 회수금액) / 투자금액",
+                {"지표": "MOIC", "분류": "성과지표",
+                 "산식": "MOIC = (현재가치 + 회수금액) / 투자금액",
                  "계산 예시": f"{_ex['회사명']}: ({_ex['현재가치_백만원']:,.0f}+{_ex['회수금액_백만원']:,.0f}) / {_ex['투자금액_백만원']:,.0f} = {_ex['MOIC']}x",
-                 "해석 기준": "1.0x 미만=원금손실, 2.0x 이상=우수, 3.0x 이상=최상위"},
-                {"지표": "DPI", "분류": "성과", "산식": "DPI = 회수금액 / 투자금액",
+                 "해석 기준": "1.0x 미만=원금손실 / 2.0x+=우수 / 3.0x+=최상위",
+                 "활용 시점": "분기 성과 리뷰 필수 지표, LP 보고서 핵심 KPI"},
+                {"지표": "DPI", "분류": "성과지표",
+                 "산식": "DPI = 회수금액 / 투자금액",
                  "계산 예시": f"{_ex['회수금액_백만원']:,.0f} / {_ex['투자금액_백만원']:,.0f} = {_ex['DPI']}x",
-                 "해석 기준": "1.0x = 원금 전액 현금 회수 완료, 0 = 미회수"},
-                {"지표": "RVPI", "분류": "성과", "산식": "RVPI = 현재가치(미실현) / 투자금액",
+                 "해석 기준": "0=미회수 / 1.0x=원금 전액 현금 회수 / 2.0x+=우수 Exit",
+                 "활용 시점": "Exit 진행도 측정, 펀드 만기 근접 시 핵심 지표"},
+                {"지표": "RVPI", "분류": "성과지표",
+                 "산식": "RVPI = 현재가치(미실현) / 투자금액",
                  "계산 예시": f"{_ex['현재가치_백만원']:,.0f} / {_ex['투자금액_백만원']:,.0f} = {_ex['RVPI']}x",
-                 "해석 기준": "펀드 초기 높음이 정상, 후기까지 높으면 Exit 지연 의심"},
-                {"지표": "TVPI", "분류": "성과", "산식": "TVPI = DPI + RVPI = (회수금액+현재가치) / 투자금액",
+                 "해석 기준": "펀드 초기 높음이 정상 / 후기까지 높으면 Exit 지연 의심",
+                 "활용 시점": "미실현 포트폴리오 잔존가치 측정, 중간 보고"},
+                {"지표": "TVPI", "분류": "성과지표",
+                 "산식": "TVPI = DPI + RVPI = (회수금액 + 현재가치) / 투자금액",
                  "계산 예시": f"{_ex['DPI']} + {_ex['RVPI']} = {_ex['TVPI']}x",
-                 "해석 기준": "MOIC와 동일 개념, LP 출자금(Paid-In) 기준 표기 시 사용"},
-                {"지표": "IRR", "분류": "성과", "산식": "Σ CFt / (1+r)^t = 0 을 만족하는 r (XIRR, scipy.optimize.brentq로 수치해석)",
-                 "계산 예시": f"투자 {_ex['투자금액_백만원']:,.0f}M({_ex['투자일']}) → 회수 {_ex['현재가치_백만원']+_ex['회수금액_백만원']:,.0f}M({_ex['기준일']}) → IRR={_ex['IRR(%)']}%",
-                 "해석 기준": "10% 미만=저조, 15% 이상=우수, 25% 이상=최상위"},
-                {"지표": "투자비중(%)", "분류": "포트폴리오", "산식": "개별 투자금액 / 전체 투자금액 합계 × 100", "계산 예시": "", "해석 기준": "포트폴리오 내 자본 배분 비중"},
-                {"지표": "실현비율(%)", "분류": "포트폴리오", "산식": "회수금액 / 총가치(현재가치+회수금액) × 100", "계산 예시": "", "해석 기준": "현금화(Exit) 진행 정도"},
-                {"지표": "HHI", "분류": "리스크", "산식": "HHI = Σ(투자비중)² × 10,000",
-                 "계산 예시": f"본 펀드: 투자비중 제곱합 × 10,000 = {_hhi:,}",
-                 "해석 기준": "1,500 미만=LOW, 1,500~2,500=MEDIUM, 2,500 이상=HIGH(집중 리스크)"},
-                {"지표": "IRR Sensitivity", "분류": "시뮬레이션", "산식": "IRR = (Exit배수)^(1/보유기간) − 1",
+                 "해석 기준": "MOIC와 동일 개념. LP 출자금(Paid-In) 기준 표기 시 사용",
+                 "활용 시점": "LP 전체 수익 현황 파악, MOIC와 병행 표기"},
+                {"지표": "IRR", "분류": "성과지표",
+                 "산식": "Σ CFt/(1+r)^t = 0 을 만족하는 r. XIRR 방식으로 실제 날짜 기반 수치해석(scipy brentq)",
+                 "계산 예시": f"투자 {_ex['투자금액_백만원']:,.0f}M({_ex['투자일']}) → 가치 {_ex['현재가치_백만원']+_ex['회수금액_백만원']:,.0f}M({_ex['기준일']}) → IRR={_ex['IRR(%)']}%",
+                 "해석 기준": "10% 미만=저조 / 15%+=우수 / 25%+=최상위 (VC 목표: 20%+)",
+                 "활용 시점": "펀드 수익률 BM 비교, PME 계산 입력값"},
+                {"지표": "투자비중(%)", "분류": "포트폴리오",
+                 "산식": "개별 투자금액 / 전체 투자금액 합계 × 100",
+                 "계산 예시": "", "해석 기준": "단일 기업 20% 초과 시 과집중 경보",
+                 "활용 시점": "자본 배분 리뷰, 포트폴리오 리밸런싱 판단"},
+                {"지표": "실현비율(%)", "분류": "포트폴리오",
+                 "산식": "회수금액 / (현재가치 + 회수금액) × 100",
+                 "계산 예시": "", "해석 기준": "0%=전부 미실현 / 100%=전부 Exit 완료",
+                 "활용 시점": "펀드 성숙도 측정, Exit 전략 수립"},
+                {"지표": "HHI", "분류": "리스크",
+                 "산식": "HHI = Σ(투자비중_i)² × 10,000",
+                 "계산 예시": f"본 펀드 HHI = {_hhi:,} (투자비중 제곱합 × 10,000)",
+                 "해석 기준": "1,500 미만=LOW / 1,500~2,500=MEDIUM / 2,500+=HIGH(집중 위험)",
+                 "활용 시점": "포트폴리오 집중 리스크 정량화, LP 리스크 보고"},
+                {"지표": "IRR Sensitivity", "분류": "시뮬레이션",
+                 "산식": "IRR = (Exit 배수)^(1 / 보유기간) − 1",
                  "계산 예시": "Exit 2.0x, 보유 3년 → IRR = (2.0)^(1/3) − 1 = 26.0%",
-                 "해석 기준": "Exit 배수(행) × 보유기간(열) 매트릭스, 단기·고배수일수록 IRR 극대화"},
-                {"지표": "회수 시나리오", "분류": "시뮬레이션", "산식": "회수금액 = 투자원금 × Exit 배수", "계산 예시": "투자 1,000M × Exit 2.5x = 회수 2,500M → IRR 환산",
-                 "해석 기준": "Exit 배수 구간(0.5x~5.0x)별 IRR을 산출하여 목표 IRR 달성 최소 배수 도출"},
-                {"지표": "Waterfall ①원금반환", "분류": "분배", "산식": "LP 원금 = MIN(회수재원, 투자원금)", "계산 예시": "",
-                 "해석 기준": "LP가 투자한 원금을 최우선으로 반환받는 단계"},
-                {"지표": "Waterfall ②우선수익", "분류": "분배", "산식": "우선수익 = 투자원금 × [(1+Hurdle)^연수 − 1]", "계산 예시": "EX. 9,050M × [(1.08)^5 − 1] = 4,247M",
-                 "해석 기준": "LP에게 약정 Hurdle Rate(통상 8%) 수익을 우선 배분"},
-                {"지표": "Waterfall ③GP Catch-up", "분류": "분배", "산식": "GP Catch-up = MIN(잔여재원, 총수익×Carry%)", "계산 예시": "EX. 총수익 × 20%",
-                 "해석 기준": "GP가 전체 수익 대비 약정 Carry 비율(통상 20%)만큼 우선 배분받는 단계"},
-                {"지표": "Waterfall ④Carry Split", "분류": "분배", "산식": "잔여분배 = 잔여재원 × (1−Carry%) / Carry% 비율로 LP/GP 분할", "계산 예시": "EX. 잔여 × LP80% / GP20%",
-                 "해석 기준": "①~③ 이후 남은 수익을 LP와 GP가 약정 비율(통상 80:20)로 최종 분배"},
+                 "해석 기준": "행: Exit 배수(0.5x~5.0x) / 열: 보유기간(1~7년) 매트릭스",
+                 "활용 시점": "시나리오 플래닝, Exit 타이밍·배수 목표 설정"},
+                {"지표": "회수 시나리오", "분류": "시뮬레이션",
+                 "산식": "회수금액 = 투자원금 × Exit 배수; IRR = XIRR(투자일~회수예정일)",
+                 "계산 예시": "투자 1,000M × Exit 2.5x = 회수 2,500M → XIRR 계산",
+                 "해석 기준": "Exit 배수 구간별 IRR 산출, 목표 IRR 달성 최소 배수 도출",
+                 "활용 시점": "투심 자료, LP 배분 예상 커뮤니케이션"},
+                {"지표": "목표 IRR 역산", "분류": "시뮬레이션",
+                 "산식": "필요배수 = (1 + 목표IRR%)^경과연수",
+                 "계산 예시": "목표 IRR 20%, 3년 경과 → (1.20)^3 = 1.728x → 최소 MOIC 1.73x 필요",
+                 "해석 기준": "현재 MOIC ≥ 필요배수이면 현 시점 Exit으로 목표 IRR 달성 가능. 미달 시 추가 보유 또는 가치 제고 필요",
+                 "활용 시점": "Exit 타이밍 판단, '지금 팔면 목표 수익 나오나?' 역산. simulate_exit()·optimal_exit_timing() 공용 함수 사용"},
+                {"지표": "Waterfall ①원금반환", "분류": "분배구조",
+                 "산식": "LP 원금 = MIN(회수재원, 투자원금)",
+                 "계산 예시": "", "해석 기준": "LP 투자 원금 최우선 반환. GP는 이 단계에서 0원 배분",
+                 "활용 시점": "실제 Exit 시 LP/GP 배분 계획 수립"},
+                {"지표": "Waterfall ②우선수익", "분류": "분배구조",
+                 "산식": "우선수익 = 투자원금 × [(1 + Hurdle%)^연수 − 1]",
+                 "계산 예시": "9,050M × [(1.08)^5 − 1] = 4,247M  (Hurdle 8%, 5년)",
+                 "해석 기준": "LP에게 약정 Hurdle Rate(통상 8%) 수익 우선 배분",
+                 "활용 시점": "Carried Interest 계산 전 LP 보호 장치"},
+                {"지표": "Waterfall ③GP Catch-up", "분류": "분배구조",
+                 "산식": "GP Catch-up = MIN(잔여재원, 총수익 × Carry%)",
+                 "계산 예시": "총수익의 20%를 GP가 우선 수취",
+                 "해석 기준": "GP가 전체 수익 대비 약정 Carry 비율만큼 보전",
+                 "활용 시점": "LP 우선수익 지급 직후 단계"},
+                {"지표": "Waterfall ④Carry Split", "분류": "분배구조",
+                 "산식": "잔여재원 × LP(1−Carry%) + GP(Carry%) 비율 분할",
+                 "계산 예시": "잔여 × LP 80% / GP 20%",
+                 "해석 기준": "①~③ 이후 초과 수익을 LP·GP가 약정 비율로 최종 분배",
+                 "활용 시점": "최종 청산 시, 혹은 분기별 Escrow 계산"},
             ])
 
-            _summary_sheet = pd.DataFrame(list(summary.items()), columns=["항목", "값"])
+            # ── 펀드 요약 (항목 설명 추가) ──
+            _metric_desc = {
+                "포트폴리오사 수":       ("투자 집행 기업 수",                    "15~25개가 일반적인 적정 분산 범위"),
+                "총 투자금액 (백만원)":  ("Paid-in Capital 합산",                 "실제 집행된 출자 원금"),
+                "현재가치 합계 (백만원)":("미실현 NAV 합산",                     "매 분기 재평가 필요"),
+                "회수금액 합계 (백만원)":("실현 Exit 금액 합산",                  ""),
+                "펀드 MOIC":            ("총가치 / 투자금액 배수",                "2.0x=우수, 3.0x+=최상위"),
+                "펀드 DPI":             ("현금 회수 배수",                        "1.0x=원금 전액 현금 회수"),
+                "펀드 RVPI":            ("미실현 가치 배수",                      "초기 높음이 정상, 후기까지 높으면 Exit 지연"),
+                "펀드 TVPI":            ("DPI + RVPI 합산 배수 (MOIC와 동일)",    ""),
+            }
+            _summary_sheet = pd.DataFrame([
+                {"항목": k, "값": v,
+                 "항목 설명": _metric_desc.get(k, ("",""))[0],
+                 "해석 기준": _metric_desc.get(k, ("",""))[1]}
+                for k, v in summary.items()
+            ])
 
-            # Waterfall 분배 시트 (report_pptx.py와 동일 로직)
+            # ── 섹터 요약 (순위·HHI기여도 추가) ──
+            _sec_csv["투자비중순위"] = _sec_csv["총투자백만"].rank(ascending=False).astype(int)
+            _sec_csv["HHI기여도"] = ((_sec_csv["총투자백만"] / _sec_csv["총투자백만"].sum()) ** 2 * 10000).round(0).astype(int)
+            _sec_csv = _sec_csv[["투자비중순위","섹터","기업수","총투자백만","섹터비중(%)",
+                                  "HHI기여도","평균MOIC","최고MOIC","최저MOIC","평균IRR",
+                                  "총현재가치백만","총회수백만"]].sort_values("투자비중순위")
+
+            # ── Waterfall (비중·누적 컬럼 추가) ──
             _wf_inv = float(total_invested)
             _wf_proc = float(result_df["현재가치_백만원"].sum() + result_df["회수금액_백만원"].sum())
             _hurdle, _carry, _years = 8, 20, 5
@@ -1793,30 +1865,55 @@ span[data-baseweb="tag"] svg { fill:#999 !important; width:12px !important; }
             _s3_gp = min(_rem, _gp_t); _rem -= _s3_gp
             _s4_gp = _rem * _carry / 100; _s4_lp = _rem - _s4_gp
             _total_lp = _s1 + _s2 + _s4_lp; _total_gp = _s3_gp + _s4_gp
-            _wf_sheet = pd.DataFrame([
-                {"단계": "① 원금반환", "LP(백만원)": round(_s1), "GP(백만원)": 0, "설명": "LP 투자 원금 최우선 반환"},
-                {"단계": "② 우선수익", "LP(백만원)": round(_s2), "GP(백만원)": 0, "설명": f"Hurdle {_hurdle}% x {_years}년"},
-                {"단계": "③ GP Catch-up", "LP(백만원)": 0, "GP(백만원)": round(_s3_gp), "설명": "GP Carry 목표 보전"},
-                {"단계": "④ Carry Split", "LP(백만원)": round(_s4_lp), "GP(백만원)": round(_s4_gp), "설명": f"LP{100-_carry}% / GP{_carry}%"},
-                {"단계": "합계", "LP(백만원)": round(_total_lp), "GP(백만원)": round(_total_gp), "설명": f"총 {_wf_proc:,.0f}백만원, LP MOIC {_total_lp/_wf_inv:.2f}x" if _wf_inv > 0 else ""},
-            ])
+            _cum_lp, _cum_gp = 0.0, 0.0
+            _wf_data = []
+            for _st, _lp, _gp, _desc in [
+                ("① 원금반환",    _s1,    0,       f"LP 투자 원금 최우선 반환"),
+                ("② 우선수익",    _s2,    0,       f"LP Hurdle {_hurdle}% × {_years}년 우선 배분"),
+                ("③ GP Catch-up", 0,      _s3_gp,  "GP Carry 목표 보전 단계"),
+                ("④ Carry Split", _s4_lp, _s4_gp,  f"LP {100-_carry}% / GP {_carry}% 최종 분배"),
+            ]:
+                _cum_lp += _lp; _cum_gp += _gp
+                _wf_data.append({
+                    "단계": _st, "LP(백만원)": round(_lp), "GP(백만원)": round(_gp),
+                    "합계(백만원)": round(_lp + _gp),
+                    "비중(%)": round((_lp + _gp) / _wf_proc * 100, 1) if _wf_proc > 0 else 0,
+                    "누적 LP(백만원)": round(_cum_lp),
+                    "누적 GP(백만원)": round(_cum_gp),
+                    "단계 설명": _desc,
+                })
+            _wf_data.append({
+                "단계": "합계", "LP(백만원)": round(_total_lp), "GP(백만원)": round(_total_gp),
+                "합계(백만원)": round(_wf_proc), "비중(%)": 100.0,
+                "누적 LP(백만원)": round(_total_lp), "누적 GP(백만원)": round(_total_gp),
+                "단계 설명": (f"LP MOIC {_total_lp/_wf_inv:.2f}x / GP Carry {_total_gp:,.0f}백만원"
+                              if _wf_inv > 0 else ""),
+            })
+            _wf_sheet = pd.DataFrame(_wf_data)
 
+            # ── Excel 워크북 생성 ──
             _buf = io.BytesIO()
+            # 계산지표+설명서 통합: 설명서 블록은 데이터 아래 3행 공백 후 시작
+            _formula_start_row = len(_export_rich) + 3   # 0-based → Excel row = +1
+            _formula_hdr_row   = _formula_start_row + 1  # 1-based Excel row of formula header
+
             with pd.ExcelWriter(_buf, engine="openpyxl") as _writer:
                 _summary_sheet.to_excel(_writer, sheet_name="0_펀드요약", index=False)
                 _raw_export.to_excel(_writer, sheet_name="1_원본데이터(RAW)", index=False)
-                _export.to_excel(_writer, sheet_name="2_계산지표", index=False)
-                _formula_dict.to_excel(_writer, sheet_name="3_계산식설명서", index=False)
-                _sec_csv.to_excel(_writer, sheet_name="4_섹터요약", index=False)
+                # 계산지표 + 설명서 통합 시트
+                _export_rich.to_excel(_writer, sheet_name="2_계산지표&설명서", index=False, startrow=0)
+                _formula_dict.to_excel(_writer, sheet_name="2_계산지표&설명서", index=False,
+                                       startrow=_formula_start_row)
+                _sec_csv.to_excel(_writer, sheet_name="3_섹터요약", index=False)
                 if st.session_state.get("jcurve_trend") is not None:
-                    st.session_state["jcurve_trend"].to_excel(_writer, sheet_name="5_J-Curve", index=False)
+                    st.session_state["jcurve_trend"].to_excel(_writer, sheet_name="4_J-Curve", index=False)
                 if st.session_state.get("sensitivity_matrix_df") is not None:
-                    st.session_state["sensitivity_matrix_df"].to_excel(_writer, sheet_name="6_IRR_Sensitivity")
+                    st.session_state["sensitivity_matrix_df"].to_excel(_writer, sheet_name="5_IRR_Sensitivity")
                 if st.session_state.get("scenario_sim_df") is not None:
-                    st.session_state["scenario_sim_df"].to_excel(_writer, sheet_name="7_회수시나리오", index=False)
-                _wf_sheet.to_excel(_writer, sheet_name="8_Waterfall분배", index=False)
+                    st.session_state["scenario_sim_df"].to_excel(_writer, sheet_name="6_회수시나리오", index=False)
+                _wf_sheet.to_excel(_writer, sheet_name="7_Waterfall분배", index=False)
                 if st.session_state.get("kvic_sector") is not None and not st.session_state["kvic_sector"].empty:
-                    st.session_state["kvic_sector"].to_excel(_writer, sheet_name="9_KVIC벤치마크", index=False)
+                    st.session_state["kvic_sector"].to_excel(_writer, sheet_name="8_KVIC벤치마크", index=False)
                 _macro_rows = []
                 if st.session_state.get("macro_rate_df") is not None and not st.session_state["macro_rate_df"].empty:
                     _macro_rows.append(("기준금리(%)", st.session_state["macro_rate_df"]["기준금리(%)"].iloc[-1]))
@@ -1825,42 +1922,105 @@ span[data-baseweb="tag"] svg { fill:#999 !important; width:12px !important; }
                 if st.session_state.get("macro_spread") is not None:
                     _macro_rows.append(("펀드 스프레드(%p)", st.session_state["macro_spread"]))
                 if _macro_rows:
-                    pd.DataFrame(_macro_rows, columns=["항목", "값"]).to_excel(_writer, sheet_name="10_거시지표", index=False)
+                    pd.DataFrame(_macro_rows, columns=["항목", "값"]).to_excel(
+                        _writer, sheet_name="9_거시지표", index=False)
 
-                # ── 서식: 헤더 강조 + 틀고정 + 필터 + MOIC 조건부 서식 ──
-                from openpyxl.styles import Font, PatternFill, Alignment
+                # ── 서식 적용 ──
+                from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
                 from openpyxl.formatting.rule import ColorScaleRule
-                _header_fill = PatternFill(start_color="1B5E20", end_color="1B5E20", fill_type="solid")
-                _header_font = Font(color="FFFFFF", bold=True)
-                for _sheet in _writer.sheets.values():
-                    for _cell in _sheet[1]:
-                        _cell.fill = _header_fill
-                        _cell.font = _header_font
-                        _cell.alignment = Alignment(horizontal="center", vertical="center")
-                    _sheet.freeze_panes = "A2"
-                    if _sheet.max_row > 1 and _sheet.max_column > 1:
-                        _sheet.auto_filter.ref = _sheet.dimensions
-                    # 열 너비 자동 조정
-                    for _col in _sheet.columns:
-                        _maxlen = max((len(str(_c.value)) for _c in _col if _c.value is not None), default=10)
-                        _sheet.column_dimensions[_col[0].column_letter].width = min(_maxlen + 3, 50)
+                from openpyxl.utils import get_column_letter
 
-                # MOIC 컬럼 조건부 서식 (2_계산지표 시트, 빨강~초록 그라데이션)
-                _calc_sheet = _writer.sheets["2_계산지표"]
-                _moic_col_idx = list(_export.columns).index("MOIC") + 1
-                _moic_col_letter = _calc_sheet.cell(row=1, column=_moic_col_idx).column_letter
-                _moic_range = f"{_moic_col_letter}2:{_moic_col_letter}{len(_export)+1}"
-                _calc_sheet.conditional_formatting.add(_moic_range, ColorScaleRule(
-                    start_type="min", start_color="F4C7C3",
-                    mid_type="percentile", mid_value=50, mid_color="FFEB9C",
-                    end_type="max", end_color="C6E0B4",
-                ))
+                _H_FILL  = PatternFill(start_color="1B5E20", end_color="1B5E20", fill_type="solid")
+                _H_FONT  = Font(color="FFFFFF", bold=True, size=10)
+                _ALT_FILL = PatternFill(start_color="F1F8E9", end_color="F1F8E9", fill_type="solid")
+                _THIN = Side(style="thin", color="CCCCCC")
+                _BDR  = Border(left=_THIN, right=_THIN, top=_THIN, bottom=_THIN)
+                _LONG_COLS = {"산식","계산 예시","해석 기준","활용 시점","단계 설명",
+                              "항목 설명","설명","해석기준"}
+                _NUM_FMT = '#,##0.##'
+
+                for _sname, _ws in _writer.sheets.items():
+                    _is_merged = _sname.startswith("2_")
+                    # 헤더 행 (row 1)
+                    _ws.row_dimensions[1].height = 30
+                    for _cell in _ws[1]:
+                        if _cell.value is not None:
+                            _cell.fill = _H_FILL; _cell.font = _H_FONT
+                            _cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+                            _cell.border = _BDR
+
+                    # 데이터 행
+                    for _ridx in range(2, _ws.max_row + 1):
+                        # 통합 시트: 설명서 헤더 행 처리
+                        if _is_merged and _ridx == _formula_hdr_row:
+                            _ws.row_dimensions[_ridx].height = 30
+                            for _cell in _ws[_ridx]:
+                                if _cell.value is not None:
+                                    _cell.fill = _H_FILL; _cell.font = _H_FONT
+                                    _cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+                                    _cell.border = _BDR
+                            continue
+
+                        _fill = _ALT_FILL if _ridx % 2 == 0 else PatternFill(fill_type=None)
+                        _ws.row_dimensions[_ridx].height = 18
+                        for _cell in _ws[_ridx]:
+                            _cell.border = _BDR
+                            _cell.fill = _fill
+                            if _cell.value is None:
+                                continue
+                            # 어느 헤더 행을 참조할지 결정 (통합 시트 하단 블록은 설명서 헤더 참조)
+                            _ref_hdr = (_formula_hdr_row
+                                        if (_is_merged and _ridx > _formula_hdr_row)
+                                        else 1)
+                            _col_hdr = _ws.cell(row=_ref_hdr, column=_cell.column).value or ""
+                            if _col_hdr in _LONG_COLS:
+                                _cell.alignment = Alignment(horizontal="left", vertical="top", wrap_text=True)
+                                _ws.row_dimensions[_ridx].height = max(_ws.row_dimensions[_ridx].height, 54)
+                            elif isinstance(_cell.value, (int, float)):
+                                _cell.number_format = _NUM_FMT
+                                _cell.alignment = Alignment(horizontal="right", vertical="center")
+                            else:
+                                _cell.alignment = Alignment(horizontal="left", vertical="center")
+
+                    # 틀고정 + 자동필터 (첫 행 기준)
+                    _ws.freeze_panes = "A2"
+                    _hdr_range = f"A1:{get_column_letter(_ws.max_column)}1"
+                    _ws.auto_filter.ref = _hdr_range
+
+                    # 열 너비: 긴 텍스트 컬럼은 고정 폭, 나머지는 내용 기반 자동
+                    for _col in _ws.columns:
+                        _letter = _col[0].column_letter
+                        _hdr_val = str(_ws[f"{_letter}1"].value or "")
+                        if _hdr_val in _LONG_COLS:
+                            _ws.column_dimensions[_letter].width = 65
+                        else:
+                            _max_len = max(
+                                (len(str(_c.value)) for _c in _col if _c.value is not None), default=8)
+                            _ws.column_dimensions[_letter].width = min(max(_max_len + 4, 12), 40)
+
+                # ── 조건부 서식: MOIC / IRR / DPI (빨강→노랑→초록) ──
+                _ws2 = _writer.sheets["2_계산지표&설명서"]
+                _cols2 = list(_export_rich.columns)
+                for _mc, _c0, _c1, _c2 in [
+                    ("MOIC",   "F4C7C3", "FFEB9C", "C6E0B4"),
+                    ("IRR(%)", "F4C7C3", "FFEB9C", "C6E0B4"),
+                    ("DPI",    "F4C7C3", "FFEB9C", "C6E0B4"),
+                ]:
+                    if _mc in _cols2:
+                        _ci  = _cols2.index(_mc) + 1
+                        _cl  = get_column_letter(_ci)
+                        _rng = f"{_cl}2:{_cl}{len(_export_rich)+1}"
+                        _ws2.conditional_formatting.add(_rng, ColorScaleRule(
+                            start_type="min",        start_color=_c0,
+                            mid_type="percentile",   mid_value=50, mid_color=_c1,
+                            end_type="max",          end_color=_c2,
+                        ))
 
             st.download_button("Excel 패키지 다운로드 (.xlsx)", _buf.getvalue(),
                                file_name=f"PortfolioDataPackage_{quarter}.xlsx",
                                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                                use_container_width=True)
-            st.caption("틀고정·필터·MOIC 색상 스케일 적용. 11개 시트(펀드요약~거시지표)로 구성됩니다.")
+            st.caption("틀고정·필터·조건부서식(MOIC/IRR/DPI) 적용. 10개 시트 구성, 계산지표+설명서 통합.")
 
         st.markdown("---")
         st.caption("본 보고서는 참고용 자료이며, 투자 결정의 근거로 단독 사용할 수 없습니다.")

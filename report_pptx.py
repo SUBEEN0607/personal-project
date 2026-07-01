@@ -96,9 +96,10 @@ def _page_num(s, n, total):
 
 def _kpi_card(s, l, t, w, h, label, value, sub="", val_color=C_PRIMARY):
     _shape(s, l, t, w, h, C_WHITE, C_BORDER, radius=True)
-    _txt(s, l, t + Inches(0.08), w, Inches(0.15), label,
+    _shape(s, l, t, w, Pt(3.5), val_color)   # 상단 컬러 액센트 스트라이프
+    _txt(s, l, t + Inches(0.14), w, Inches(0.15), label,
          sz=8, color=C_GREY, bold=True, align=PP_ALIGN.CENTER)
-    vy = t + Inches(0.28) if h >= Inches(1.0) else t + Inches(0.22)
+    vy = t + Inches(0.32) if h >= Inches(1.0) else t + Inches(0.26)
     _txt(s, l, vy, w, Inches(0.35), str(value),
          sz=22 if h >= Inches(1.0) else 18, color=val_color, bold=True, align=PP_ALIGN.CENTER)
     if sub:
@@ -452,15 +453,22 @@ def generate_lp_pptx(
         ]
         fw = Inches(2.65)
         arrow_w = Inches(0.35)
+        # 컬러별 배경 매핑: 투자금(베이지) / 현재가치(연초록) / 회수금(초록) / 수익(초록 or 연빨)
+        _flow_bg = {
+            C_DARK: C_BEIGE, C_ACCENT: C_XPALE, C_PRIMARY: C_PALE,
+            C_RED: RGBColor(0xFF, 0xEB, 0xEE),
+        }
         for i, (fl, fv, fd, fc) in enumerate(flow_items):
             fx = M_LEFT + i * (fw + arrow_w)
-            _shape(s, fx, r2 + Inches(0.25), fw, Inches(0.70), C_WHITE, C_BORDER, radius=True)
-            _txt(s, fx, r2 + Inches(0.28), fw, Inches(0.15), fl, sz=8, color=C_GREY, bold=True, align=PP_ALIGN.CENTER)
-            _txt(s, fx, r2 + Inches(0.45), fw, Inches(0.25), fv, sz=16, color=fc, bold=True, align=PP_ALIGN.CENTER)
+            bg_c = _flow_bg.get(fc, C_WHITE)
+            _shape(s, fx, r2 + Inches(0.25), fw, Inches(0.70), bg_c, C_BORDER, radius=True)
+            _shape(s, fx, r2 + Inches(0.25), fw, Pt(3.5), fc)   # 상단 컬러 스트라이프
+            _txt(s, fx, r2 + Inches(0.32), fw, Inches(0.15), fl, sz=8, color=C_GREY, bold=True, align=PP_ALIGN.CENTER)
+            _txt(s, fx, r2 + Inches(0.49), fw, Inches(0.25), fv, sz=16, color=fc, bold=True, align=PP_ALIGN.CENTER)
             _txt(s, fx, r2 + Inches(0.72), fw, Inches(0.15), fd, sz=7, color=C_GREY, align=PP_ALIGN.CENTER)
             if i < 3:
                 ax = fx + fw + Inches(0.05)
-                _txt(s, ax, r2 + Inches(0.42), Inches(0.25), Inches(0.25), "→", sz=16, color=C_LGREY, bold=True, align=PP_ALIGN.CENTER)
+                _txt(s, ax, r2 + Inches(0.40), Inches(0.25), Inches(0.28), "▶", sz=14, color=fc, bold=True, align=PP_ALIGN.CENTER)
 
         # ── ROW 3: 좌측(DPI/RVPI + 벤치마크) / 우측(등급분포 + 인사이트) ──
         r3 = r2 + Inches(1.25)
@@ -472,14 +480,21 @@ def generate_lp_pptx(
 
         bm_y = r3 + Inches(0.95)
         _txt(s, M_LEFT, bm_y, half, Inches(0.18), "벤치마크 달성률", sz=9, color=C_GREY, bold=True)
-        for j, (nm, act, tgt) in enumerate([("MOIC", float(moic), 2.0), ("IRR", float(avg_irr), 15.0), ("TVPI", float(tvpi), 2.0)]):
-            by = bm_y + Inches(0.22) + Inches(j * 0.25)
+        bm_criteria = ["우수 기준 2.0x (업계 중위수)", "목표 수익률 15% (VC 평균)", "DPI+RVPI 합산 2.0x"]
+        for j, (nm, act, tgt, crit) in enumerate([
+            ("MOIC", float(moic), 2.0, bm_criteria[0]),
+            ("IRR",  float(avg_irr), 15.0, bm_criteria[1]),
+            ("TVPI", float(tvpi), 2.0, bm_criteria[2]),
+        ]):
+            by = bm_y + Inches(0.22) + Inches(j * 0.30)
             _txt(s, M_LEFT, by, Inches(0.6), Inches(0.20), nm, sz=9, color=C_BLACK, bold=True)
             pct = min(act / tgt, 1.5) / 1.5
-            _bar_h(s, M_LEFT + Inches(0.65), by + Inches(0.03), Inches(3.6), Inches(0.15), pct)
+            _bar_h(s, M_LEFT + Inches(0.65), by + Inches(0.04), Inches(3.4), Inches(0.14), pct)
             clr = C_PRIMARY if act >= tgt else C_RED
-            _txt(s, M_LEFT + Inches(4.35), by, Inches(0.6), Inches(0.20), f"{act}", sz=9, color=clr, bold=True)
-            _txt(s, M_LEFT + Inches(4.95), by, Inches(0.6), Inches(0.20), f"/ {tgt}", sz=8, color=C_GREY)
+            _txt(s, M_LEFT + Inches(4.10), by, Inches(0.65), Inches(0.20), f"{act}", sz=9, color=clr, bold=True)
+            _txt(s, M_LEFT + Inches(4.75), by, Inches(0.7), Inches(0.20), f"/ {tgt}", sz=8, color=C_GREY)
+            _txt(s, M_LEFT + Inches(0.65), by + Inches(0.19), Inches(3.4), Inches(0.12),
+                 crit, sz=6, color=C_LGREY)
 
         # 우측: 포트폴리오 등급 분포
         rx = M_LEFT + Inches(6.3)
@@ -494,12 +509,21 @@ def generate_lp_pptx(
             elif m >= 1.0: grade_counts["C (1.0x)"] += 1
             else: grade_counts["D (<1.0x)"] += 1
 
+        grade_criteria = ["MOIC 3.0x+", "2.0~3.0x", "1.5~2.0x", "1.0~1.5x", "<1.0x"]
         gcolors = [C_PRIMARY, C_SECONDARY, C_ACCENT, C_ORANGE, C_RED]
-        for gi, ((gname, gcnt), gclr) in enumerate(zip(grade_counts.items(), gcolors)):
+        for gi, ((gname, gcnt), gclr, gcrit) in enumerate(zip(grade_counts.items(), gcolors, grade_criteria)):
             gx = rx + Inches(gi * 1.15)
-            _shape(s, gx, r3 + Inches(0.22), Inches(1.05), Inches(0.50), C_WHITE, C_BORDER, radius=True)
-            _txt(s, gx, r3 + Inches(0.24), Inches(1.05), Inches(0.15), gname, sz=7, color=C_GREY, align=PP_ALIGN.CENTER)
-            _txt(s, gx, r3 + Inches(0.40), Inches(1.05), Inches(0.22), f"{gcnt}개사", sz=11, color=gclr, bold=True, align=PP_ALIGN.CENTER)
+            _shape(s, gx, r3 + Inches(0.22), Inches(1.05), Inches(0.72), C_WHITE, C_BORDER, radius=True)
+            _shape(s, gx, r3 + Inches(0.22), Inches(1.05), Pt(3.5), gclr)   # 상단 스트라이프
+            _txt(s, gx, r3 + Inches(0.28), Inches(1.05), Inches(0.14), gname,
+                 sz=7.5, color=gclr, bold=True, align=PP_ALIGN.CENTER)
+            _txt(s, gx, r3 + Inches(0.43), Inches(1.05), Inches(0.13), gcrit,
+                 sz=6.5, color=C_GREY, align=PP_ALIGN.CENTER)
+            _txt(s, gx, r3 + Inches(0.57), Inches(1.05), Inches(0.22), f"{gcnt}개사",
+                 sz=13, color=gclr, bold=True, align=PP_ALIGN.CENTER)
+            # 비중 미니 바
+            _bar_h(s, gx + Inches(0.10), r3 + Inches(0.79), Inches(0.85), Inches(0.06),
+                   gcnt / n_cos if n_cos > 0 else 0, fill=gclr, bg=C_PALE)
 
         # 우측 하단: KEY INSIGHT
         moic_over2 = len(result_df[result_df["MOIC"] >= 2.0])
@@ -1548,6 +1572,153 @@ def generate_lp_pptx(
                  "①~③ 이후 남은 수익을 LP와 GP가 약정 비율(통상 80:20)로 최종 분배")
 
     slide_labels.append("Appendix p2")
+
+    # ════════════════════════════════════════════════
+    # Appendix p3: 시뮬레이터 계산 로직
+    # ════════════════════════════════════════════════
+    s = prs.slides.add_slide(prs.slide_layouts[6]); _bg(s)
+    _header(s, "Appendix", "시뮬레이터 계산 로직 — simulate_exit & 목표 IRR 역산",
+            "PPTX 시나리오 슬라이드와 Streamlit Analysis 탭이 동일한 함수를 공유하여 화면의 숫자와 보고서 숫자가 항상 일치합니다.")
+
+    fp3_w = Inches(3.85); fp3_h = Inches(1.85); fp3_gap = Inches(0.20)
+    fp3_y = BODY_Y + Inches(0.20)
+
+    # 실제 예시용 데이터
+    _ex_p3 = result_df.iloc[0]
+    _ex_inv_p3 = _ex_p3["투자금액_백만원"]
+    _ex_irr_p3 = _ex_p3["IRR(%)"]
+
+    _formula_box(s, M_LEFT, fp3_y, fp3_w, fp3_h,
+                 "A-1. Exit 시뮬레이션 — simulate_exit()",
+                 "회수금액 = 투자원금 × Exit배수",
+                 f"EX. {_ex_inv_p3:,.0f}M × 2.5x = {_ex_inv_p3*2.5:,.0f}M\n"
+                 f"IRR = XIRR([(투자일, −{_ex_inv_p3:,.0f}), (오늘, {_ex_inv_p3*2.5:,.0f})])",
+                 "MOIC = DPI = Exit배수(전액현금화가정). IRR은 날짜 기반 XIRR — 단순 (배수)^(1/년)−1의 근사치가 아님")
+
+    _formula_box(s, M_LEFT + fp3_w + fp3_gap, fp3_y, fp3_w, fp3_h,
+                 "A-2. 목표 IRR 역산 — optimal_exit_timing()",
+                 "필요배수 = (1 + 목표IRR%)^경과연수",
+                 "EX. 목표 IRR 20%, 투자 후 3년 경과\n"
+                 "→ (1.20)^3 = 1.728x → 최소 MOIC 1.73x 필요",
+                 "현재MOIC ≥ 필요배수 → 지금 Exit해도 목표 IRR 달성\n미달 → 보유 연장 또는 가치 제고 후 Exit 권장")
+
+    # XIRR 수치해석 설명 박스 (formula_box 대신 커스텀)
+    xirr_x = M_LEFT + (fp3_w + fp3_gap) * 2
+    _shape(s, xirr_x, fp3_y, fp3_w, fp3_h, C_WHITE, C_BORDER, radius=True)
+    _txt(s, xirr_x + Inches(0.14), fp3_y + Inches(0.10), fp3_w - Inches(0.28), Inches(0.24),
+         "XIRR 수치해석 방식 (scipy.optimize.brentq)", sz=9.5, color=C_BLACK, bold=True)
+    _shape(s, xirr_x + Inches(0.14), fp3_y + Inches(0.40), fp3_w - Inches(0.28), Inches(0.34), C_PALE, radius=True)
+    _txt(s, xirr_x + Inches(0.20), fp3_y + Inches(0.44), fp3_w - Inches(0.40), Inches(0.28),
+         "Σ CFt / (1+r)^t = 0  →  r을 brentq로 수치해석", sz=9, color=C_PRIMARY, bold=True)
+    _multiline(s, xirr_x + Inches(0.14), fp3_y + Inches(0.82), fp3_w - Inches(0.28), Inches(0.55),
+               ["· 실제 날짜 간격(일 수)을 연환산해 정밀 계산",
+                "· 단순 근사치 (배수)^(1/년)−1보다 투자 기간이 비정수일 때 더 정확",
+                "· 본 시스템: irr.py의 xirr() 함수 공통 사용"],
+               sz=8, color=C_DARK, spacing=3)
+    crit_y3 = fp3_y + Inches(1.42)
+    _shape(s, xirr_x + Inches(0.14), crit_y3, fp3_w - Inches(0.28), Inches(0.35), C_BEIGE, radius=True)
+    _txt(s, xirr_x + Inches(0.20), crit_y3 + Inches(0.06), fp3_w - Inches(0.40), Inches(0.25),
+         "해석기준: 비정수 보유기간일수록 근사치 오차 증가 → XIRR이 필수", sz=7.5, color=C_DARK)
+
+    # 하단 Row: 데이터 일관성 + 활용 시점
+    fp3_y2 = fp3_y + fp3_h + Inches(0.25)
+
+    # 데이터 일관성 박스
+    _shape(s, M_LEFT, fp3_y2, fp3_w, fp3_h, C_XPALE, C_BORDER, radius=True)
+    _txt(s, M_LEFT + Inches(0.14), fp3_y2 + Inches(0.10), fp3_w - Inches(0.28), Inches(0.22),
+         "데이터 일관성 보장", sz=10.5, color=C_BLACK, bold=True)
+    _shape(s, M_LEFT + Inches(0.14), fp3_y2 + Inches(0.38), fp3_w - Inches(0.28), Pt(2), C_PRIMARY)
+    _process_list(s, M_LEFT + Inches(0.14), fp3_y2 + Inches(0.46), fp3_w - Inches(0.28),
+                  ["PPTX 시나리오 슬라이드 (app.py ~1667행)",
+                   "Streamlit Analysis 탭 (app.py ~1078행)",
+                   "→ 동일한 simulate_exit() 호출 → 숫자 항상 일치"],
+                  box_h=Inches(0.38), gap=Inches(0.06), title="공유 함수 호출 경로")
+
+    # 시뮬레이터 활용 시점 박스
+    _insight_panel(s, M_LEFT + fp3_w + fp3_gap, fp3_y2, fp3_w * 2 + fp3_gap, fp3_h,
+                   "시뮬레이터 활용 시점 & 해석 가이드",
+                   ["Exit 배수별 IRR 범위 확인 → 목표 IRR 달성 최소 배수 도출",
+                    "목표 IRR 역산 → '지금 팔면 목표 수익률 나오나?' 즉시 판단",
+                    "IRR Sensitivity 매트릭스와 병행 → Exit 타이밍 전략 수립",
+                    "전체 포트폴리오 Exit 시나리오 비교 → LP 기대수익 커뮤니케이션",
+                    "주의: IRR Sensitivity는 단순 근사치, 회수 시나리오는 XIRR 정밀 계산"])
+
+    slide_labels.append("Appendix p3")
+
+    # ════════════════════════════════════════════════
+    # Appendix p4: 밸류에이션 자동 산출 로직
+    # ════════════════════════════════════════════════
+    s = prs.slides.add_slide(prs.slide_layouts[6]); _bg(s)
+    _header(s, "Appendix", "밸류에이션 자동 산출 로직 — valuation_fetcher.py",
+            "상장사는 네이버 금융 시총, 비상장사는 DART 재무 × 섹터 P/S 배수로 현재가치를 자동 산출합니다 (32개 섹터 사전 정의).")
+
+    fp4_y = BODY_Y + Inches(0.20)
+
+    # 좌측: 조회 우선순위 (3단계 Fallback) — process_list
+    _shape(s, M_LEFT, fp4_y, Inches(3.85), Inches(1.75), C_WHITE, C_BORDER, radius=True)
+    _txt(s, M_LEFT + Inches(0.14), fp4_y + Inches(0.10), Inches(3.57), Inches(0.22),
+         "조회 우선순위 — 3단계 Fallback", sz=10.5, color=C_BLACK, bold=True)
+    _shape(s, M_LEFT + Inches(0.14), fp4_y + Inches(0.38), Inches(3.57), Pt(2), C_PRIMARY)
+    _process_list(s, M_LEFT + Inches(0.14), fp4_y + Inches(0.46), Inches(3.57),
+                  ["① 상장사 → 네이버 금융 시가총액 × 지분율",
+                   "② 비상장사(또는 ①실패) → DART 매출 × 섹터P/S × 지분율",
+                   "③ 둘 다 실패 → None (수동 입력값 유지)"],
+                  box_h=Inches(0.36), gap=Inches(0.06), title="우선순위")
+    _txt(s, M_LEFT + Inches(0.14), fp4_y + Inches(1.60), Inches(3.57), Inches(0.14),
+         "병렬 처리: ThreadPoolExecutor(max_workers=6) — 8개사 기준 약 5~10초",
+         sz=7, color=C_GREY)
+
+    # 중앙: 상장사 방식
+    _formula_box(s, M_LEFT + Inches(4.05), fp4_y, Inches(3.85), Inches(1.75),
+                 "B-1. 상장사 — 네이버 금융 시총",
+                 "현재가치 = 시총(억) × 10,000 × 지분율% / 100 / 1,000,000",
+                 "EX. 시총 5,000억, 지분율 3%\n→ 5,000 × 10,000 × 0.03 / 1,000,000 = 150백만원",
+                 "네이버 금융 HTML 파싱(BeautifulSoup). 구조 변경 시 ②로 자동 fallback")
+
+    # 우측: 비상장사 방식
+    _formula_box(s, M_LEFT + Inches(8.10), fp4_y, Inches(3.85), Inches(1.75),
+                 "B-2. 비상장사 — 섹터 멀티플 3방법 평균",
+                 "평균가치 = (P/S + EV/EBITDA? + P/E?) / 사용가능수",
+                 "EX. 바이오(P/S=8.0x), 매출 100억, 영업이익 20억, 순이익 10억\n"
+                 "→ P/S=800억 / EV/EBITDA=240억 / P/E=240억 → 평균 426.7억",
+                 "32개 섹터 P/S배수 사전 정의(미정의=3.0x). EV/EBITDA=P/S×1.5(영업익 양수), P/E=MAX(P/S×3,10)(순이익 양수)")
+
+    # 하단: 섹터 P/S 배수 샘플 테이블 + 투명성 설명
+    fp4_y2 = fp4_y + Inches(1.85)
+
+    # 주요 섹터 P/S 배수 샘플 (일부)
+    sec_sample = [
+        ("바이오/헬스케어", "8.0x"), ("의료AI", "7.0x"), ("AI/딥테크", "7.0x"),
+        ("반도체/하드웨어", "6.0x"), ("SaaS/클라우드", "5.0x"), ("핀테크", "4.5x"),
+        ("모빌리티", "3.0x"), ("이커머스", "2.5x"), ("부동산/건설", "2.0x"), ("미정의", "3.0x"),
+    ]
+    _txt(s, M_LEFT, fp4_y2 + Inches(0.08), Inches(6), Inches(0.18),
+         "주요 섹터 P/S 배수 (KOSDAQ 동종업계 중앙값 기반, 총 32개 섹터 정의)", sz=9, color=C_GREY, bold=True)
+    col_w4 = Inches(1.10); row_h4 = Inches(0.25)
+    hdrs4  = ["섹터", "P/S배수"] * 5
+    cw4    = [Inches(1.10), Inches(0.55)] * 5
+    rows4  = []
+    for k in range(0, len(sec_sample), 2):
+        pair = sec_sample[k:k+2]
+        row_data = []
+        for nm, mult in pair:
+            row_data += [nm, mult]
+        while len(row_data) < 10:
+            row_data += ["", ""]
+        rows4.append(row_data)
+    _table(s, M_LEFT, fp4_y2 + Inches(0.30), hdrs4, rows4, cw4, row_h4)
+
+    # 투명성 장치 설명
+    _shape(s, M_LEFT, fp4_y2 + Inches(1.60), C_WIDTH, Inches(0.70), C_XPALE, C_BORDER, radius=True)
+    _shape(s, M_LEFT, fp4_y2 + Inches(1.60), Inches(0.06), Inches(0.70), C_PRIMARY)
+    _txt(s, M_LEFT + Inches(0.18), fp4_y2 + Inches(1.68), Inches(3.0), Inches(0.18),
+         "투명성 장치", sz=9, color=C_PRIMARY, bold=True)
+    _txt(s, M_LEFT + Inches(0.18), fp4_y2 + Inches(1.88), C_WIDTH - Inches(0.34), Inches(0.36),
+         "모든 계산 결과에 근거 문자열이 함께 저장됩니다 — 예) '2024년 기준 | 매출 100.0억 | 영업이익률 20.0% | "
+         "[P/S=800억 / EV/EBITDA=240억 / P/E=240억] × 지분 5%' → 클릭 한 번으로 산출 근거 전체 확인 가능",
+         sz=8, color=C_DARK)
+
+    slide_labels.append("Appendix p4")
 
     # ── 페이지 번호 ─────────────────────────────────
     total = len(prs.slides)
