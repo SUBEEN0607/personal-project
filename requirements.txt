@@ -10,3 +10,4 @@ openpyxl
 fpdf2
 beautifulsoup4
 python-pptx
+kaleido
