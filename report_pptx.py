@@ -212,13 +212,20 @@ def _bar_h(s, l, t, w, h, pct, fill=C_PRIMARY, bg=C_PALE):
 
 def _chart_img(s, fig, l, t, w_in, h_in):
     try:
+        import kaleido  # noqa: F401 — 설치 확인
         tmp = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
         fig.write_image(tmp.name, width=int(w_in * 100), height=int(h_in * 100),
                         scale=2, engine="kaleido")
         s.shapes.add_picture(tmp.name, Inches(l), Inches(t), Inches(w_in))
         os.unlink(tmp.name)
+        return True
     except Exception:
-        pass
+        # kaleido 미설치 또는 렌더링 실패 시 빈 자리에 안내 텍스트
+        _shape(s, Inches(l), Inches(t), Inches(w_in), Inches(h_in), C_XPALE, C_BORDER, radius=True)
+        _txt(s, Inches(l), Inches(t + h_in/2 - 0.15), Inches(w_in), Inches(0.30),
+             "차트 렌더링 불가 (kaleido 패키지 필요)",
+             sz=9, color=C_GREY, align=PP_ALIGN.CENTER)
+        return False
 
 
 # ══════════════════════════════════════════════════════
