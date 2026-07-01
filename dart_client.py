@@ -126,9 +126,12 @@ def get_financials(corp_code: str, years: list[int] = None) -> pd.DataFrame:
                                 return int(raw)
                 return None
 
-            revenue = get_val(["매출액", "수익(매출액)", "영업수익"])
-            op_income = get_val(["영업이익"])
-            net_income = get_val(["당기순이익"])
+            revenue = get_val([
+                "매출액", "수익(매출액)", "영업수익", "매출",
+                "수익합계", "영업수익합계", "순매출액",
+            ])
+            op_income = get_val(["영업이익", "영업이익(손실)", "영업손익"])
+            net_income = get_val(["당기순이익", "당기순이익(손실)", "분기순이익", "반기순이익"])
 
             if any(v is not None for v in [revenue, op_income, net_income]):
                 rows.append({
