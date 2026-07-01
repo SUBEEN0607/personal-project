@@ -1891,6 +1891,48 @@ span[data-baseweb="tag"] svg { fill:#999 !important; width:12px !important; }
             })
             _wf_sheet = pd.DataFrame(_wf_data)
 
+            # ── PPT 선택 섹션 → Excel 시트 자동 연동 ──
+            _ppt_sel = st.session_state.get("report_sections", [])
+            def _xl_inc(*keywords):
+                """PPT 섹션 미선택 시 전부 포함, 선택된 경우엔 해당 키워드 일치 시만 포함"""
+                if not _ppt_sel:
+                    return True
+                return any(any(kw in s for kw in keywords) for s in _ppt_sel)
+
+            # 시트 포함 여부 계산
+            _sheet_plan = [
+                ("0_펀드요약",         True,                                "항상 포함"),
+                ("1_원본데이터(RAW)",  True,                                "항상 포함"),
+                ("2_계산지표&설명서",  True,                                "항상 포함"),
+                ("3_섹터요약",         _xl_inc("섹터"),                     "섹터 선택 시"),
+                ("4_J-Curve",          _xl_inc("J-Curve"),                  "J-Curve 선택 시"),
+                ("5_IRR_Sensitivity",  _xl_inc("IRR Sensitivity"),          "시나리오·Sensitivity 선택 시"),
+                ("6_회수시나리오",     _xl_inc("시나리오"),                  "시나리오 선택 시"),
+                ("7_Waterfall분배",    _xl_inc("Waterfall"),                "Waterfall 선택 시"),
+                ("8_KVIC벤치마크",     _xl_inc("KVIC"),                     "KVIC 선택 시"),
+                ("9_거시지표",         _xl_inc("거시", "DART"),             "거시지표·DART 선택 시"),
+            ]
+            _inc_sheets = [n for n, ok, _ in _sheet_plan if ok]
+            _exc_sheets = [(n, hint) for n, ok, hint in _sheet_plan if not ok]
+
+            # 포함될 시트 미리보기 UI
+            if _ppt_sel:
+                _badge_html = " ".join(
+                    f'<span style="background:#1b5e20;color:#fff;font-size:10px;padding:2px 8px;border-radius:10px;margin:2px">{n}</span>'
+                    for n in _inc_sheets
+                )
+                if _exc_sheets:
+                    _badge_html += " " + " ".join(
+                        f'<span style="background:#eee;color:#999;font-size:10px;padding:2px 8px;border-radius:10px;margin:2px;text-decoration:line-through">{n}</span>'
+                        for n, _ in _exc_sheets
+                    )
+                st.markdown(f"**PPT 선택 섹션 연동 — 포함 시트 {len(_inc_sheets)}개:**", unsafe_allow_html=False)
+                st.markdown(_badge_html, unsafe_allow_html=True)
+                if _exc_sheets:
+                    st.caption("취소선 시트는 PPT에서 해당 섹션이 미선택되어 제외됩니다.")
+            else:
+                st.caption("PPT 섹션을 선택하면 Excel 시트가 자동으로 연동됩니다. (현재: 전체 포함)")
+
             # ── Excel 워크북 생성 ──
             _buf = io.BytesIO()
             # 계산지표+설명서 통합: 설명서 블록은 데이터 아래 3행 공백 후 시작
@@ -1900,27 +1942,30 @@ span[data-baseweb="tag"] svg { fill:#999 !important; width:12px !important; }
             with pd.ExcelWriter(_buf, engine="openpyxl") as _writer:
                 _summary_sheet.to_excel(_writer, sheet_name="0_펀드요약", index=False)
                 _raw_export.to_excel(_writer, sheet_name="1_원본데이터(RAW)", index=False)
-                # 계산지표 + 설명서 통합 시트
+                # 계산지표 + 설명서 통합 시트 (항상 포함)
                 _export_rich.to_excel(_writer, sheet_name="2_계산지표&설명서", index=False, startrow=0)
                 _formula_dict.to_excel(_writer, sheet_name="2_계산지표&설명서", index=False,
                                        startrow=_formula_start_row)
-                _sec_csv.to_excel(_writer, sheet_name="3_섹터요약", index=False)
-                if st.session_state.get("jcurve_trend") is not None:
+                if _xl_inc("섹터"):
+                    _sec_csv.to_excel(_writer, sheet_name="3_섹터요약", index=False)
+                if _xl_inc("J-Curve") and st.session_state.get("jcurve_trend") is not None:
                     st.session_state["jcurve_trend"].to_excel(_writer, sheet_name="4_J-Curve", index=False)
-                if st.session_state.get("sensitivity_matrix_df") is not None:
+                if _xl_inc("IRR Sensitivity") and st.session_state.get("sensitivity_matrix_df") is not None:
                     st.session_state["sensitivity_matrix_df"].to_excel(_writer, sheet_name="5_IRR_Sensitivity")
-                if st.session_state.get("scenario_sim_df") is not None:
+                if _xl_inc("시나리오") and st.session_state.get("scenario_sim_df") is not None:
                     st.session_state["scenario_sim_df"].to_excel(_writer, sheet_name="6_회수시나리오", index=False)
-                _wf_sheet.to_excel(_writer, sheet_name="7_Waterfall분배", index=False)
-                if st.session_state.get("kvic_sector") is not None and not st.session_state["kvic_sector"].empty:
+                if _xl_inc("Waterfall"):
+                    _wf_sheet.to_excel(_writer, sheet_name="7_Waterfall분배", index=False)
+                if _xl_inc("KVIC") and st.session_state.get("kvic_sector") is not None and not st.session_state["kvic_sector"].empty:
                     st.session_state["kvic_sector"].to_excel(_writer, sheet_name="8_KVIC벤치마크", index=False)
                 _macro_rows = []
-                if st.session_state.get("macro_rate_df") is not None and not st.session_state["macro_rate_df"].empty:
-                    _macro_rows.append(("기준금리(%)", st.session_state["macro_rate_df"]["기준금리(%)"].iloc[-1]))
-                if st.session_state.get("macro_fx_df") is not None and not st.session_state["macro_fx_df"].empty:
-                    _macro_rows.append(("원/달러(원)", st.session_state["macro_fx_df"]["원/달러(원)"].iloc[-1]))
-                if st.session_state.get("macro_spread") is not None:
-                    _macro_rows.append(("펀드 스프레드(%p)", st.session_state["macro_spread"]))
+                if _xl_inc("거시", "DART"):
+                    if st.session_state.get("macro_rate_df") is not None and not st.session_state["macro_rate_df"].empty:
+                        _macro_rows.append(("기준금리(%)", st.session_state["macro_rate_df"]["기준금리(%)"].iloc[-1]))
+                    if st.session_state.get("macro_fx_df") is not None and not st.session_state["macro_fx_df"].empty:
+                        _macro_rows.append(("원/달러(원)", st.session_state["macro_fx_df"]["원/달러(원)"].iloc[-1]))
+                    if st.session_state.get("macro_spread") is not None:
+                        _macro_rows.append(("펀드 스프레드(%p)", st.session_state["macro_spread"]))
                 if _macro_rows:
                     pd.DataFrame(_macro_rows, columns=["항목", "값"]).to_excel(
                         _writer, sheet_name="9_거시지표", index=False)
@@ -2020,7 +2065,8 @@ span[data-baseweb="tag"] svg { fill:#999 !important; width:12px !important; }
                                file_name=f"PortfolioDataPackage_{quarter}.xlsx",
                                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                                use_container_width=True)
-            st.caption("틀고정·필터·조건부서식(MOIC/IRR/DPI) 적용. 10개 시트 구성, 계산지표+설명서 통합.")
+            _n_inc = len(_inc_sheets)
+            st.caption(f"틀고정·필터·조건부서식(MOIC/IRR/DPI) 적용. {_n_inc}개 시트 — PPT 선택 섹션 연동{'됨' if _ppt_sel else ' (전체 포함)'}.")
 
         st.markdown("---")
         st.caption("본 보고서는 참고용 자료이며, 투자 결정의 근거로 단독 사용할 수 없습니다.")
