@@ -464,13 +464,13 @@ with tab1:
 <div style="background:#ffffff;border:1px solid #e5e5e5;border-radius:10px;padding:16px 20px;margin-bottom:20px;">
   <div style="font-size:13px;color:#1a1a1a;font-weight:600;margin-bottom:8px;">펀드 성과 한눈에 보기</div>
   <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:11px;">
-    <span style="background:#ffffff;color:#1b5e20;border:1.5px solid #1b5e20;padding:3px 10px;border-radius:4px;font-weight:600;">1. 핵심 지표</span>
+    <span style="background:#ffffff;color:#1a1a1a;border:1.5px solid #1b5e20;padding:3px 10px;border-radius:4px;font-weight:600;">1. 핵심 지표</span>
     <span style="color:#1b5e20;font-weight:700;">→</span>
-    <span style="background:#ffffff;color:#1b5e20;border:1.5px solid #1b5e20;padding:3px 10px;border-radius:4px;font-weight:600;">2. 포트폴리오 상세</span>
+    <span style="background:#ffffff;color:#1a1a1a;border:1.5px solid #1b5e20;padding:3px 10px;border-radius:4px;font-weight:600;">2. 포트폴리오 상세</span>
     <span style="color:#1b5e20;font-weight:700;">→</span>
-    <span style="background:#ffffff;color:#1b5e20;border:1.5px solid #1b5e20;padding:3px 10px;border-radius:4px;font-weight:600;">3. Top/Bottom</span>
+    <span style="background:#ffffff;color:#1a1a1a;border:1.5px solid #1b5e20;padding:3px 10px;border-radius:4px;font-weight:600;">3. Top/Bottom</span>
     <span style="color:#1b5e20;font-weight:700;">→</span>
-    <span style="background:#ffffff;color:#1b5e20;border:1.5px solid #1b5e20;padding:3px 10px;border-radius:4px;font-weight:600;">4. 섹터·리스크</span>
+    <span style="background:#ffffff;color:#1a1a1a;border:1.5px solid #1b5e20;padding:3px 10px;border-radius:4px;font-weight:600;">4. 섹터·리스크</span>
   </div>
   <div style="font-size:10px;color:#999;margin-top:6px;">MOIC·IRR 등 핵심 성과부터 개별 기업, 섹터 집중도까지 펀드 전체를 파악합니다.</div>
 </div>
@@ -823,9 +823,9 @@ with tab2:
 <div style="background:#ffffff;border:1px solid #e5e5e5;border-radius:10px;padding:16px 20px;margin-bottom:20px;">
   <div style="font-size:13px;color:#1a1a1a;font-weight:600;margin-bottom:8px;">펀드 추이 분석</div>
   <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:11px;">
-    <span style="background:#ffffff;color:#1b5e20;border:1.5px solid #1b5e20;padding:3px 10px;border-radius:4px;font-weight:600;">1. J-Curve</span>
+    <span style="background:#ffffff;color:#1a1a1a;border:1.5px solid #1b5e20;padding:3px 10px;border-radius:4px;font-weight:600;">1. J-Curve</span>
     <span style="color:#1b5e20;font-weight:700;">→</span>
-    <span style="background:#ffffff;color:#1b5e20;border:1.5px solid #1b5e20;padding:3px 10px;border-radius:4px;font-weight:600;">2. 분기별 추이</span>
+    <span style="background:#ffffff;color:#1a1a1a;border:1.5px solid #1b5e20;padding:3px 10px;border-radius:4px;font-weight:600;">2. 분기별 추이</span>
   </div>
   <div style="font-size:10px;color:#999;margin-top:6px;">펀드 설정 이후 현금흐름 곡선과 분기별 성과 변화를 추적합니다.</div>
 </div>
@@ -965,13 +965,13 @@ with tab3:
 <div style="background:#ffffff;border:1px solid #e5e5e5;border-radius:10px;padding:16px 20px;margin-bottom:20px;">
   <div style="font-size:13px;color:#1a1a1a;font-weight:600;margin-bottom:8px;">분석 흐름</div>
   <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:11px;">
-    <span style="background:#ffffff;color:#1b5e20;border:1.5px solid #1b5e20;padding:3px 10px;border-radius:4px;font-weight:600;">1. 기업 재무</span>
+    <span style="background:#ffffff;color:#1a1a1a;border:1.5px solid #1b5e20;padding:3px 10px;border-radius:4px;font-weight:600;">1. 기업 재무</span>
     <span style="color:#1b5e20;font-weight:700;">→</span>
-    <span style="background:#ffffff;color:#1b5e20;border:1.5px solid #1b5e20;padding:3px 10px;border-radius:4px;font-weight:600;">2. Exit 시나리오</span>
+    <span style="background:#ffffff;color:#1a1a1a;border:1.5px solid #1b5e20;padding:3px 10px;border-radius:4px;font-weight:600;">2. Exit 시나리오</span>
     <span style="color:#1b5e20;font-weight:700;">→</span>
-    <span style="background:#ffffff;color:#1b5e20;border:1.5px solid #1b5e20;padding:3px 10px;border-radius:4px;font-weight:600;">3. IRR Sensitivity</span>
+    <span style="background:#ffffff;color:#1a1a1a;border:1.5px solid #1b5e20;padding:3px 10px;border-radius:4px;font-weight:600;">3. IRR Sensitivity</span>
     <span style="color:#1b5e20;font-weight:700;">→</span>
-    <span style="background:#ffffff;color:#1b5e20;border:1.5px solid #1b5e20;padding:3px 10px;border-radius:4px;font-weight:600;">4. Waterfall 분배</span>
+    <span style="background:#ffffff;color:#1a1a1a;border:1.5px solid #1b5e20;padding:3px 10px;border-radius:4px;font-weight:600;">4. Waterfall 분배</span>
   </div>
   <div style="font-size:10px;color:#999;margin-top:6px;">DART 재무 데이터로 기업을 파악한 후, Exit 시나리오와 수익 분배까지 이어지는 분석 흐름입니다.</div>
 </div>
@@ -1317,9 +1317,9 @@ with tab4:
 <div style="background:#ffffff;border:1px solid #e5e5e5;border-radius:10px;padding:16px 20px;margin-bottom:20px;">
   <div style="font-size:13px;color:#1a1a1a;font-weight:600;margin-bottom:8px;">시장 환경 분석</div>
   <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:11px;">
-    <span style="background:#ffffff;color:#1b5e20;border:1.5px solid #1b5e20;padding:3px 10px;border-radius:4px;font-weight:600;">1. KVIC 벤치마크</span>
+    <span style="background:#ffffff;color:#1a1a1a;border:1.5px solid #1b5e20;padding:3px 10px;border-radius:4px;font-weight:600;">1. KVIC 벤치마크</span>
     <span style="color:#1b5e20;font-weight:700;">→</span>
-    <span style="background:#ffffff;color:#1b5e20;border:1.5px solid #1b5e20;padding:3px 10px;border-radius:4px;font-weight:600;">2. 내 포트폴리오 vs 시장</span>
+    <span style="background:#ffffff;color:#1a1a1a;border:1.5px solid #1b5e20;padding:3px 10px;border-radius:4px;font-weight:600;">2. 내 포트폴리오 vs 시장</span>
   </div>
   <div style="font-size:10px;color:#999;margin-top:6px;">국내 VC 시장 전체 동향과 내 펀드 성과를 비교합니다. 거시지표(금리·환율)는 보고서에 자동 포함됩니다.</div>
 </div>
