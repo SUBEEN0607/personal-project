@@ -1611,14 +1611,14 @@ def generate_lp_pptx(
     _shape(s, xirr_x + Inches(0.14), fp3_y + Inches(0.40), fp3_w - Inches(0.28), Inches(0.34), C_PALE, radius=True)
     _txt(s, xirr_x + Inches(0.20), fp3_y + Inches(0.44), fp3_w - Inches(0.40), Inches(0.28),
          "Σ CFt / (1+r)^t = 0  →  r을 brentq로 수치해석", sz=9, color=C_PRIMARY, bold=True)
-    _multiline(s, xirr_x + Inches(0.14), fp3_y + Inches(0.82), fp3_w - Inches(0.28), Inches(0.55),
-               ["· 실제 날짜 간격(일 수)을 연환산해 정밀 계산",
-                "· 단순 근사치 (배수)^(1/년)−1보다 투자 기간이 비정수일 때 더 정확",
-                "· 본 시스템: irr.py의 xirr() 함수 공통 사용"],
-               sz=8, color=C_DARK, spacing=3)
-    crit_y3 = fp3_y + Inches(1.42)
-    _shape(s, xirr_x + Inches(0.14), crit_y3, fp3_w - Inches(0.28), Inches(0.35), C_BEIGE, radius=True)
-    _txt(s, xirr_x + Inches(0.20), crit_y3 + Inches(0.06), fp3_w - Inches(0.40), Inches(0.25),
+    _multiline(s, xirr_x + Inches(0.14), fp3_y + Inches(0.84), fp3_w - Inches(0.28), Inches(0.52),
+               ["· 실제 날짜(일 수) 기반 연환산 — 정밀 계산",
+                "· 비정수 보유기간(예: 2.5년)에서 근사치와 오차 발생",
+                "· irr.py의 xirr() 함수 통일 — 화면·보고서 숫자 일치"],
+               sz=8, color=C_DARK, spacing=4)
+    crit_y3 = fp3_y + Inches(1.46)
+    _shape(s, xirr_x + Inches(0.14), crit_y3, fp3_w - Inches(0.28), Inches(0.30), C_BEIGE, radius=True)
+    _txt(s, xirr_x + Inches(0.20), crit_y3 + Inches(0.07), fp3_w - Inches(0.40), Inches(0.20),
          "해석기준: 비정수 보유기간일수록 근사치 오차 증가 → XIRR이 필수", sz=7.5, color=C_DARK)
 
     # 하단 Row: 데이터 일관성 + 활용 시점
