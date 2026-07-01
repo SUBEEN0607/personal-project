@@ -2020,7 +2020,11 @@ span[data-baseweb="tag"] svg { fill:#999 !important; width:12px !important; }
                             _col_hdr = _ws.cell(row=_ref_hdr, column=_cell.column).value or ""
                             if _col_hdr in _LONG_COLS:
                                 _cell.alignment = Alignment(horizontal="left", vertical="top", wrap_text=True)
-                                _ws.row_dimensions[_ridx].height = max(_ws.row_dimensions[_ridx].height, 54)
+                                # 텍스트 길이 기반 동적 행 높이 (열폭 65자 기준, 줄당 13pt)
+                                _clen = len(str(_cell.value)) if _cell.value else 0
+                                _lines = (_clen // 62) + 1
+                                _est_h = min(10 + _lines * 13, 46)  # 최대 46pt (약 3줄)
+                                _ws.row_dimensions[_ridx].height = max(_ws.row_dimensions[_ridx].height, _est_h)
                             elif isinstance(_cell.value, (int, float)):
                                 _cell.number_format = _NUM_FMT
                                 _cell.alignment = Alignment(horizontal="right", vertical="center")
