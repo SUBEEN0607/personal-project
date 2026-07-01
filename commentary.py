@@ -9,7 +9,15 @@ def _get_client():
     global _client
     if _client is None:
         from anthropic import Anthropic
-        _client = Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+        # 로컬: .env / Streamlit Cloud: st.secrets 순으로 API 키 조회
+        api_key = os.getenv("ANTHROPIC_API_KEY")
+        if not api_key:
+            try:
+                import streamlit as st
+                api_key = st.secrets.get("ANTHROPIC_API_KEY") or st.secrets.get("anthropic_api_key")
+            except Exception:
+                pass
+        _client = Anthropic(api_key=api_key)
     return _client
 
 
