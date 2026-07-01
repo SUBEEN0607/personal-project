@@ -1648,8 +1648,12 @@ span[data-baseweb="tag"] svg { fill:#999 !important; width:12px !important; }
         if st.button("보고서 생성 (PPTX)", use_container_width=True):
             with st.spinner("PPTX 생성 중..."):
                 from report_pptx import generate_lp_pptx
-                _comm = generate_commentary(summary,
-                    result_df[["회사명","MOIC","IRR(%)","TVPI","투자금액_백만원"]].to_dict("records")) if "AI" in str(selected) else ""
+                try:
+                    _comm = generate_commentary(summary,
+                        result_df[["회사명","MOIC","IRR(%)","TVPI","투자금액_백만원"]].to_dict("records")) if "AI" in str(selected) else ""
+                except Exception as _e:
+                    _comm = ""
+                    st.warning(f"AI 코멘터리 생성 실패 (API 키 확인 필요): {_e}")
                 _jc_pptx = st.session_state.get("jcurve_trend")
                 if _jc_pptx is None and "J-Curve" in str(selected):
                     _jc_rows = []

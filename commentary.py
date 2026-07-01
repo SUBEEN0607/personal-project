@@ -9,15 +9,19 @@ def _get_client():
     global _client
     if _client is None:
         from anthropic import Anthropic
-        # 로컬: .env / Streamlit Cloud: st.secrets 순으로 API 키 조회
+        # 1순위: 환경변수, 2순위: Streamlit Cloud secrets
         api_key = os.getenv("ANTHROPIC_API_KEY")
         if not api_key:
             try:
                 import streamlit as st
-                api_key = st.secrets.get("ANTHROPIC_API_KEY") or st.secrets.get("anthropic_api_key")
+                api_key = (st.secrets.get("ANTHROPIC_API_KEY")
+                           or st.secrets.get("anthropic_api_key"))
             except Exception:
                 pass
-        _client = Anthropic(api_key=api_key)
+        if api_key:
+            _client = Anthropic(api_key=api_key)
+        else:
+            _client = Anthropic()  # SDK 자체 환경변수 탐색 시도
     return _client
 
 
