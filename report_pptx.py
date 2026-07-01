@@ -1732,11 +1732,11 @@ def generate_lp_pptx(
     _table(s, M_LEFT, fp4_y2 + Inches(0.30), hdrs4, rows4, cw4, row_h4)
 
     # 투명성 장치 설명
-    _shape(s, M_LEFT, fp4_y2 + Inches(1.60), C_WIDTH, Inches(0.70), C_XPALE, C_BORDER, radius=True)
-    _shape(s, M_LEFT, fp4_y2 + Inches(1.60), Inches(0.06), Inches(0.70), C_PRIMARY)
-    _txt(s, M_LEFT + Inches(0.18), fp4_y2 + Inches(1.68), Inches(3.0), Inches(0.18),
+    _shape(s, M_LEFT, fp4_y2 + Inches(1.75), C_WIDTH, Inches(0.70), C_XPALE, C_BORDER, radius=True)
+    _shape(s, M_LEFT, fp4_y2 + Inches(1.75), Inches(0.06), Inches(0.70), C_PRIMARY)
+    _txt(s, M_LEFT + Inches(0.18), fp4_y2 + Inches(1.83), Inches(3.0), Inches(0.18),
          "투명성 장치", sz=9, color=C_PRIMARY, bold=True)
-    _txt(s, M_LEFT + Inches(0.18), fp4_y2 + Inches(1.88), C_WIDTH - Inches(0.34), Inches(0.36),
+    _txt(s, M_LEFT + Inches(0.18), fp4_y2 + Inches(2.03), C_WIDTH - Inches(0.34), Inches(0.36),
          "모든 계산 결과에 근거 문자열이 함께 저장됩니다 — 예) '2024년 기준 | 매출 100.0억 | 영업이익률 20.0% | "
          "[P/S=800억 / EV/EBITDA=240억 / P/E=240억] × 지분 5%' → 클릭 한 번으로 산출 근거 전체 확인 가능",
          sz=8, color=C_DARK)
