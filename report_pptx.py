@@ -471,7 +471,7 @@ def generate_lp_pptx(
                 _txt(s, ax, r2 + Inches(0.40), Inches(0.25), Inches(0.28), "▶", sz=14, color=fc, bold=True, align=PP_ALIGN.CENTER)
 
         # ── ROW 3: 좌측(DPI/RVPI + 벤치마크) / 우측(등급분포 + 인사이트) ──
-        r3 = r2 + Inches(1.25)
+        r3 = r2 + Inches(1.45)   # 위 섹션과 충분한 간격
         half = Inches(5.85)
 
         # 좌측: DPI/RVPI 분해 + 벤치마크 바
@@ -511,18 +511,19 @@ def generate_lp_pptx(
 
         grade_criteria = ["MOIC 3.0x+", "2.0~3.0x", "1.5~2.0x", "1.0~1.5x", "<1.0x"]
         gcolors = [C_PRIMARY, C_SECONDARY, C_ACCENT, C_ORANGE, C_RED]
+        _g_start = r3 + Inches(0.36)   # 라벨과 카드 사이 여유 확보
         for gi, ((gname, gcnt), gclr, gcrit) in enumerate(zip(grade_counts.items(), gcolors, grade_criteria)):
             gx = rx + Inches(gi * 1.15)
-            _shape(s, gx, r3 + Inches(0.22), Inches(1.05), Inches(0.72), C_WHITE, C_BORDER, radius=True)
-            _shape(s, gx, r3 + Inches(0.22), Inches(1.05), Pt(3.5), gclr)   # 상단 스트라이프
-            _txt(s, gx, r3 + Inches(0.28), Inches(1.05), Inches(0.14), gname,
+            _shape(s, gx, _g_start, Inches(1.05), Inches(0.72), C_WHITE, C_BORDER, radius=True)
+            _shape(s, gx, _g_start, Inches(1.05), Pt(3.5), gclr)
+            _txt(s, gx, _g_start + Inches(0.08), Inches(1.05), Inches(0.14), gname,
                  sz=7.5, color=gclr, bold=True, align=PP_ALIGN.CENTER)
-            _txt(s, gx, r3 + Inches(0.43), Inches(1.05), Inches(0.13), gcrit,
+            _txt(s, gx, _g_start + Inches(0.23), Inches(1.05), Inches(0.13), gcrit,
                  sz=6.5, color=C_GREY, align=PP_ALIGN.CENTER)
-            _txt(s, gx, r3 + Inches(0.57), Inches(1.05), Inches(0.22), f"{gcnt}개사",
+            _txt(s, gx, _g_start + Inches(0.37), Inches(1.05), Inches(0.22), f"{gcnt}개사",
                  sz=13, color=gclr, bold=True, align=PP_ALIGN.CENTER)
             # 비중 미니 바
-            _bar_h(s, gx + Inches(0.10), r3 + Inches(0.79), Inches(0.85), Inches(0.06),
+            _bar_h(s, gx + Inches(0.10), _g_start + Inches(0.60), Inches(0.85), Inches(0.06),
                    gcnt / n_cos if n_cos > 0 else 0, fill=gclr, bg=C_PALE)
 
         # 우측 하단: KEY INSIGHT
@@ -538,7 +539,7 @@ def generate_lp_pptx(
         insights.append(f"투자 {total_inv:,.0f}M → 가치 {total_cur+total_rec:,.0f}M 창출 (수익률 {profit_pct:+.0f}%)")
         insights.append(f"현금 실현율 {realized_ratio:.0f}% — {'회수 진행 중' if realized_ratio > 30 else '초기 투자 단계, 미실현 가치 위주'}")
         insights.append(f"BM 달성 {moic_over2}개사 / 원금 미달 {moic_under1}개사 — 전체 {n_cos}개 포트폴리오")
-        _insight_panel(s, rx, r3 + Inches(1.05), rw, Inches(1.15), "성과 종합 코멘트", insights)
+        _insight_panel(s, rx, _g_start + Inches(0.82), rw, Inches(1.10), "성과 종합 코멘트", insights)
 
         slide_labels.append("성과")
 
@@ -1167,15 +1168,15 @@ def generate_lp_pptx(
         x1 = x0 + kw + gap4
         x2 = x1 + kw + gap4
         x3 = x2 + kw + gap4
-        _kpi_card(s, x0, ky, kw, Inches(0.70), "LP 수취", f"{total_lp:,.0f}M", f"MOIC {lp_moic:.2f}x", C_PRIMARY)
-        _kpi_card(s, x1, ky, kw, Inches(0.70), "GP Carry", f"{total_gp:,.0f}M", f"실효 {eff_carry:.1f}%", C_ACCENT)
-        _kpi_card(s, x2, ky, kw, Inches(0.70), "수익 배분", f"{total_lp/wf_proc*100:.0f}% / {total_gp/wf_proc*100:.0f}%" if wf_proc > 0 else "-", "LP / GP", C_BLACK)
+        _kpi_card(s, x0, ky, kw, Inches(0.85), "LP 수취", f"{total_lp:,.0f}M", f"MOIC {lp_moic:.2f}x", C_PRIMARY)
+        _kpi_card(s, x1, ky, kw, Inches(0.85), "GP Carry", f"{total_gp:,.0f}M", f"실효 {eff_carry:.1f}%", C_ACCENT)
+        _kpi_card(s, x2, ky, kw, Inches(0.85), "수익 배분", f"{total_lp/wf_proc*100:.0f}% / {total_gp/wf_proc*100:.0f}%" if wf_proc > 0 else "-", "LP / GP", C_BLACK)
 
         wf_ins = [
             f"LP 수취 {total_lp:,.0f}M, MOIC {lp_moic:.2f}x 달성",
             f"{'LP 원금 이상 회수 완료' if lp_moic >= 1.0 else 'LP 원금 미달, 추가 회수 필요'}",
         ]
-        _insight_panel(s, x3, ky, ins_w, Inches(1.0), "DISTRIBUTION", wf_ins)
+        _insight_panel(s, x3, ky, ins_w, Inches(1.15), "DISTRIBUTION", wf_ins)
         slide_labels.append("Waterfall")
 
     # ════════════════════════════════════════════════
@@ -1654,22 +1655,32 @@ def generate_lp_pptx(
 
     fp4_y = BODY_Y + Inches(0.20)
 
-    # 좌측: 조회 우선순위 (3단계 Fallback) — process_list
-    _shape(s, M_LEFT, fp4_y, Inches(3.85), Inches(1.75), C_WHITE, C_BORDER, radius=True)
-    _txt(s, M_LEFT + Inches(0.14), fp4_y + Inches(0.10), Inches(3.57), Inches(0.22),
+    # 좌측: 조회 우선순위 (3단계 Fallback) — 박스 직접 배치 (process_list 오버플로 방지)
+    _shape(s, M_LEFT, fp4_y, Inches(3.85), Inches(1.90), C_WHITE, C_BORDER, radius=True)
+    _txt(s, M_LEFT + Inches(0.14), fp4_y + Inches(0.10), Inches(3.57), Inches(0.20),
          "조회 우선순위 — 3단계 Fallback", sz=10.5, color=C_BLACK, bold=True)
-    _shape(s, M_LEFT + Inches(0.14), fp4_y + Inches(0.38), Inches(3.57), Pt(2), C_PRIMARY)
-    _process_list(s, M_LEFT + Inches(0.14), fp4_y + Inches(0.46), Inches(3.57),
-                  ["① 상장사 → 네이버 금융 시가총액 × 지분율",
-                   "② 비상장사(또는 ①실패) → DART 매출 × 섹터P/S × 지분율",
-                   "③ 둘 다 실패 → None (수동 입력값 유지)"],
-                  box_h=Inches(0.36), gap=Inches(0.06), title="우선순위")
-    _txt(s, M_LEFT + Inches(0.14), fp4_y + Inches(1.60), Inches(3.57), Inches(0.14),
+    _shape(s, M_LEFT + Inches(0.14), fp4_y + Inches(0.36), Inches(3.57), Pt(2), C_PRIMARY)
+    _fb_items = [
+        ("①", "상장사 (최우선)",       "네이버 금융 시가총액 × 지분율"),
+        ("②", "비상장사 / ①실패",      "DART 매출 × 섹터 P/S 배수 × 지분율"),
+        ("③", "둘 다 실패",            "None → 사용자 수동 입력값 유지"),
+    ]
+    for _fi, (_fn, _ft, _fd) in enumerate(_fb_items):
+        _fy = fp4_y + Inches(0.46) + _fi * Inches(0.40)
+        _shape(s, M_LEFT + Inches(0.14), _fy, Inches(3.57), Inches(0.34), C_XPALE, C_BORDER, radius=True)
+        _shape(s, M_LEFT + Inches(0.18), _fy + Inches(0.03), Inches(0.26), Inches(0.26), C_PRIMARY, radius=True)
+        _txt(s, M_LEFT + Inches(0.18), _fy + Inches(0.05), Inches(0.26), Inches(0.22),
+             _fn, sz=9, color=C_WHITE, bold=True, align=PP_ALIGN.CENTER)
+        _txt(s, M_LEFT + Inches(0.52), _fy + Inches(0.03), Inches(3.0), Inches(0.14),
+             _ft, sz=8.5, color=C_BLACK, bold=True)
+        _txt(s, M_LEFT + Inches(0.52), _fy + Inches(0.18), Inches(3.0), Inches(0.14),
+             _fd, sz=8, color=C_DARK)
+    _txt(s, M_LEFT + Inches(0.14), fp4_y + Inches(1.72), Inches(3.57), Inches(0.14),
          "병렬 처리: ThreadPoolExecutor(max_workers=6) — 8개사 기준 약 5~10초",
          sz=7, color=C_GREY)
 
     # 중앙: 상장사 방식
-    _formula_box(s, M_LEFT + Inches(4.05), fp4_y, Inches(3.85), Inches(1.75),
+    _formula_box(s, M_LEFT + Inches(4.05), fp4_y, Inches(3.85), Inches(1.90),
                  "B-1. 상장사 — 네이버 금융 시총",
                  "현재가치 = 시총(억) × 10,000 × 지분율% / 100 / 1,000,000",
                  "EX. 시총 5,000억, 지분율 3%\n→ 5,000 × 10,000 × 0.03 / 1,000,000 = 150백만원",
@@ -1684,7 +1695,7 @@ def generate_lp_pptx(
                  "32개 섹터 P/S배수 사전 정의(미정의=3.0x). EV/EBITDA=P/S×1.5(영업익 양수), P/E=MAX(P/S×3,10)(순이익 양수)")
 
     # 하단: 섹터 P/S 배수 샘플 테이블 + 투명성 설명
-    fp4_y2 = fp4_y + Inches(1.85)
+    fp4_y2 = fp4_y + Inches(2.05)   # 상단 박스 높이 1.90 + 여백
 
     # 주요 섹터 P/S 배수 샘플 (일부)
     sec_sample = [

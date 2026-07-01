@@ -1690,9 +1690,9 @@ span[data-baseweb="tag"] svg { fill:#999 !important; width:12px !important; }
                                mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
                                use_container_width=True)
 
-        # CSV / Excel 데이터 내보내기
-        with st.expander("데이터 내보내기 (CSV / Excel)"):
-            st.caption("분석 결과를 CSV 또는 실무용 Excel 워크북으로 내보냅니다.")
+        # Excel 데이터 내보내기
+        with st.expander("데이터 내보내기 (Excel)"):
+            st.caption("분석 결과를 실무용 Excel 워크북으로 내보냅니다. PPT 선택 섹션과 자동 연동됩니다.")
             _full = result_df.copy()
             _full["투자기간(년)"] = ((pd.to_datetime(_full["기준일"]) - pd.to_datetime(_full["투자일"])).dt.days / 365.25).round(1)
             _full["투자비중(%)"] = (_full["투자금액_백만원"] / _full["투자금액_백만원"].sum() * 100).round(1)
@@ -1715,24 +1715,8 @@ span[data-baseweb="tag"] svg { fill:#999 !important; width:12px !important; }
             ).round(2).reset_index()
             _sec_csv["섹터비중(%)"] = (_sec_csv["총투자백만"] / _sec_csv["총투자백만"].sum() * 100).round(1)
 
-            st.markdown("###### 개별 CSV")
-            c1, c2 = st.columns(2)
-            with c1:
-                st.download_button("포트폴리오 전체", _export.to_csv(index=False).encode("utf-8-sig"),
-                                   file_name="portfolio_full.csv", mime="text/csv", use_container_width=True)
-            with c2:
-                st.download_button("섹터 상세 분석", _sec_csv.to_csv(index=False).encode("utf-8-sig"),
-                                   file_name="sector_detail.csv", mime="text/csv", use_container_width=True)
-            if st.session_state.get("jcurve_trend") is not None:
-                st.download_button("J-Curve 데이터", st.session_state["jcurve_trend"].to_csv(index=False).encode("utf-8-sig"),
-                                   file_name="jcurve.csv", mime="text/csv", use_container_width=True)
-            if st.session_state.get("sensitivity_matrix_df") is not None:
-                st.download_button("IRR Sensitivity", st.session_state["sensitivity_matrix_df"].to_csv().encode("utf-8-sig"),
-                                   file_name="irr_sensitivity.csv", mime="text/csv", use_container_width=True)
-
-            st.markdown("---")
             st.markdown("###### 전체 데이터 패키지 (Excel, 실무용)")
-            st.caption("원본 데이터, 계산 지표, 계산식 설명서, 섹터 요약을 하나의 워크북(시트별 구분)으로 제공합니다. 실사·감사 대응 시 활용하세요.")
+            st.caption("원본 데이터, 계산 지표+설명서, 섹터 요약 등을 하나의 워크북으로 제공합니다. 실사·감사 대응 시 활용하세요.")
 
             # ── 원본 데이터 ──
             _raw_cols = [c for c in ["회사명","섹터","투자단계","투자일","기준일",
