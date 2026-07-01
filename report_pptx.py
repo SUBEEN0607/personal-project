@@ -1578,7 +1578,7 @@ def generate_lp_pptx(
     # Appendix p3: 시뮬레이터 계산 로직
     # ════════════════════════════════════════════════
     s = prs.slides.add_slide(prs.slide_layouts[6]); _bg(s)
-    _header(s, "Appendix", "시뮬레이터 계산 로직 — simulate_exit & 목표 IRR 역산",
+    _header(s, "Appendix · simulator.py", "시뮬레이터 계산 로직",
             "PPTX 시나리오 슬라이드와 Streamlit Analysis 탭이 동일한 함수를 공유하여 화면의 숫자와 보고서 숫자가 항상 일치합니다.")
 
     fp3_w = Inches(3.85); fp3_h = Inches(1.85); fp3_gap = Inches(0.20)
