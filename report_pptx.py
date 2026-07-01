@@ -1650,52 +1650,57 @@ def generate_lp_pptx(
     # Appendix p4: 밸류에이션 자동 산출 로직
     # ════════════════════════════════════════════════
     s = prs.slides.add_slide(prs.slide_layouts[6]); _bg(s)
-    _header(s, "Appendix", "밸류에이션 자동 산출 로직 — valuation_fetcher.py",
-            "상장사는 네이버 금융 시총, 비상장사는 DART 재무 × 섹터 P/S 배수로 현재가치를 자동 산출합니다 (32개 섹터 사전 정의).")
+    # 제목 짧게 — "valuation_fetcher.py"는 섹션 라벨로 이동
+    _header(s, "Appendix · valuation_fetcher.py", "밸류에이션 자동 산출 로직",
+            "상장사는 네이버 금융 시총, 비상장사는 DART 재무 × 섹터 P/S 배수로 현재가치를 자동 산출합니다 (32개 섹터 정의).")
 
-    fp4_y = BODY_Y + Inches(0.20)
+    fp4_y = BODY_Y + Inches(0.15)
 
-    # 좌측: 조회 우선순위 (3단계 Fallback) — 박스 직접 배치 (process_list 오버플로 방지)
-    _shape(s, M_LEFT, fp4_y, Inches(3.85), Inches(1.90), C_WHITE, C_BORDER, radius=True)
+    # 좌측: 조회 우선순위 (3단계 Fallback) — 직접 배치
+    _fp4_bh = Inches(0.38)   # 아이템 박스 높이
+    _fp4_gap = Inches(0.07)  # 아이템 간격
+    _fp4_total = Inches(0.42) + 3 * (_fp4_bh + _fp4_gap) + Inches(0.26)  # 컨테이너 전체 높이
+    _shape(s, M_LEFT, fp4_y, Inches(3.85), _fp4_total, C_WHITE, C_BORDER, radius=True)
     _txt(s, M_LEFT + Inches(0.14), fp4_y + Inches(0.10), Inches(3.57), Inches(0.20),
          "조회 우선순위 — 3단계 Fallback", sz=10.5, color=C_BLACK, bold=True)
     _shape(s, M_LEFT + Inches(0.14), fp4_y + Inches(0.36), Inches(3.57), Pt(2), C_PRIMARY)
     _fb_items = [
-        ("①", "상장사 (최우선)",       "네이버 금융 시가총액 × 지분율"),
-        ("②", "비상장사 / ①실패",      "DART 매출 × 섹터 P/S 배수 × 지분율"),
-        ("③", "둘 다 실패",            "None → 사용자 수동 입력값 유지"),
+        ("①", "상장사 (최우선)",   "네이버 금융 시총 × 지분율"),
+        ("②", "비상장사 / ①실패", "DART 매출 × P/S배수 × 지분율"),
+        ("③", "둘 다 실패",       "None → 수동 입력값 유지"),
     ]
     for _fi, (_fn, _ft, _fd) in enumerate(_fb_items):
-        _fy = fp4_y + Inches(0.46) + _fi * Inches(0.40)
-        _shape(s, M_LEFT + Inches(0.14), _fy, Inches(3.57), Inches(0.34), C_XPALE, C_BORDER, radius=True)
-        _shape(s, M_LEFT + Inches(0.18), _fy + Inches(0.03), Inches(0.26), Inches(0.26), C_PRIMARY, radius=True)
-        _txt(s, M_LEFT + Inches(0.18), _fy + Inches(0.05), Inches(0.26), Inches(0.22),
+        _fy = fp4_y + Inches(0.46) + _fi * (_fp4_bh + _fp4_gap)
+        _shape(s, M_LEFT + Inches(0.14), _fy, Inches(3.57), _fp4_bh, C_XPALE, C_BORDER, radius=True)
+        _shape(s, M_LEFT + Inches(0.18), _fy + Inches(0.05), Inches(0.26), Inches(0.26), C_PRIMARY, radius=True)
+        _txt(s, M_LEFT + Inches(0.18), _fy + Inches(0.07), Inches(0.26), Inches(0.22),
              _fn, sz=9, color=C_WHITE, bold=True, align=PP_ALIGN.CENTER)
-        _txt(s, M_LEFT + Inches(0.52), _fy + Inches(0.03), Inches(3.0), Inches(0.14),
+        _txt(s, M_LEFT + Inches(0.52), _fy + Inches(0.05), Inches(3.0), Inches(0.15),
              _ft, sz=8.5, color=C_BLACK, bold=True)
-        _txt(s, M_LEFT + Inches(0.52), _fy + Inches(0.18), Inches(3.0), Inches(0.14),
+        _txt(s, M_LEFT + Inches(0.52), _fy + Inches(0.21), Inches(3.0), Inches(0.14),
              _fd, sz=8, color=C_DARK)
-    _txt(s, M_LEFT + Inches(0.14), fp4_y + Inches(1.72), Inches(3.57), Inches(0.14),
+    _parallel_y = fp4_y + Inches(0.46) + 3 * (_fp4_bh + _fp4_gap) + Inches(0.04)
+    _txt(s, M_LEFT + Inches(0.14), _parallel_y, Inches(3.57), Inches(0.18),
          "병렬 처리: ThreadPoolExecutor(max_workers=6) — 8개사 기준 약 5~10초",
          sz=7, color=C_GREY)
 
-    # 중앙: 상장사 방식
-    _formula_box(s, M_LEFT + Inches(4.05), fp4_y, Inches(3.85), Inches(1.90),
+    # 중앙: 상장사 방식 — 수식 줄여서 한 줄에 맞춤
+    _formula_box(s, M_LEFT + Inches(4.05), fp4_y, Inches(3.85), _fp4_total,
                  "B-1. 상장사 — 네이버 금융 시총",
-                 "현재가치 = 시총(억) × 10,000 × 지분율% / 100 / 1,000,000",
-                 "EX. 시총 5,000억, 지분율 3%\n→ 5,000 × 10,000 × 0.03 / 1,000,000 = 150백만원",
-                 "네이버 금융 HTML 파싱(BeautifulSoup). 구조 변경 시 ②로 자동 fallback")
+                 "현재가치(M) = 시총(억) × 100 × 지분율%",
+                 "EX. 시총 5,000억, 지분율 3%\n→ 5,000 × 100 × 0.03 = 15,000백만원",
+                 "네이버 금융 HTML 파싱(BeautifulSoup) — 구조 변경 시 ②로 자동 fallback")
 
-    # 우측: 비상장사 방식
-    _formula_box(s, M_LEFT + Inches(8.10), fp4_y, Inches(3.85), Inches(1.75),
+    # 우측: 비상장사 방식 — 높이 통일
+    _formula_box(s, M_LEFT + Inches(8.10), fp4_y, Inches(3.85), _fp4_total,
                  "B-2. 비상장사 — 섹터 멀티플 3방법 평균",
-                 "평균가치 = (P/S + EV/EBITDA? + P/E?) / 사용가능수",
-                 "EX. 바이오(P/S=8.0x), 매출 100억, 영업이익 20억, 순이익 10억\n"
-                 "→ P/S=800억 / EV/EBITDA=240억 / P/E=240억 → 평균 426.7억",
-                 "32개 섹터 P/S배수 사전 정의(미정의=3.0x). EV/EBITDA=P/S×1.5(영업익 양수), P/E=MAX(P/S×3,10)(순이익 양수)")
+                 "평균가치 = (P/S + EV/EBITDA? + P/E?) / 방법수",
+                 "EX. 바이오(P/S 8.0x), 매출 100억, 영업이익 20억, 순이익 10억\n"
+                 "P/S=800억 / EV/EBITDA=240억 / P/E=240억 → 평균 426.7억",
+                 "32개 섹터 P/S배수 정의(미정의=3.0x) / EV/EBITDA=P/S×1.5 / P/E=MAX(P/S×3, 10)")
 
     # 하단: 섹터 P/S 배수 샘플 테이블 + 투명성 설명
-    fp4_y2 = fp4_y + Inches(2.05)   # 상단 박스 높이 1.90 + 여백
+    fp4_y2 = fp4_y + _fp4_total + Inches(0.15)   # 상단 박스 아래 여백
 
     # 주요 섹터 P/S 배수 샘플 (일부)
     sec_sample = [
